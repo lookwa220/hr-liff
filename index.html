@@ -29,14 +29,12 @@
     .menu-icon { font-size: 28px; margin-bottom: 8px; }
     .menu-text { font-size: 14px; font-weight: bold; }
 
-    /* โครงสร้าง Module Box สำหรับใช้ร่วมกัน (ยื่นลา, ดูประวัติ) */
     .module-box { display: none; text-align: left; margin-top: 15px; animation: fadeIn 0.3s; }
     @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
     .module-header { display: flex; align-items: center; justify-content: space-between; border-bottom: 2px solid #eee; padding-bottom: 10px; margin-bottom: 15px; }
     .module-header h3 { margin: 0; color: #333; }
     .btn-close { background: none; border: none; font-size: 24px; cursor: pointer; color: #999; padding: 0; }
     
-    /* CSS ฟอร์มยื่นลา */
     .form-group { margin-bottom: 15px; }
     .form-group label { display: block; font-size: 14px; font-weight: bold; margin-bottom: 5px; color: #555; }
     .form-group select, .form-group input[type="datetime-local"], .form-group textarea, .form-group input[type="file"] { 
@@ -44,11 +42,9 @@
     }
     .form-group textarea { resize: vertical; height: 80px; }
     
-    /* CSS ปุ่มกด */
     .btn-submit { width: 100%; background: #06C755; color: white; border: none; padding: 12px; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; }
     .btn-cancel { width: 100%; background: #e0e0e0; color: #555; border: none; padding: 12px; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; margin-top: 10px; }
 
-    /* CSS สำหรับกล่องประวัติการลา */
     .history-card { border: 1px solid #e0e0e0; border-radius: 8px; padding: 12px; margin-bottom: 10px; background: white; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
     .history-header { display: flex; justify-content: space-between; margin-bottom: 8px; }
     .history-type { font-weight: bold; color: #333; font-size: 15px; }
@@ -103,7 +99,6 @@
       </div>
     </div>
 
-    <!-- โมดูล: ยื่นลางาน -->
     <div id="leaveModule" class="module-box">
       <div class="module-header">
         <h3>📅 ยื่นลางาน</h3>
@@ -132,16 +127,12 @@
       <button class="btn-cancel" onclick="closeModule()">กลับหน้าหลัก</button>
     </div>
 
-    <!-- ========================================= -->
-    <!-- HTML ใหม่: โมดูลวันลาคงเหลือ & ประวัติ -->
-    <!-- ========================================= -->
     <div id="quotaModule" class="module-box">
       <div class="module-header">
         <h3>📊 วันลาคงเหลือ</h3>
         <button class="btn-close" onclick="closeModule()">✖</button>
       </div>
       
-      <!-- โชว์ตัวเลขโควต้า -->
       <div style="text-align: center; padding: 20px; background: #e8f5e9; border-radius: 12px; margin-bottom: 20px;">
         <div style="font-size: 14px; color: #2e7d32; font-weight: bold;">วันลาคงเหลือของปีนี้</div>
         <div style="font-size: 42px; font-weight: bold; color: #06C755; margin: 5px 0;">
@@ -150,10 +141,8 @@
         <div style="font-size: 14px; color: #2e7d32;">วัน</div>
       </div>
 
-      <!-- โชว์ประวัติ -->
       <h4 style="color: #333; margin-bottom: 10px; border-bottom: 1px solid #ddd; padding-bottom: 5px;">ประวัติการยื่นลาล่าสุด</h4>
       <div id="historyListContainer">
-        <!-- ข้อมูลประวัติจะถูกโหลดมาใส่ตรงนี้ด้วย Javascript -->
         <p style="text-align:center; color:#888; font-size:14px;">กำลังโหลดประวัติการลา...</p>
       </div>
 
@@ -250,7 +239,6 @@
     }
 
     function openModule(moduleName) {
-      // ซ่อนทุกหน้าก่อน
       document.getElementById("mainMenu").style.display = "none";
       document.getElementById("leaveModule").style.display = "none";
       document.getElementById("quotaModule").style.display = "none";
@@ -259,10 +247,10 @@
         document.getElementById("leaveModule").style.display = "block";
       } else if (moduleName === 'quota') {
         document.getElementById("quotaModule").style.display = "block";
-        loadLeaveHistory(); // เรียกฟังก์ชันโหลดข้อมูลประวัติ
+        loadLeaveHistory(); 
       } else {
         alert("กำลังเปิดเมนู: " + moduleName + "\n(จะพัฒนาในขั้นตอนต่อไปครับ)");
-        document.getElementById("mainMenu").style.display = "block"; // เปิดกลับคืน
+        document.getElementById("mainMenu").style.display = "block"; 
       }
     }
 
@@ -309,8 +297,24 @@
     }
 
     // =========================================
-    // JavaScript ใหม่: ฟังก์ชันดึงประวัติการลา
+    // ฟังก์ชันช่วยแปลงวันที่ให้เป็นภาษาไทยแบบสวยงาม
     // =========================================
+    function formatThaiDateTime(dateString) {
+      if (!dateString) return "-";
+      const d = new Date(dateString);
+      if (isNaN(d.getTime())) return dateString; // ถ้าแปลงไม่ได้ ให้คืนค่าเดิมกลับไป
+      
+      const day = d.getDate();
+      const months = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
+      const month = months[d.getMonth()];
+      const year = d.getFullYear() + 543; // แปลงเป็นปี พ.ศ.
+      
+      const hours = String(d.getHours()).padStart(2, '0');
+      const minutes = String(d.getMinutes()).padStart(2, '0');
+      
+      return `${day} ${month} ${year} เวลา ${hours}:${minutes} น.`;
+    }
+
     function loadLeaveHistory() {
       const listDiv = document.getElementById("historyListContainer");
       listDiv.innerHTML = "<p style='text-align:center; color:#888; font-size:14px;'>กำลังดึงข้อมูลประวัติการลา...</p>";
@@ -321,10 +325,8 @@
       })
       .then(function(result) {
         if(result && result.success) {
-          // 1. อัปเดตตัวเลขวันลาคงเหลือ
           document.getElementById("displayQuotaValue").innerText = result.quota;
           
-          // 2. อัปเดตประวัติการลา
           if(result.history.length === 0) {
             listDiv.innerHTML = "<p style='text-align:center; color:#888; font-size:14px;'>ยังไม่มีประวัติการลางาน</p>";
             return;
@@ -332,10 +334,13 @@
 
           let html = "";
           result.history.forEach(item => {
-            // กำหนดสีของป้ายสถานะ
             let statusClass = "status-wait";
             if(item.status === "อนุมัติ") statusClass = "status-approve";
             if(item.status === "ไม่อนุมัติ") statusClass = "status-reject";
+
+            // เรียกใช้ฟังก์ชันแปลงวันที่ตรงนี้
+            const startStr = formatThaiDateTime(item.start);
+            const endStr = formatThaiDateTime(item.end);
 
             html += `
               <div class="history-card">
@@ -343,8 +348,8 @@
                   <span class="history-type">${item.type}</span>
                   <span class="history-status ${statusClass}">${item.status}</span>
                 </div>
-                <div class="history-detail"><b>เริ่ม:</b> ${item.start}</div>
-                <div class="history-detail"><b>สิ้นสุด:</b> ${item.end}</div>
+                <div class="history-detail"><b>เริ่ม:</b> ${startStr}</div>
+                <div class="history-detail"><b>สิ้นสุด:</b> ${endStr}</div>
                 ${item.reason ? `<div class="history-detail" style="color:#999; margin-top:5px; border-top:1px dashed #eee; padding-top:5px;"><b>เหตุผล:</b> ${item.reason}</div>` : ''}
               </div>
             `;
