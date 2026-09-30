@@ -9,6 +9,7 @@
   <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 
   <style>
+    /* CSS พื้นฐาน */
     body { font-family: 'Sarabun', Arial, sans-serif; background: #f5f5f5; margin: 0; padding: 10px; text-align: center; }
     .card { max-width: 420px; margin: 20px auto; background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
     
@@ -21,37 +22,37 @@
 
     #registerBox { display: none; margin-top: 25px; text-align: left; background: #f9f9f9; padding: 15px; border-radius: 10px;}
     #registerBox h3 { margin-top: 0; color: #333; }
-    input { width: 100%; box-sizing: border-box; padding: 12px; font-size: 16px; border: 1px solid #ccc; border-radius: 8px; margin-top: 10px; }
+    input[type="text"] { width: 100%; box-sizing: border-box; padding: 12px; font-size: 16px; border: 1px solid #ccc; border-radius: 8px; margin-top: 10px; }
     button.btn-register, button.btn-retry { width: 100%; padding: 12px; margin-top: 15px; border: none; border-radius: 8px; background: #06C755; color: white; font-size: 16px; font-weight: bold; cursor: pointer; }
     button.btn-retry { background: #ff9800; display: none; }
     button:disabled { background: #aaa; cursor: not-allowed; }
 
     #mainMenu { display: none; margin-top: 20px; }
-    .grid-container {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 15px;
-      margin-top: 15px;
-    }
-    .menu-btn {
-      background: #f0f7f4;
-      border: 1px solid #d1e8df;
-      padding: 20px 10px;
-      border-radius: 12px;
-      cursor: pointer;
-      text-decoration: none;
-      color: #333;
-      transition: all 0.2s ease;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-    }
-    .menu-btn:active { background: #e0f0e9; transform: scale(0.98); }
+    .grid-container { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin-top: 15px; }
+    .menu-btn { background: #f0f7f4; border: 1px solid #d1e8df; padding: 20px 10px; border-radius: 12px; cursor: pointer; color: #333; display: flex; flex-direction: column; align-items: center; justify-content: center; }
     .menu-icon { font-size: 28px; margin-bottom: 8px; }
     .menu-text { font-size: 14px; font-weight: bold; }
 
-    .small { font-size: 10px; color: #ccc; word-break: break-all; margin-top: 30px; }
+    /* ========================================= */
+    /* CSS ใหม่: โมดูลยื่นลางาน */
+    /* ========================================= */
+    .module-box { display: none; text-align: left; margin-top: 15px; animation: fadeIn 0.3s; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    .module-header { display: flex; align-items: center; justify-content: space-between; border-bottom: 2px solid #eee; padding-bottom: 10px; margin-bottom: 15px; }
+    .module-header h3 { margin: 0; color: #333; }
+    .btn-close { background: none; border: none; font-size: 24px; cursor: pointer; color: #999; padding: 0; }
+    
+    .form-group { margin-bottom: 15px; }
+    .form-group label { display: block; font-size: 14px; font-weight: bold; margin-bottom: 5px; color: #555; }
+    .form-group select, .form-group input[type="date"], .form-group textarea, .form-group input[type="file"] { 
+      width: 100%; box-sizing: border-box; padding: 10px; border: 1px solid #ccc; border-radius: 6px; font-family: inherit; font-size: 15px; background: white;
+    }
+    .form-group textarea { resize: vertical; height: 80px; }
+    
+    .btn-submit { width: 100%; background: #06C755; color: white; border: none; padding: 12px; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; }
+    .btn-cancel { width: 100%; background: #e0e0e0; color: #555; border: none; padding: 12px; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; margin-top: 10px; }
+
+    .small { font-size: 10px; color: #ccc; word-break: break-all; margin-top: 30px; text-align: center; }
   </style>
 </head>
 
@@ -67,6 +68,7 @@
       <div class="emp-id" id="displayEmpId"></div>
     </div>
 
+    <!-- กล่องลงทะเบียน -->
     <div id="registerBox">
       <h3>👋 ยินดีต้อนรับ</h3>
       <p style="font-size: 14px; color:#555; margin-bottom: 5px;">กรุณายืนยันตัวตนด้วยรหัสพนักงานของคุณ</p>
@@ -74,9 +76,9 @@
       <button id="registerBtn" class="btn-register" onclick="registerEmployee()">ยืนยันตัวตน</button>
     </div>
 
-    <!-- ปุ่มลองใหม่กรณีเชื่อมต่อช้า -->
     <button id="retryBtn" class="btn-retry" onclick="checkEmployee()">🔄 ลองใหม่อีกครั้ง</button>
 
+    <!-- เมนูหลัก -->
     <div id="mainMenu">
       <hr style="border: 0; border-top: 1px solid #eee; margin-bottom: 20px;">
       <div class="grid-container">
@@ -89,7 +91,7 @@
           <div class="menu-text">วันลาคงเหลือ</div>
         </div>
         <div class="menu-btn" onclick="openModule('ot')">
-          <div class="menu-icon">⏱️️</div>
+          <div class="menu-icon">⏱</div>
           <div class="menu-text">ขอทำโอที (OT)</div>
         </div>
         <div class="menu-btn" onclick="openModule('time')">
@@ -97,6 +99,50 @@
           <div class="menu-text">เช็คเวลาเข้า-ออก</div>
         </div>
       </div>
+    </div>
+
+    <!-- ========================================= -->
+    <!-- HTML ใหม่: ฟอร์มยื่นลางาน -->
+    <!-- ========================================= -->
+    <div id="leaveModule" class="module-box">
+      <div class="module-header">
+        <h3>📅 ยื่นลางาน</h3>
+        <button class="btn-close" onclick="closeModule()">✖</button>
+      </div>
+      
+      <div class="form-group">
+        <label>ประเภทการลา</label>
+        <select id="leaveType">
+          <option value="">-- เลือกประเภทการลา --</option>
+          <option value="ลาป่วย">ลาป่วย</option>
+          <option value="ลากิจ">ลากิจ</option>
+          <option value="ลาพักร้อน">ลาพักร้อน</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>วันที่เริ่มต้น</label>
+        <input type="date" id="leaveStartDate">
+      </div>
+
+      <div class="form-group">
+        <label>วันที่สิ้นสุด</label>
+        <input type="date" id="leaveEndDate">
+      </div>
+
+      <div class="form-group">
+        <label>เหตุผลการลา</label>
+        <textarea id="leaveReason" placeholder="ระบุรายละเอียด..."></textarea>
+      </div>
+
+      <div class="form-group">
+        <label>แนบรูปใบรับรองแพทย์ (ถ้ามี)</label>
+        <input type="file" id="leaveFile" accept="image/*">
+        <p style="font-size: 11px; color: #888; margin-top: 5px;">*ระบบอัปโหลดไฟล์จะทำงานในสเต็ปถัดไป</p>
+      </div>
+
+      <button class="btn-submit" onclick="submitLeaveUI()">ตรวจสอบข้อมูล (ทดสอบ UI)</button>
+      <button class="btn-cancel" onclick="closeModule()">กลับหน้าหลัก</button>
     </div>
 
     <div id="lineUserIdDisplay" class="small"></div>
@@ -130,7 +176,6 @@
         checkEmployee();
       } catch (error) {
         status.innerHTML = "❌ เกิดข้อผิดพลาด<br>" + error.message;
-        console.error(error);
       }
     }
 
@@ -139,7 +184,7 @@
       const retryBtn = document.getElementById("retryBtn");
       
       status.style.display = "block";
-      status.innerText = "กำลังเชื่อมต่อฐานข้อมูล HR (กำลังปลุกเซิร์ฟเวอร์)...";
+      status.innerText = "กำลังเชื่อมต่อฐานข้อมูล HR...";
       retryBtn.style.display = "none";
 
       jsonpRequest({
@@ -160,7 +205,7 @@
       })
       .catch(function(error) {
         status.innerHTML = "❌ เชื่อมต่อฐานข้อมูลไม่ได้<br>" + error.message;
-        retryBtn.style.display = "block"; // แสดงปุ่มให้กดลองใหม่ได้ทันทีโดยไม่ต้องเคลียร์แคช
+        retryBtn.style.display = "block"; 
       });
     }
 
@@ -208,25 +253,52 @@
       document.getElementById("mainMenu").style.display = "block";
     }
 
+    // =========================================
+    // JavaScript ใหม่: ควบคุมการแสดงผลฟอร์ม
+    // =========================================
     function openModule(moduleName) {
-      alert("กำลังเปิดเมนู: " + moduleName + "\n(จะพัฒนาในขั้นตอนต่อไปครับ)");
+      if(moduleName === 'leave') {
+        // ซ่อนเมนูหลัก และแสดงฟอร์มยื่นลา
+        document.getElementById("mainMenu").style.display = "none";
+        document.getElementById("leaveModule").style.display = "block";
+      } else {
+        alert("กำลังเปิดเมนู: " + moduleName + "\n(จะพัฒนาในขั้นตอนต่อไปครับ)");
+      }
     }
 
-    // JSONP พร้อมตัวป้องกันแคชและเพิ่มเวลา Timeout เป็น 35 วินาที
+    function closeModule() {
+      // ซ่อนโมดูลยื่นลา และแสดงเมนูหลักกลับมา
+      document.getElementById("leaveModule").style.display = "none";
+      document.getElementById("mainMenu").style.display = "block";
+    }
+
+    function submitLeaveUI() {
+      // ดึงค่ามาตรวจสอบความครบถ้วน
+      const type = document.getElementById("leaveType").value;
+      const start = document.getElementById("leaveStartDate").value;
+      const end = document.getElementById("leaveEndDate").value;
+
+      if(!type || !start || !end) {
+        alert("กรุณาเลือกประเภทการลา และระบุวันที่ให้ครบถ้วน");
+        return;
+      }
+      
+      alert("✅ ตรวจสอบข้อมูลหน้า UI เรียบร้อย!\n(การส่งข้อมูลบันทึกลง Google Sheets และ Upload รูป จะทำในโค้ดฝั่ง Backend ขั้นตอนต่อไปครับ)");
+    }
+
+    // JSONP Request
     function jsonpRequest(params) {
       return new Promise(function(resolve, reject) {
         const callbackName = "jsonpCallback_" + Date.now() + "_" + Math.floor(Math.random() * 100000);
         const script = document.createElement("script");
         const query = new URLSearchParams(params);
         
-        // ป้องกันแคชด้วยการแนบ Timestamp ไปทุกครั้ง
         query.append("_t", Date.now());
         query.append("callback", callbackName);
 
-        // ขยายเวลา Timeout เป็น 35 วินาที (รองรับตอน GAS หลับแล้วตื่นช้า)
         const timeout = setTimeout(function() {
           cleanup();
-          reject(new Error("เชื่อมต่อเซิร์ฟเวอร์หมดเวลา (เซิร์ฟเวอร์อาจกำลังตื่น ช้ากว่าปกติ ลองกดปุ่มด้านล่างอีกครั้ง)"));
+          reject(new Error("เชื่อมต่อเซิร์ฟเวอร์หมดเวลา (กดปุ่มลองใหม่อีกครั้ง)"));
         }, 35000);
 
         window[callbackName] = function(data) {
