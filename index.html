@@ -3,365 +3,184 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
   <title>HR Leave System</title>
 
   <!-- LINE LIFF SDK -->
-  <script
-    charset="utf-8"
-    src="https://static.line-scdn.net/liff/edge/2/sdk.js">
-  </script>
+  <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #f5f5f5;
-      margin: 0;
-      padding: 20px;
-      text-align: center;
-    }
+    /* CSS พื้นฐาน */
+    body { font-family: 'Sarabun', Arial, sans-serif; background: #f5f5f5; margin: 0; padding: 10px; text-align: center; }
+    .card { max-width: 420px; margin: 20px auto; background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+    
+    /* ส่วนรูปโปรไฟล์ */
+    #profileImage { width: 90px; height: 90px; border-radius: 50%; display: none; margin: 10px auto; object-fit: cover; border: 3px solid #06C755;}
+    #status { margin-top: 10px; font-size: 14px; color: #666;}
+    
+    /* กล่องข้อมูลพนักงาน */
+    #employeeInfo { display: none; margin-top: 15px; }
+    .emp-name { font-size: 20px; font-weight: bold; margin: 5px 0; color: #333; }
+    .emp-id { font-size: 14px; color: #888; margin-bottom: 15px;}
 
-    .card {
-      max-width: 420px;
-      margin: 30px auto;
-      background: white;
-      padding: 25px;
-      border-radius: 15px;
-      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-    }
+    /* กล่องลงทะเบียน */
+    #registerBox { display: none; margin-top: 25px; text-align: left; background: #f9f9f9; padding: 15px; border-radius: 10px;}
+    #registerBox h3 { margin-top: 0; color: #333; }
+    input { width: 100%; box-sizing: border-box; padding: 12px; font-size: 16px; border: 1px solid #ccc; border-radius: 8px; margin-top: 10px; }
+    button.btn-register { width: 100%; padding: 12px; margin-top: 15px; border: none; border-radius: 8px; background: #06C755; color: white; font-size: 16px; font-weight: bold; cursor: pointer; }
+    button:disabled { background: #aaa; cursor: not-allowed; }
 
-    #profileImage {
-      width: 100px;
-      height: 100px;
-      border-radius: 50%;
-      display: none;
-      margin: 15px auto;
-      object-fit: cover;
-    }
-
-    #status {
+    /* ========================================= */
+    /* CSS ใหม่: โครงสร้างเมนูหลัก (Grid Menu) */
+    /* ========================================= */
+    #mainMenu { display: none; margin-top: 20px; }
+    .grid-container {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 15px;
       margin-top: 15px;
-      font-size: 16px;
-      line-height: 1.6;
     }
-
-    #employeeInfo {
-      display: none;
-      margin-top: 20px;
-      line-height: 1.8;
-      font-size: 17px;
-    }
-
-    #registerBox {
-      display: none;
-      margin-top: 25px;
-    }
-
-    input {
-      width: 100%;
-      box-sizing: border-box;
-      padding: 12px;
-      font-size: 16px;
-      border: 1px solid #ccc;
-      border-radius: 8px;
-      margin-top: 10px;
-    }
-
-    button {
-      width: 100%;
-      padding: 12px;
-      margin-top: 12px;
-      border: none;
-      border-radius: 8px;
-      background: #06C755;
-      color: white;
-      font-size: 16px;
+    .menu-btn {
+      background: #f0f7f4;
+      border: 1px solid #d1e8df;
+      padding: 20px 10px;
+      border-radius: 12px;
       cursor: pointer;
+      text-decoration: none;
+      color: #333;
+      transition: all 0.2s ease;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
     }
+    .menu-btn:active { background: #e0f0e9; transform: scale(0.98); }
+    .menu-icon { font-size: 28px; margin-bottom: 8px; }
+    .menu-text { font-size: 14px; font-weight: bold; }
 
-    button:disabled {
-      background: #aaa;
-      cursor: not-allowed;
-    }
-
-    .small {
-      font-size: 12px;
-      color: #777;
-      word-break: break-all;
-      margin-top: 16px;
-    }
+    .small { font-size: 10px; color: #ccc; word-break: break-all; margin-top: 30px; }
   </style>
 </head>
 
 <body>
 
   <div class="card">
+    <div id="status">กำลังเชื่อมต่อระบบ LINE...</div>
 
-    <h2>ระบบ HR ออนไลน์</h2>
-
-    <div id="status">
-      กำลังเริ่มต้นระบบ...
+    <!-- ส่วนโปรไฟล์ด้านบน -->
+    <img id="profileImage" alt="LINE Profile">
+    
+    <!-- โชว์เมื่อพบข้อมูลพนักงานแล้ว -->
+    <div id="employeeInfo">
+      <div class="emp-name" id="displayEmpName"></div>
+      <div class="emp-id" id="displayEmpId"></div>
     </div>
 
-    <img
-      id="profileImage"
-      alt="LINE Profile"
-    >
-
-    <h3 id="displayName"></h3>
-
-    <div id="employeeInfo"></div>
-
+    <!-- โชว์เมื่อต้องลงทะเบียนใหม่ -->
     <div id="registerBox">
-
-      <h3>ลงทะเบียนครั้งแรก</h3>
-
-      <p>
-        กรุณากรอกรหัสพนักงานของคุณ
-      </p>
-
-      <input
-        id="empIdInput"
-        type="text"
-        inputmode="numeric"
-        placeholder="เช่น 2011393"
-      >
-
-      <button
-        id="registerBtn"
-        onclick="registerEmployee()">
-        ลงทะเบียน
-      </button>
-
+      <h3>👋 ยินดีต้อนรับ</h3>
+      <p style="font-size: 14px; color:#555; margin-bottom: 5px;">ดูเหมือนคุณเพิ่งเข้าใช้งานครั้งแรก กรุณายืนยันตัวตนด้วยรหัสพนักงานของคุณ</p>
+      <input id="empIdInput" type="text" inputmode="numeric" placeholder="เช่น 2011393">
+      <button id="registerBtn" class="btn-register" onclick="registerEmployee()">ยืนยันตัวตน</button>
     </div>
 
-    <div
-      id="lineUserIdDisplay"
-      class="small">
+    <!-- ========================================= -->
+    <!-- HTML ใหม่: เมนูหลัก (Dashboard) -->
+    <!-- ========================================= -->
+    <div id="mainMenu">
+      <hr style="border: 0; border-top: 1px solid #eee; margin-bottom: 20px;">
+      <div class="grid-container">
+        
+        <div class="menu-btn" onclick="openModule('leave')">
+          <div class="menu-icon">📅</div>
+          <div class="menu-text">ยื่นลางาน</div>
+        </div>
+
+        <div class="menu-btn" onclick="openModule('quota')">
+          <div class="menu-icon">📊</div>
+          <div class="menu-text">วันลาคงเหลือ</div>
+        </div>
+
+        <div class="menu-btn" onclick="openModule('ot')">
+          <div class="menu-icon">⏱️</div>
+          <div class="menu-text">ขอทำโอที (OT)</div>
+        </div>
+
+        <div class="menu-btn" onclick="openModule('time')">
+          <div class="menu-icon">🕒</div>
+          <div class="menu-text">เช็คเวลาเข้า-ออก</div>
+        </div>
+
+      </div>
     </div>
 
+    <div id="lineUserIdDisplay" class="small"></div>
   </div>
 
 
   <script>
-
-    // ==============================
-    // ตั้งค่า LIFF
-    // ==============================
-
-    const LIFF_ID =
-      "2011799105-A1YwHp4u";
-
-
-    // ==============================
-    // Google Apps Script API
-    // ==============================
-
-    const API_URL =
-      "https://script.google.com/macros/s/AKfycbxB8jCDzKtqrMs0BPCDyeXhSOocRVFRuRLp7OyTR_JKOZMcm0ueEWTOinoky4GQ_x16/exec";
-
-
-    // เก็บ LINE User ID ของผู้ใช้งานปัจจุบัน
+    const LIFF_ID = "2011799105-A1YwHp4u";
+    const API_URL = "https://script.google.com/macros/s/AKfycbxB8jCDzKtqrMs0BPCDyeXhSOocRVFRuRLp7OyTR_JKOZMcm0ueEWTOinoky4GQ_x16/exec";
     let currentLineUserId = "";
 
-
-    // ==============================
-    // เริ่มระบบ
-    // ==============================
-
     async function startApp() {
-
-      const status =
-        document.getElementById("status");
-
+      const status = document.getElementById("status");
       try {
-
-        status.innerText =
-          "กำลังเชื่อมต่อ LINE...";
-
-
-        // เริ่ม LIFF
-        await liff.init({
-          liffId: LIFF_ID
-        });
-
-
-        // ถ้ายังไม่ได้ล็อกอิน
+        await liff.init({ liffId: LIFF_ID });
         if (!liff.isLoggedIn()) {
-
           liff.login();
           return;
         }
 
+        const profile = await liff.getProfile();
+        currentLineUserId = profile.userId;
 
-        // อ่านข้อมูล Profile จาก LINE
-        const profile =
-          await liff.getProfile();
-
-
-        currentLineUserId =
-          profile.userId;
-
-
-        // แสดงชื่อ LINE
-        document.getElementById(
-          "displayName"
-        ).innerText =
-          profile.displayName;
-
-
-        // แสดงรูป Profile
         if (profile.pictureUrl) {
-
-          const img =
-            document.getElementById(
-              "profileImage"
-            );
-
-          img.src =
-            profile.pictureUrl;
-
-          img.style.display =
-            "block";
+          const img = document.getElementById("profileImage");
+          img.src = profile.pictureUrl;
+          img.style.display = "block";
         }
 
-
-        // แสดง LINE User ID
-        document.getElementById(
-          "lineUserIdDisplay"
-        ).innerText =
-          "LINE User ID: " +
-          currentLineUserId;
-
-
-        // ตรวจสอบพนักงาน
+        document.getElementById("lineUserIdDisplay").innerText = "UID: " + currentLineUserId;
         checkEmployee();
-
-
       } catch (error) {
-
-        status.innerHTML =
-          "❌ เกิดข้อผิดพลาด<br>" +
-          error.message;
-
+        status.innerHTML = "❌ เกิดข้อผิดพลาด<br>" + error.message;
         console.error(error);
       }
     }
 
-
-    // ==============================
-    // ตรวจสอบว่า LINE นี้ลงทะเบียนหรือยัง
-    // ==============================
-
     function checkEmployee() {
-
-      const status =
-        document.getElementById("status");
-
-      status.innerText =
-        "กำลังตรวจสอบข้อมูลพนักงาน...";
-
+      const status = document.getElementById("status");
+      status.innerText = "กำลังตรวจสอบฐานข้อมูล HR...";
 
       jsonpRequest({
         action: "check",
         lineUserId: currentLineUserId
       })
       .then(function(result) {
-
-        console.log(
-          "checkEmployee result:",
-          result
-        );
-
-
-        // ถ้าพบพนักงาน
-        if (
-          result &&
-          result.success &&
-          result.data &&
-          result.data.found
-        ) {
-
-          document.getElementById(
-            "registerBox"
-          ).style.display =
-            "none";
-
-          showEmployee(
-            result.data
-          );
-
+        if (result && result.success && result.data && result.data.found) {
+          document.getElementById("registerBox").style.display = "none";
+          showEmployee(result.data);
+        } else {
+          document.getElementById("employeeInfo").style.display = "none";
+          document.getElementById("mainMenu").style.display = "none";
+          status.innerText = ""; // ล้างข้อความเพื่อโชว์กล่องลงทะเบียน
+          document.getElementById("registerBox").style.display = "block";
         }
-
-        // ถ้ายังไม่พบ
-        else {
-
-          document.getElementById(
-            "employeeInfo"
-          ).style.display =
-            "none";
-
-          status.innerText =
-            "ยังไม่พบการลงทะเบียน";
-
-          document.getElementById(
-            "registerBox"
-          ).style.display =
-            "block";
-        }
-
       })
       .catch(function(error) {
-
-        status.innerHTML =
-          "❌ เชื่อมต่อฐานข้อมูลไม่ได้<br>" +
-          error.message;
-
-        console.error(error);
+        status.innerHTML = "❌ เชื่อมต่อฐานข้อมูลไม่ได้<br>" + error.message;
       });
     }
 
-
-    // ==============================
-    // ลงทะเบียนพนักงานครั้งแรก
-    // ==============================
-
     function registerEmployee() {
+      const empId = document.getElementById("empIdInput").value.trim();
+      const status = document.getElementById("status");
+      const btn = document.getElementById("registerBtn");
 
-      const empId =
-        document.getElementById(
-          "empIdInput"
-        ).value.trim();
-
-
-      const status =
-        document.getElementById(
-          "status"
-        );
-
-
-      const btn =
-        document.getElementById(
-          "registerBtn"
-        );
-
-
-      // ยังไม่ได้กรอกรหัสพนักงาน
-      if (!empId) {
-
-        alert(
-          "กรุณากรอกรหัสพนักงาน"
-        );
-
-        return;
-      }
-
+      if (!empId) { alert("กรุณากรอกรหัสพนักงาน"); return; }
 
       btn.disabled = true;
-
-      status.innerText =
-        "กำลังลงทะเบียน...";
-
+      status.innerText = "กำลังยืนยันตัวตน...";
 
       jsonpRequest({
         action: "register",
@@ -369,244 +188,77 @@
         lineUserId: currentLineUserId
       })
       .then(function(result) {
-
-        console.log(
-          "registerEmployee result:",
-          result
-        );
-
-
-        // ลงทะเบียนสำเร็จ
-        if (
-          result &&
-          result.success
-        ) {
-
-          status.innerText =
-            "✅ ลงทะเบียนสำเร็จ";
-
-
-          document.getElementById(
-            "registerBox"
-          ).style.display =
-            "none";
-
-
-          // ตรวจข้อมูลใหม่อีกรอบ
-          return checkEmployee();
-
+        if (result && result.success) {
+          status.innerText = "✅ ยืนยันตัวตนสำเร็จ";
+          document.getElementById("registerBox").style.display = "none";
+          return checkEmployee(); // โหลดข้อมูลใหม่เพื่อโชว์เมนู
+        } else {
+          status.innerText = "❌ " + (result.error || "ลงทะเบียนไม่สำเร็จ");
         }
-
-
-        // ลงทะเบียนไม่สำเร็จ
-        else {
-
-          status.innerText =
-            "❌ " +
-            (
-              result.error ||
-              "ลงทะเบียนไม่สำเร็จ"
-            );
-        }
-
       })
       .catch(function(error) {
-
-        status.innerHTML =
-          "❌ เกิดข้อผิดพลาด<br>" +
-          error.message;
-
-        console.error(error);
-
+        status.innerHTML = "❌ เกิดข้อผิดพลาด<br>" + error.message;
       })
       .finally(function() {
-
         btn.disabled = false;
-
       });
     }
 
-
-    // ==============================
-    // แสดงข้อมูลพนักงาน
-    // ==============================
-
     function showEmployee(data) {
+      document.getElementById("status").style.display = "none"; // ซ่อน status เมื่อโหลดเสร็จ
+      
+      const box = document.getElementById("employeeInfo");
+      box.style.display = "block";
 
-      document.getElementById(
-        "status"
-      ).innerText =
-        "✅ พบข้อมูลพนักงาน";
+      // อัปเดตข้อมูลบนหน้าจอ
+      document.getElementById("displayEmpName").innerText = data.name;
+      document.getElementById("displayEmpId").innerText = "รหัสพนักงาน: " + data.empId;
 
-
-      const box =
-        document.getElementById(
-          "employeeInfo"
-        );
-
-
-      box.style.display =
-        "block";
-
-
-      const quotaValue =
-        (
-          data.quota === "" ||
-          data.quota === null ||
-          data.quota === undefined
-        )
-        ? "-"
-        : data.quota;
-
-
-      box.innerHTML =
-        "<b>รหัสพนักงาน:</b> " +
-        data.empId +
-        "<br>" +
-
-        "<b>ชื่อ:</b> " +
-        data.name +
-        "<br>" +
-
-        "<b>วันลาคงเหลือ:</b> " +
-        quotaValue;
+      // แสดงเมนูหลัก
+      document.getElementById("mainMenu").style.display = "block";
     }
 
+    // ฟังก์ชันรอรับการกดปุ่มเมนู (เตรียมไว้สำหรับขั้นต่อไป)
+    function openModule(moduleName) {
+      alert("กำลังเปิดเมนู: " + moduleName + "\n(จะพัฒนาในขั้นตอนต่อไปครับ)");
+    }
 
-    // ==============================
-    // JSONP
-    // ใช้แทน fetch เพื่อหลบปัญหา
-    // redirect / HTML response
-    // จาก Apps Script
-    // ==============================
-
+    // JSONP (ไม่แก้ไขโครงสร้างเดิม)
     function jsonpRequest(params) {
+      return new Promise(function(resolve, reject) {
+        const callbackName = "jsonpCallback_" + Date.now() + "_" + Math.floor(Math.random() * 100000);
+        const script = document.createElement("script");
+        const query = new URLSearchParams(params);
+        query.append("callback", callbackName);
 
-      return new Promise(
-        function(resolve, reject) {
+        const timeout = setTimeout(function() {
+          cleanup();
+          reject(new Error("เชื่อมต่อเซิร์ฟเวอร์หมดเวลา"));
+        }, 15000);
 
+        window[callbackName] = function(data) {
+          clearTimeout(timeout);
+          cleanup();
+          resolve(data);
+        };
 
-          const callbackName =
-            "jsonpCallback_" +
-            Date.now() +
-            "_" +
-            Math.floor(
-              Math.random() * 100000
-            );
-
-
-          const script =
-            document.createElement(
-              "script"
-            );
-
-
-          const query =
-            new URLSearchParams(
-              params
-            );
-
-
-          query.append(
-            "callback",
-            callbackName
-          );
-
-
-          // ตั้งเวลาหมดอายุ 15 วินาที
-          const timeout =
-            setTimeout(
-              function() {
-
-                cleanup();
-
-                reject(
-                  new Error(
-                    "เชื่อมต่อเซิร์ฟเวอร์หมดเวลา"
-                  )
-                );
-
-              },
-              15000
-            );
-
-
-          // ฟังก์ชัน Callback
-          window[callbackName] =
-            function(data) {
-
-              clearTimeout(
-                timeout
-              );
-
-              cleanup();
-
-              resolve(data);
-            };
-
-
-          // ล้าง script และ callback
-          function cleanup() {
-
-            if (
-              script.parentNode
-            ) {
-
-              script.parentNode
-                .removeChild(
-                  script
-                );
-            }
-
-            delete window[
-              callbackName
-            ];
-          }
-
-
-          // ถ้าโหลด API ไม่สำเร็จ
-          script.onerror =
-            function() {
-
-              clearTimeout(
-                timeout
-              );
-
-              cleanup();
-
-              reject(
-                new Error(
-                  "ไม่สามารถโหลดข้อมูลจากเซิร์ฟเวอร์ได้"
-                )
-              );
-            };
-
-
-          // สร้าง URL
-          script.src =
-            API_URL +
-            "?" +
-            query.toString();
-
-
-          // ส่ง request
-          document.body
-            .appendChild(
-              script
-            );
-
+        function cleanup() {
+          if (script.parentNode) script.parentNode.removeChild(script);
+          delete window[callbackName];
         }
-      );
+
+        script.onerror = function() {
+          clearTimeout(timeout);
+          cleanup();
+          reject(new Error("ไม่สามารถโหลดข้อมูลจากเซิร์ฟเวอร์ได้"));
+        };
+
+        script.src = API_URL + "?" + query.toString();
+        document.body.appendChild(script);
+      });
     }
-
-
-    // ==============================
-    // เริ่มทำงาน
-    // ==============================
 
     startApp();
-
   </script>
-
 </body>
 </html>
