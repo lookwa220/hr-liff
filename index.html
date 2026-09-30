@@ -6,6 +6,7 @@
 
   <title>HR Leave System</title>
 
+  <!-- LINE LIFF SDK -->
   <script
     charset="utf-8"
     src="https://static.line-scdn.net/liff/edge/2/sdk.js">
@@ -35,6 +36,7 @@
       border-radius: 50%;
       display: none;
       margin: 15px auto;
+      object-fit: cover;
     }
 
     #status {
@@ -47,6 +49,7 @@
       display: none;
       margin-top: 20px;
       line-height: 1.8;
+      font-size: 17px;
     }
 
     #registerBox {
@@ -85,7 +88,7 @@
       font-size: 12px;
       color: #777;
       word-break: break-all;
-      margin-top: 10px;
+      margin-top: 16px;
     }
   </style>
 </head>
@@ -100,13 +103,17 @@
       กำลังเริ่มต้นระบบ...
     </div>
 
-    <img id="profileImage" alt="LINE Profile">
+    <img
+      id="profileImage"
+      alt="LINE Profile"
+    >
 
     <h3 id="displayName"></h3>
 
     <div id="employeeInfo"></div>
 
     <div id="registerBox">
+
       <h3>ลงทะเบียนครั้งแรก</h3>
 
       <p>
@@ -116,6 +123,7 @@
       <input
         id="empIdInput"
         type="text"
+        inputmode="numeric"
         placeholder="เช่น 2011393"
       >
 
@@ -124,6 +132,7 @@
         onclick="registerEmployee()">
         ลงทะเบียน
       </button>
+
     </div>
 
     <div
@@ -136,14 +145,29 @@
 
   <script>
 
+    // ==============================
+    // ตั้งค่า LIFF
+    // ==============================
+
     const LIFF_ID =
       "2011799105-A1YwHp4u";
+
+
+    // ==============================
+    // Google Apps Script API
+    // ==============================
 
     const API_URL =
       "https://script.google.com/macros/s/AKfycbxB8jCDzKtqrMs0BPCDyeXhSOocRVFRuRLp7OyTR_JKOZMcm0ueEWTOinoky4GQ_x16/exec";
 
+
+    // เก็บ LINE User ID ของผู้ใช้งานปัจจุบัน
     let currentLineUserId = "";
 
+
+    // ==============================
+    // เริ่มระบบ
+    // ==============================
 
     async function startApp() {
 
@@ -155,28 +179,38 @@
         status.innerText =
           "กำลังเชื่อมต่อ LINE...";
 
+
+        // เริ่ม LIFF
         await liff.init({
           liffId: LIFF_ID
         });
 
+
+        // ถ้ายังไม่ได้ล็อกอิน
         if (!liff.isLoggedIn()) {
 
           liff.login();
           return;
-
         }
 
+
+        // อ่านข้อมูล Profile จาก LINE
         const profile =
           await liff.getProfile();
+
 
         currentLineUserId =
           profile.userId;
 
+
+        // แสดงชื่อ LINE
         document.getElementById(
           "displayName"
         ).innerText =
           profile.displayName;
 
+
+        // แสดงรูป Profile
         if (profile.pictureUrl) {
 
           const img =
@@ -191,13 +225,18 @@
             "block";
         }
 
+
+        // แสดง LINE User ID
         document.getElementById(
           "lineUserIdDisplay"
         ).innerText =
           "LINE User ID: " +
           currentLineUserId;
 
-        await checkEmployee();
+
+        // ตรวจสอบพนักงาน
+        checkEmployee();
+
 
       } catch (error) {
 
@@ -210,7 +249,11 @@
     }
 
 
-    async function checkEmployee() {
+    // ==============================
+    // ตรวจสอบว่า LINE นี้ลงทะเบียนหรือยัง
+    // ==============================
+
+    function checkEmployee() {
 
       const status =
         document.getElementById("status");
@@ -218,33 +261,45 @@
       status.innerText =
         "กำลังตรวจสอบข้อมูลพนักงาน...";
 
-      try {
 
-        const url =
-          API_URL +
-          "?action=check" +
-          "&lineUserId=" +
-          encodeURIComponent(
-            currentLineUserId
-          );
+      jsonpRequest({
+        action: "check",
+        lineUserId: currentLineUserId
+      })
+      .then(function(result) {
 
-        const response =
-          await fetch(url);
+        console.log(
+          "checkEmployee result:",
+          result
+        );
 
-        const result =
-          await response.json();
 
+        // ถ้าพบพนักงาน
         if (
+          result &&
           result.success &&
           result.data &&
           result.data.found
         ) {
 
+          document.getElementById(
+            "registerBox"
+          ).style.display =
+            "none";
+
           showEmployee(
             result.data
           );
 
-        } else {
+        }
+
+        // ถ้ายังไม่พบ
+        else {
+
+          document.getElementById(
+            "employeeInfo"
+          ).style.display =
+            "none";
 
           status.innerText =
             "ยังไม่พบการลงทะเบียน";
@@ -255,32 +310,43 @@
             "block";
         }
 
-      } catch (error) {
+      })
+      .catch(function(error) {
 
         status.innerHTML =
           "❌ เชื่อมต่อฐานข้อมูลไม่ได้<br>" +
           error.message;
 
         console.error(error);
-      }
+      });
     }
 
 
-    async function registerEmployee() {
+    // ==============================
+    // ลงทะเบียนพนักงานครั้งแรก
+    // ==============================
+
+    function registerEmployee() {
 
       const empId =
         document.getElementById(
           "empIdInput"
         ).value.trim();
 
+
       const status =
-        document.getElementById("status");
+        document.getElementById(
+          "status"
+        );
+
 
       const btn =
         document.getElementById(
           "registerBtn"
         );
 
+
+      // ยังไม่ได้กรอกรหัสพนักงาน
       if (!empId) {
 
         alert(
@@ -290,42 +356,50 @@
         return;
       }
 
+
       btn.disabled = true;
 
       status.innerText =
         "กำลังลงทะเบียน...";
 
-      try {
 
-        const url =
-          API_URL +
-          "?action=register" +
-          "&empId=" +
-          encodeURIComponent(empId) +
-          "&lineUserId=" +
-          encodeURIComponent(
-            currentLineUserId
-          );
+      jsonpRequest({
+        action: "register",
+        empId: empId,
+        lineUserId: currentLineUserId
+      })
+      .then(function(result) {
 
-        const response =
-          await fetch(url);
+        console.log(
+          "registerEmployee result:",
+          result
+        );
 
-        const result =
-          await response.json();
 
-        if (result.success) {
+        // ลงทะเบียนสำเร็จ
+        if (
+          result &&
+          result.success
+        ) {
 
           status.innerText =
             "✅ ลงทะเบียนสำเร็จ";
+
 
           document.getElementById(
             "registerBox"
           ).style.display =
             "none";
 
-          await checkEmployee();
 
-        } else {
+          // ตรวจข้อมูลใหม่อีกรอบ
+          return checkEmployee();
+
+        }
+
+
+        // ลงทะเบียนไม่สำเร็จ
+        else {
 
           status.innerText =
             "❌ " +
@@ -335,7 +409,8 @@
             );
         }
 
-      } catch (error) {
+      })
+      .catch(function(error) {
 
         status.innerHTML =
           "❌ เกิดข้อผิดพลาด<br>" +
@@ -343,12 +418,18 @@
 
         console.error(error);
 
-      } finally {
+      })
+      .finally(function() {
 
         btn.disabled = false;
-      }
+
+      });
     }
 
+
+    // ==============================
+    // แสดงข้อมูลพนักงาน
+    // ==============================
 
     function showEmployee(data) {
 
@@ -357,30 +438,171 @@
       ).innerText =
         "✅ พบข้อมูลพนักงาน";
 
+
       const box =
         document.getElementById(
           "employeeInfo"
         );
 
+
       box.style.display =
         "block";
+
+
+      const quotaValue =
+        (
+          data.quota === "" ||
+          data.quota === null ||
+          data.quota === undefined
+        )
+        ? "-"
+        : data.quota;
+
 
       box.innerHTML =
         "<b>รหัสพนักงาน:</b> " +
         data.empId +
         "<br>" +
+
         "<b>ชื่อ:</b> " +
         data.name +
         "<br>" +
+
         "<b>วันลาคงเหลือ:</b> " +
-        (
-          data.quota === "" ||
-          data.quota === undefined
-            ? "-"
-            : data.quota
-        );
+        quotaValue;
     }
 
+
+    // ==============================
+    // JSONP
+    // ใช้แทน fetch เพื่อหลบปัญหา
+    // redirect / HTML response
+    // จาก Apps Script
+    // ==============================
+
+    function jsonpRequest(params) {
+
+      return new Promise(
+        function(resolve, reject) {
+
+
+          const callbackName =
+            "jsonpCallback_" +
+            Date.now() +
+            "_" +
+            Math.floor(
+              Math.random() * 100000
+            );
+
+
+          const script =
+            document.createElement(
+              "script"
+            );
+
+
+          const query =
+            new URLSearchParams(
+              params
+            );
+
+
+          query.append(
+            "callback",
+            callbackName
+          );
+
+
+          // ตั้งเวลาหมดอายุ 15 วินาที
+          const timeout =
+            setTimeout(
+              function() {
+
+                cleanup();
+
+                reject(
+                  new Error(
+                    "เชื่อมต่อเซิร์ฟเวอร์หมดเวลา"
+                  )
+                );
+
+              },
+              15000
+            );
+
+
+          // ฟังก์ชัน Callback
+          window[callbackName] =
+            function(data) {
+
+              clearTimeout(
+                timeout
+              );
+
+              cleanup();
+
+              resolve(data);
+            };
+
+
+          // ล้าง script และ callback
+          function cleanup() {
+
+            if (
+              script.parentNode
+            ) {
+
+              script.parentNode
+                .removeChild(
+                  script
+                );
+            }
+
+            delete window[
+              callbackName
+            ];
+          }
+
+
+          // ถ้าโหลด API ไม่สำเร็จ
+          script.onerror =
+            function() {
+
+              clearTimeout(
+                timeout
+              );
+
+              cleanup();
+
+              reject(
+                new Error(
+                  "ไม่สามารถโหลดข้อมูลจากเซิร์ฟเวอร์ได้"
+                )
+              );
+            };
+
+
+          // สร้าง URL
+          script.src =
+            API_URL +
+            "?" +
+            query.toString();
+
+
+          // ส่ง request
+          document.body
+            .appendChild(
+              script
+            );
+
+        }
+      );
+    }
+
+
+    // ==============================
+    // เริ่มทำงาน
+    // ==============================
 
     startApp();
 
