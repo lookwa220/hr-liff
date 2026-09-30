@@ -4,12 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>HR Leave System</title>
-
-  <!-- LINE LIFF SDK -->
   <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-
   <style>
-    /* CSS พื้นฐาน */
     body { font-family: 'Sarabun', Arial, sans-serif; background: #f5f5f5; margin: 0; padding: 10px; text-align: center; }
     .card { max-width: 420px; margin: 20px auto; background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
     
@@ -33,9 +29,6 @@
     .menu-icon { font-size: 28px; margin-bottom: 8px; }
     .menu-text { font-size: 14px; font-weight: bold; }
 
-    /* ========================================= */
-    /* CSS ใหม่: โมดูลยื่นลางาน */
-    /* ========================================= */
     .module-box { display: none; text-align: left; margin-top: 15px; animation: fadeIn 0.3s; }
     @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
     .module-header { display: flex; align-items: center; justify-content: space-between; border-bottom: 2px solid #eee; padding-bottom: 10px; margin-bottom: 15px; }
@@ -44,7 +37,6 @@
     
     .form-group { margin-bottom: 15px; }
     .form-group label { display: block; font-size: 14px; font-weight: bold; margin-bottom: 5px; color: #555; }
-    /* ปรับแต่งให้ช่อง input ดูสะอาดตาและกดง่ายขึ้น */
     .form-group select, .form-group input[type="datetime-local"], .form-group textarea, .form-group input[type="file"] { 
       width: 100%; box-sizing: border-box; padding: 10px; border: 1px solid #ccc; border-radius: 6px; font-family: inherit; font-size: 15px; background: white;
     }
@@ -58,10 +50,8 @@
 </head>
 
 <body>
-
   <div class="card">
     <div id="status">กำลังเชื่อมต่อระบบ LINE...</div>
-
     <img id="profileImage" alt="LINE Profile">
     
     <div id="employeeInfo">
@@ -69,7 +59,6 @@
       <div class="emp-id" id="displayEmpId"></div>
     </div>
 
-    <!-- กล่องลงทะเบียน -->
     <div id="registerBox">
       <h3>👋 ยินดีต้อนรับ</h3>
       <p style="font-size: 14px; color:#555; margin-bottom: 5px;">กรุณายืนยันตัวตนด้วยรหัสพนักงานของคุณ</p>
@@ -79,7 +68,6 @@
 
     <button id="retryBtn" class="btn-retry" onclick="checkEmployee()">🔄 ลองใหม่อีกครั้ง</button>
 
-    <!-- เมนูหลัก -->
     <div id="mainMenu">
       <hr style="border: 0; border-top: 1px solid #eee; margin-bottom: 20px;">
       <div class="grid-container">
@@ -102,7 +90,6 @@
       </div>
     </div>
 
-    <!-- ฟอร์มยื่นลางาน -->
     <div id="leaveModule" class="module-box">
       <div class="module-header">
         <h3>📅 ยื่นลางาน</h3>
@@ -119,7 +106,6 @@
         </select>
       </div>
 
-      <!-- เปลี่ยนจาก type="date" เป็น type="datetime-local" -->
       <div class="form-group">
         <label>วัน-เวลา เริ่มต้น</label>
         <input type="datetime-local" id="leaveStartDate">
@@ -137,31 +123,29 @@
 
       <div class="form-group">
         <label>แนบรูปใบรับรองแพทย์ (ถ้ามี)</label>
-        <input type="file" id="leaveFile" accept="image/*">
-        <p style="font-size: 11px; color: #888; margin-top: 5px;">*ระบบอัปโหลดไฟล์จะทำงานในสเต็ปถัดไป</p>
+        <input type="file" id="leaveFile" accept="image/*" disabled>
+        <p style="font-size: 11px; color: #888; margin-top: 5px;">*ระบบแนบไฟล์ยังไม่เปิดใช้งานในเวอร์ชันทดสอบนี้</p>
       </div>
 
-      <button class="btn-submit" onclick="submitLeaveUI()">ตรวจสอบข้อมูล (ทดสอบ UI)</button>
-      <button class="btn-cancel" onclick="closeModule()">กลับหน้าหลัก</button>
+      <button id="btnSubmitLeave" class="btn-submit" onclick="submitLeave()">ส่งคำขอลางาน</button>
+      <button id="btnCancelLeave" class="btn-cancel" onclick="closeModule()">กลับหน้าหลัก</button>
     </div>
 
     <div id="lineUserIdDisplay" class="small"></div>
   </div>
 
-
   <script>
     const LIFF_ID = "2011799105-A1YwHp4u";
     const API_URL = "https://script.google.com/macros/s/AKfycbxB8jCDzKtqrMs0BPCDyeXhSOocRVFRuRLp7OyTR_JKOZMcm0ueEWTOinoky4GQ_x16/exec";
+    
     let currentLineUserId = "";
+    let currentEmpId = ""; // เก็บค่า EmpId ไว้ใช้ส่งข้อมูล
 
     async function startApp() {
       const status = document.getElementById("status");
       try {
         await liff.init({ liffId: LIFF_ID });
-        if (!liff.isLoggedIn()) {
-          liff.login();
-          return;
-        }
+        if (!liff.isLoggedIn()) { liff.login(); return; }
 
         const profile = await liff.getProfile();
         currentLineUserId = profile.userId;
@@ -171,7 +155,6 @@
           img.src = profile.pictureUrl;
           img.style.display = "block";
         }
-
         document.getElementById("lineUserIdDisplay").innerText = "UID: " + currentLineUserId;
         checkEmployee();
       } catch (error) {
@@ -187,14 +170,12 @@
       status.innerText = "กำลังเชื่อมต่อฐานข้อมูล HR...";
       retryBtn.style.display = "none";
 
-      jsonpRequest({
-        action: "check",
-        lineUserId: currentLineUserId
-      })
+      jsonpRequest({ action: "check", lineUserId: currentLineUserId })
       .then(function(result) {
         if (result && result.success && result.data && result.data.found) {
           document.getElementById("registerBox").style.display = "none";
           retryBtn.style.display = "none";
+          currentEmpId = result.data.empId; // เก็บ empId ของคนนี้ไว้
           showEmployee(result.data);
         } else {
           document.getElementById("employeeInfo").style.display = "none";
@@ -215,15 +196,10 @@
       const btn = document.getElementById("registerBtn");
 
       if (!empId) { alert("กรุณากรอกรหัสพนักงาน"); return; }
-
       btn.disabled = true;
       status.innerText = "กำลังยืนยันตัวตน...";
 
-      jsonpRequest({
-        action: "register",
-        empId: empId,
-        lineUserId: currentLineUserId
-      })
+      jsonpRequest({ action: "register", empId: empId, lineUserId: currentLineUserId })
       .then(function(result) {
         if (result && result.success) {
           status.innerText = "✅ ยืนยันตัวตนสำเร็จ";
@@ -233,23 +209,15 @@
           status.innerText = "❌ " + (result.error || "ลงทะเบียนไม่สำเร็จ");
         }
       })
-      .catch(function(error) {
-        status.innerHTML = "❌ เกิดข้อผิดพลาด<br>" + error.message;
-      })
-      .finally(function() {
-        btn.disabled = false;
-      });
+      .catch(function(error) { status.innerHTML = "❌ เกิดข้อผิดพลาด<br>" + error.message; })
+      .finally(function() { btn.disabled = false; });
     }
 
     function showEmployee(data) {
       document.getElementById("status").style.display = "none"; 
-      
-      const box = document.getElementById("employeeInfo");
-      box.style.display = "block";
-
+      document.getElementById("employeeInfo").style.display = "block";
       document.getElementById("displayEmpName").innerText = data.name;
       document.getElementById("displayEmpId").innerText = "รหัสพนักงาน: " + data.empId;
-
       document.getElementById("mainMenu").style.display = "block";
     }
 
@@ -267,20 +235,55 @@
       document.getElementById("mainMenu").style.display = "block";
     }
 
-    function submitLeaveUI() {
+    // =========================================
+    // ฟังก์ชันส่งคำขอลางานไปยัง API (แก้ไขใหม่)
+    // =========================================
+    function submitLeave() {
       const type = document.getElementById("leaveType").value;
       const start = document.getElementById("leaveStartDate").value;
       const end = document.getElementById("leaveEndDate").value;
+      const reason = document.getElementById("leaveReason").value;
+      const btnSubmit = document.getElementById("btnSubmitLeave");
 
       if(!type || !start || !end) {
         alert("กรุณาเลือกประเภทการลา และระบุวัน-เวลาให้ครบถ้วน");
         return;
       }
       
-      alert("✅ ตรวจสอบข้อมูลหน้า UI เรียบร้อย!\n(ทดสอบเลือกระบุเวลาสำเร็จ)");
+      btnSubmit.innerText = "กำลังส่งข้อมูล...";
+      btnSubmit.disabled = true;
+
+      // ส่งข้อมูลผ่าน JSONP ไปยัง GAS
+      jsonpRequest({
+        action: "requestLeave",
+        empId: currentEmpId,
+        type: type,
+        start: start,
+        end: end,
+        reason: reason
+      })
+      .then(function(result) {
+        if (result && result.success) {
+          alert("✅ ส่งคำขอลางานเรียบร้อยแล้ว (รอหัวหน้าอนุมัติ)");
+          // เคลียร์ฟอร์มให้ว่าง
+          document.getElementById("leaveType").value = "";
+          document.getElementById("leaveStartDate").value = "";
+          document.getElementById("leaveEndDate").value = "";
+          document.getElementById("leaveReason").value = "";
+          closeModule(); // กลับหน้าหลัก
+        } else {
+          alert("❌ ไม่สามารถส่งข้อมูลได้: " + (result.error || "Unknow Error"));
+        }
+      })
+      .catch(function(error) {
+        alert("❌ ติดปัญหาการเชื่อมต่อเซิร์ฟเวอร์: " + error.message);
+      })
+      .finally(function() {
+        btnSubmit.innerText = "ส่งคำขอลางาน";
+        btnSubmit.disabled = false;
+      });
     }
 
-    // JSONP Request
     function jsonpRequest(params) {
       return new Promise(function(resolve, reject) {
         const callbackName = "jsonpCallback_" + Date.now() + "_" + Math.floor(Math.random() * 100000);
@@ -292,7 +295,7 @@
 
         const timeout = setTimeout(function() {
           cleanup();
-          reject(new Error("เชื่อมต่อเซิร์ฟเวอร์หมดเวลา (กดปุ่มลองใหม่อีกครั้ง)"));
+          reject(new Error("เชื่อมต่อเซิร์ฟเวอร์หมดเวลา (เซิร์ฟเวอร์อาจกำลังตื่น)"));
         }, 35000);
 
         window[callbackName] = function(data) {
