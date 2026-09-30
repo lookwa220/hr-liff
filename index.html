@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>HR Leave System</title>
+
+  <!-- LINE LIFF SDK -->
+  <script
+    charset="utf-8"
+    src="https://static.line-scdn.net/liff/edge/2/sdk.js">
+  </script>
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f5f5f5;
+      margin: 0;
+      padding: 20px;
+      text-align: center;
+    }
+
+    .card {
+      max-width: 420px;
+      margin: 40px auto;
+      background: white;
+      padding: 25px;
+      border-radius: 15px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+
+    #profileImage {
+      width: 100px;
+      height: 100px;
+      border-radius: 50%;
+      display: none;
+      margin: 15px auto;
+    }
+
+    #status {
+      margin-top: 20px;
+      font-size: 16px;
+    }
+
+    #userId {
+      font-size: 12px;
+      word-break: break-all;
+      color: #777;
+      margin-top: 15px;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="card">
+
+    <h2>ระบบ HR ออนไลน์</h2>
+
+    <div id="status">
+      กำลังเริ่มต้นระบบ...
+    </div>
+
+    <img
+      id="profileImage"
+      alt="LINE Profile"
+    >
+
+    <h3 id="displayName"></h3>
+
+    <div id="userId"></div>
+
+  </div>
+
+
+  <script>
+
+    const LIFF_ID = "2011799105-A1YwHp4u";
+
+
+    async function startLIFF() {
+
+      const status = document.getElementById("status");
+
+      try {
+
+        status.innerText =
+          "กำลังเชื่อมต่อ LINE LIFF...";
+
+
+        // เริ่ม LIFF
+        await liff.init({
+          liffId: LIFF_ID
+        });
+
+
+        status.innerText =
+          "LIFF init สำเร็จ";
+
+
+        // ถ้ายังไม่ได้ Login
+        if (!liff.isLoggedIn()) {
+
+          status.innerText =
+            "กำลังเข้าสู่ระบบ LINE...";
+
+          liff.login();
+
+          return;
+        }
+
+
+        status.innerText =
+          "กำลังอ่านข้อมูล LINE Profile...";
+
+
+        // อ่าน Profile
+        const profile =
+          await liff.getProfile();
+
+
+        // แสดงชื่อ
+        document.getElementById(
+          "displayName"
+        ).innerText =
+          profile.displayName;
+
+
+        // แสดง User ID
+        document.getElementById(
+          "userId"
+        ).innerText =
+          "LINE User ID: " +
+          profile.userId;
+
+
+        // แสดงรูป
+        if (profile.pictureUrl) {
+
+          const img =
+            document.getElementById(
+              "profileImage"
+            );
+
+          img.src =
+            profile.pictureUrl;
+
+          img.style.display =
+            "block";
+        }
+
+
+        status.innerText =
+          "✅ เชื่อมต่อ LINE สำเร็จ";
+
+
+      } catch (error) {
+
+        status.innerHTML =
+          "❌ เกิดข้อผิดพลาด<br><br>" +
+          error.message;
+
+        console.error(error);
+
+      }
+
+    }
+
+
+    startLIFF();
+
+  </script>
+
+</body>
+</html>
