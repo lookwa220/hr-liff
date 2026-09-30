@@ -6,7 +6,6 @@
 
   <title>HR Leave System</title>
 
-  <!-- LINE LIFF SDK -->
   <script
     charset="utf-8"
     src="https://static.line-scdn.net/liff/edge/2/sdk.js">
@@ -23,7 +22,7 @@
 
     .card {
       max-width: 420px;
-      margin: 40px auto;
+      margin: 30px auto;
       background: white;
       padding: 25px;
       border-radius: 15px;
@@ -39,15 +38,54 @@
     }
 
     #status {
-      margin-top: 20px;
+      margin-top: 15px;
       font-size: 16px;
+      line-height: 1.6;
     }
 
-    #userId {
+    #employeeInfo {
+      display: none;
+      margin-top: 20px;
+      line-height: 1.8;
+    }
+
+    #registerBox {
+      display: none;
+      margin-top: 25px;
+    }
+
+    input {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 12px;
+      font-size: 16px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      margin-top: 10px;
+    }
+
+    button {
+      width: 100%;
+      padding: 12px;
+      margin-top: 12px;
+      border: none;
+      border-radius: 8px;
+      background: #06C755;
+      color: white;
+      font-size: 16px;
+      cursor: pointer;
+    }
+
+    button:disabled {
+      background: #aaa;
+      cursor: not-allowed;
+    }
+
+    .small {
       font-size: 12px;
-      word-break: break-all;
       color: #777;
-      margin-top: 15px;
+      word-break: break-all;
+      margin-top: 10px;
     }
   </style>
 </head>
@@ -62,80 +100,83 @@
       กำลังเริ่มต้นระบบ...
     </div>
 
-    <img
-      id="profileImage"
-      alt="LINE Profile"
-    >
+    <img id="profileImage" alt="LINE Profile">
 
     <h3 id="displayName"></h3>
 
-    <div id="userId"></div>
+    <div id="employeeInfo"></div>
+
+    <div id="registerBox">
+      <h3>ลงทะเบียนครั้งแรก</h3>
+
+      <p>
+        กรุณากรอกรหัสพนักงานของคุณ
+      </p>
+
+      <input
+        id="empIdInput"
+        type="text"
+        placeholder="เช่น 2011393"
+      >
+
+      <button
+        id="registerBtn"
+        onclick="registerEmployee()">
+        ลงทะเบียน
+      </button>
+    </div>
+
+    <div
+      id="lineUserIdDisplay"
+      class="small">
+    </div>
 
   </div>
 
 
   <script>
 
-    const LIFF_ID = "2011799105-A1YwHp4u";
+    const LIFF_ID =
+      "2011799105-A1YwHp4u";
+
+    const API_URL =
+      "https://script.google.com/macros/s/AKfycbxB8jCDzKtqrMs0BPCDyeXhSOocRVFRuRLp7OyTR_JKOZMcm0ueEWTOinoky4GQ_x16/exec";
+
+    let currentLineUserId = "";
 
 
-    async function startLIFF() {
+    async function startApp() {
 
-      const status = document.getElementById("status");
+      const status =
+        document.getElementById("status");
 
       try {
 
         status.innerText =
-          "กำลังเชื่อมต่อ LINE LIFF...";
+          "กำลังเชื่อมต่อ LINE...";
 
-
-        // เริ่ม LIFF
         await liff.init({
           liffId: LIFF_ID
         });
 
-
-        status.innerText =
-          "LIFF init สำเร็จ";
-
-
-        // ถ้ายังไม่ได้ Login
         if (!liff.isLoggedIn()) {
 
-          status.innerText =
-            "กำลังเข้าสู่ระบบ LINE...";
-
           liff.login();
-
           return;
+
         }
 
-
-        status.innerText =
-          "กำลังอ่านข้อมูล LINE Profile...";
-
-
-        // อ่าน Profile
         const profile =
           await liff.getProfile();
 
+        currentLineUserId =
+          profile.userId;
 
-        // แสดงชื่อ
         document.getElementById(
           "displayName"
         ).innerText =
           profile.displayName;
 
-
-        // แสดง User ID
-        document.getElementById(
-          "userId"
-        ).innerText =
-          "LINE User ID: " +
-          profile.userId;
-
-
-        // แสดงรูป
         if (profile.pictureUrl) {
 
           const img =
@@ -150,25 +191,198 @@
             "block";
         }
 
+        document.getElementById(
+          "lineUserIdDisplay"
+        ).innerText =
+          "LINE User ID: " +
+          currentLineUserId;
 
-        status.innerText =
-          "✅ เชื่อมต่อ LINE สำเร็จ";
-
+        await checkEmployee();
 
       } catch (error) {
 
         status.innerHTML =
-          "❌ เกิดข้อผิดพลาด<br><br>" +
+          "❌ เกิดข้อผิดพลาด<br>" +
+          error.message;
+
+        console.error(error);
+      }
+    }
+
+
+    async function checkEmployee() {
+
+      const status =
+        document.getElementById("status");
+
+      status.innerText =
+        "กำลังตรวจสอบข้อมูลพนักงาน...";
+
+      try {
+
+        const url =
+          API_URL +
+          "?action=check" +
+          "&lineUserId=" +
+          encodeURIComponent(
+            currentLineUserId
+          );
+
+        const response =
+          await fetch(url);
+
+        const result =
+          await response.json();
+
+        if (
+          result.success &&
+          result.data &&
+          result.data.found
+        ) {
+
+          showEmployee(
+            result.data
+          );
+
+        } else {
+
+          status.innerText =
+            "ยังไม่พบการลงทะเบียน";
+
+          document.getElementById(
+            "registerBox"
+          ).style.display =
+            "block";
+        }
+
+      } catch (error) {
+
+        status.innerHTML =
+          "❌ เชื่อมต่อฐานข้อมูลไม่ได้<br>" +
+          error.message;
+
+        console.error(error);
+      }
+    }
+
+
+    async function registerEmployee() {
+
+      const empId =
+        document.getElementById(
+          "empIdInput"
+        ).value.trim();
+
+      const status =
+        document.getElementById("status");
+
+      const btn =
+        document.getElementById(
+          "registerBtn"
+        );
+
+      if (!empId) {
+
+        alert(
+          "กรุณากรอกรหัสพนักงาน"
+        );
+
+        return;
+      }
+
+      btn.disabled = true;
+
+      status.innerText =
+        "กำลังลงทะเบียน...";
+
+      try {
+
+        const url =
+          API_URL +
+          "?action=register" +
+          "&empId=" +
+          encodeURIComponent(empId) +
+          "&lineUserId=" +
+          encodeURIComponent(
+            currentLineUserId
+          );
+
+        const response =
+          await fetch(url);
+
+        const result =
+          await response.json();
+
+        if (result.success) {
+
+          status.innerText =
+            "✅ ลงทะเบียนสำเร็จ";
+
+          document.getElementById(
+            "registerBox"
+          ).style.display =
+            "none";
+
+          await checkEmployee();
+
+        } else {
+
+          status.innerText =
+            "❌ " +
+            (
+              result.error ||
+              "ลงทะเบียนไม่สำเร็จ"
+            );
+        }
+
+      } catch (error) {
+
+        status.innerHTML =
+          "❌ เกิดข้อผิดพลาด<br>" +
           error.message;
 
         console.error(error);
 
-      }
+      } finally {
 
+        btn.disabled = false;
+      }
     }
 
 
-    startLIFF();
+    function showEmployee(data) {
+
+      document.getElementById(
+        "status"
+      ).innerText =
+        "✅ พบข้อมูลพนักงาน";
+
+      const box =
+        document.getElementById(
+          "employeeInfo"
+        );
+
+      box.style.display =
+        "block";
+
+      box.innerHTML =
+        "<b>รหัสพนักงาน:</b> " +
+        data.empId +
+        "<br>" +
+        "<b>ชื่อ:</b> " +
+        data.name +
+        "<br>" +
+        "<b>วันลาคงเหลือ:</b> " +
+        (
+          data.quota === "" ||
+          data.quota === undefined
+            ? "-"
+            : data.quota
+        );
+    }
+
+
+    startApp();
 
   </script>
 
