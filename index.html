@@ -121,6 +121,23 @@
         </div>
       </section>
 
+      <!-- Host Pending Visitors Notification Card -->
+      <section id="cardHostVisitors" class="hidden glass-card rounded-2xl p-4 border-2 border-amber-400 bg-amber-50/70 shadow-sm">
+        <div class="flex items-center justify-between mb-2 pb-2 border-b border-amber-200">
+          <div class="flex items-center space-x-2">
+            <span class="text-xl">🔔</span>
+            <div>
+              <h3 class="text-xs font-bold text-amber-900 uppercase tracking-wide">ผู้มาติดต่อรอพบท่าน</h3>
+              <p class="text-[10px] text-amber-700">กรุณากดรับทราบเมื่อพบผู้มาติดต่อแล้ว</p>
+            </div>
+          </div>
+          <span id="hostVisitorsCount" class="px-2 py-0.5 bg-amber-500 text-white text-[11px] font-bold rounded-full">0</span>
+        </div>
+        <div id="hostVisitorsList" class="space-y-2.5">
+          <!-- Dynamic visitors waiting for this host -->
+        </div>
+      </section>
+
       <!-- Quick Action Launcher Grid -->
       <section class="grid grid-cols-2 gap-3">
         <!-- 1. ยื่นลางาน -->
@@ -184,15 +201,20 @@
 
       <!-- Recent Announcements / Notice -->
       <section class="glass-card rounded-2xl p-4 border border-slate-200 shadow-sm">
-        <div class="flex items-center space-x-2 mb-2">
-          <span class="text-emerald-600 text-base">📢</span>
-          <h3 class="text-xs font-bold text-slate-700 uppercase tracking-wide">ประกาศและแนวทางปฏิบัติ</h3>
+        <div class="flex items-center justify-between mb-2 pb-2 border-b border-slate-100">
+          <div class="flex items-center space-x-2">
+            <span class="text-emerald-600 text-base">📢</span>
+            <h3 class="text-xs font-bold text-slate-700 uppercase tracking-wide">ข่าวสารและประกาศโรงงาน</h3>
+          </div>
+          <span id="announcementBadge" class="text-[10px] text-emerald-700 font-semibold bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">ประกาศล่าสุด</span>
         </div>
-        <p class="text-xs text-slate-600 leading-relaxed">
-          • ยื่นคำขอลางานล่วงหน้าอย่างน้อย 1 วัน (ยกเว้นกรณีลาป่วยฉุกเฉิน)<br>
-          • ระบบคิดช่วงเวลาทีละ 15 นาที เพื่อความถูกต้องในการคำนวณเบี้ยขยันและค่าจ้าง<br>
-          • ตรวจสอบผลการอนุมัติได้ที่เมนู <b>"วันลาคงเหลือ"</b> ระบบจะปรับสถานะให้ทันทีเมื่อหัวหน้างานอนุมัติ
-        </p>
+        <div id="announcementsContainer" class="space-y-2.5 text-xs text-slate-600">
+          <div class="p-2.5 rounded-xl bg-slate-50 border border-slate-200 leading-relaxed text-[11px]">
+            • ยื่นคำขอลางานล่วงหน้าอย่างน้อย 1 วัน (ยกเว้นกรณีลาป่วยฉุกเฉิน)<br>
+            • ระบบคิดช่วงเวลาทีละ 15 นาที เพื่อความถูกต้องในการคำนวณเบี้ยขยันและค่าจ้าง<br>
+            • ตรวจสอบผลการอนุมัติได้ที่เมนู <b>"วันลาคงเหลือ"</b> ระบบจะปรับสถานะให้ทันทีเมื่อหัวหน้างานอนุมัติ
+          </div>
+        </div>
       </section>
 
     </div>
@@ -439,6 +461,41 @@
         </div>
       </div>
     </section>
+
+    <!-- Medical Certificate Upload Modal -->
+    <div id="modalMedicalCert" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+      <div class="glass-card bg-white rounded-2xl shadow-xl max-w-sm w-full p-5 space-y-4 animate-fadeIn">
+        <div class="flex items-center justify-between pb-2 border-b border-slate-200">
+          <div class="flex items-center space-x-2">
+            <span class="text-xl">📷</span>
+            <h3 class="font-bold text-slate-800 text-sm">แนบใบรับรองแพทย์</h3>
+          </div>
+          <button onclick="closeMedicalCertModal()" class="text-slate-400 hover:text-slate-600 p-1 text-lg">✖</button>
+        </div>
+        <div class="p-2.5 bg-slate-50 rounded-xl border border-slate-200 text-xs">
+          <p class="text-slate-500">เอกสารการลาเลขที่:</p>
+          <p id="medCertDocNoDisplay" class="font-bold text-slate-800 font-mono text-sm">-</p>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1.5">เลือกภาพถ่ายใบรับรองแพทย์ <span class="text-red-500">*</span></label>
+          <input type="file" id="medCertFileInput" accept="image/*,application/pdf" capture="environment" onchange="previewMedCertFile(event)" class="block w-full text-xs text-slate-500 file:mr-3 file:py-2 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100 cursor-pointer">
+          <div id="medCertPreviewBox" class="hidden mt-2.5 text-center">
+            <img id="medCertPreviewImg" class="max-h-40 mx-auto rounded-lg border border-slate-200 object-contain shadow-xs">
+            <p id="medCertFileName" class="text-[10px] text-slate-400 mt-1 truncate"></p>
+          </div>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">หมายเหตุเพิ่มเติม (ถ้ามี)</label>
+          <input type="text" id="medCertRemarks" placeholder="เช่น รพ.บางปะกอก 3, พักฟื้น 1 วัน" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
+        </div>
+        <div class="flex space-x-2 pt-2 border-t border-slate-100">
+          <button type="button" onclick="closeMedicalCertModal()" class="flex-1 py-2.5 rounded-xl text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 transition">ยกเลิก</button>
+          <button type="button" id="btnUploadMedCert" onclick="submitMedicalCertUpload()" class="flex-1 py-2.5 rounded-xl text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 shadow-sm transition flex items-center justify-center space-x-1">
+            <span>อัปโหลดเอกสาร</span>
+          </button>
+        </div>
+      </div>
+    </div>
 
   </main>
 
@@ -697,6 +754,10 @@
       if (user.quota) {
         renderQuotas(user.quota);
       }
+
+      // Render Host Visitors & Announcements
+      renderHostVisitors(user.pendingVisitors || []);
+      renderAnnouncements(user.announcements || []);
     }
 
     function renderQuotas(quota) {
@@ -704,6 +765,115 @@
       document.getElementById('quotaAnnualRemain').innerText = quota.annualRemaining ?? '6';
       document.getElementById('quotaPaidRemain').innerText = quota.personalPaidRemaining ?? '6';
       document.getElementById('quotaUnpaidUsed').innerText = quota.personalUnpaidUsedDays ?? '0';
+    }
+
+    function renderHostVisitors(visitors) {
+      const card = document.getElementById('cardHostVisitors');
+      const countEl = document.getElementById('hostVisitorsCount');
+      const listEl = document.getElementById('hostVisitorsList');
+      if (!card || !countEl || !listEl) return;
+
+      if (!visitors || visitors.length === 0) {
+        card.classList.add('hidden');
+        countEl.innerText = '0';
+        listEl.innerHTML = '';
+        return;
+      }
+
+      card.classList.remove('hidden');
+      countEl.innerText = visitors.length;
+      listEl.innerHTML = visitors.map(v => `
+        <div id="host-vis-${v.docNo}" class="p-3 bg-white rounded-xl border border-amber-200 shadow-xs text-xs space-y-1.5">
+          <div class="flex justify-between items-center">
+            <span class="font-bold text-slate-800 text-sm">${v.visitorName}</span>
+            <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800">บัตร: ${v.badgeNo || '-'}</span>
+          </div>
+          <p class="text-slate-600">🏢 ${v.company || 'บุคคลภายนอก'} | 🕒 เข้าเวลา ${v.checkInTime || '-'}</p>
+          <p class="text-slate-500 text-[11px]">วัตถุประสงค์: ${v.purpose || '-'}</p>
+          <div class="pt-2 border-t border-slate-100 flex justify-end">
+            <button type="button" onclick="handleHostAcknowledge('${v.docNo}', '${v.visitorName}')" class="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold text-xs shadow-sm flex items-center space-x-1 transition">
+              <span>✅ ยืนยันการเข้าพบ</span>
+            </button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    async function handleHostAcknowledge(docNo, visitorName) {
+      const remarks = prompt(`ยืนยันการเข้าพบกับคุณ "${visitorName}"\nระบุข้อความหรือหมายเหตุ (ถ้ามี):`, 'พบและสนทนาเรียบร้อย');
+      if (remarks === null) return;
+
+      const itemEl = document.getElementById(`host-vis-${docNo}`);
+      if (itemEl) {
+        itemEl.style.opacity = '0.5';
+        itemEl.style.pointerEvents = 'none';
+      }
+
+      try {
+        const res = await jsonpRequest({
+          action: 'acknowledgeVisitor',
+          docNo: docNo,
+          empId: state.currentUser.employeeCode,
+          remarks: remarks
+        });
+
+        if (res && res.status === 'success') {
+          showToast(res.message || 'ยืนยันการเข้าพบสำเร็จ ป้อมยามสามารถดำเนินการเช็คเอาท์ได้');
+          if (itemEl) itemEl.remove();
+          const countEl = document.getElementById('hostVisitorsCount');
+          if (countEl) {
+            let current = parseInt(countEl.innerText, 10) || 1;
+            current = Math.max(0, current - 1);
+            countEl.innerText = current;
+            if (current === 0) {
+              document.getElementById('cardHostVisitors').classList.add('hidden');
+            }
+          }
+        } else {
+          showToast(res ? res.message : 'เกิดข้อผิดพลาดในการยืนยัน', 'error');
+          if (itemEl) {
+            itemEl.style.opacity = '1';
+            itemEl.style.pointerEvents = 'auto';
+          }
+        }
+      } catch (e) {
+        showToast('เชื่อมต่อล้มเหลว: ' + e.message, 'error');
+        if (itemEl) {
+          itemEl.style.opacity = '1';
+          itemEl.style.pointerEvents = 'auto';
+        }
+      }
+    }
+
+    function renderAnnouncements(announcements) {
+      const container = document.getElementById('announcementsContainer');
+      if (!container) return;
+
+      if (!announcements || announcements.length === 0) {
+        container.innerHTML = `
+          <div class="p-2.5 rounded-xl bg-slate-50 border border-slate-200 leading-relaxed text-[11px]">
+            • ยื่นคำขอลางานล่วงหน้าอย่างน้อย 1 วัน (ยกเว้นกรณีลาป่วยฉุกเฉิน)<br>
+            • ระบบคิดช่วงเวลาทีละ 15 นาที เพื่อความถูกต้องในการคำนวณเบี้ยขยันและค่าจ้าง<br>
+            • ตรวจสอบผลการอนุมัติได้ที่เมนู <b>"วันลาคงเหลือ"</b> ระบบจะปรับสถานะให้ทันทีเมื่อหัวหน้างานอนุมัติ
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = announcements.map(a => {
+        const isUrgent = a.priority === 'HIGH' || a.priority === 'URGENT';
+        const badgeColor = isUrgent ? 'bg-red-100 text-red-700 border-red-200' : 'bg-emerald-100 text-emerald-800 border-emerald-200';
+        return `
+          <div class="p-3 bg-white rounded-xl border border-slate-200 shadow-xs space-y-1">
+            <div class="flex items-center justify-between">
+              <span class="font-bold text-slate-800 text-xs truncate max-w-[70%]">${a.title}</span>
+              <span class="px-2 py-0.5 rounded text-[10px] font-bold border ${badgeColor}">${a.category || 'ทั่วไป'}</span>
+            </div>
+            <p class="text-slate-600 text-[11px] leading-relaxed">${a.content}</p>
+            <p class="text-[10px] text-slate-400 pt-1 border-t border-slate-100">ผู้ประกาศ: ${a.author || 'ฝ่ายบริหาร'} ${a.timestamp ? '• ' + a.timestamp : ''}</p>
+          </div>
+        `;
+      }).join('');
     }
 
     // ==========================================
@@ -846,6 +1016,29 @@
             if (item.status === 'APPROVED') statusBadge = '<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-emerald-100 text-emerald-800">อนุมัติแล้ว</span>';
             else if (item.status === 'REJECTED') statusBadge = '<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-red-100 text-red-800">ปฏิเสธ</span>';
 
+            let certSection = '';
+            if (item.attachmentUrl) {
+              certSection = `
+                <div class="mt-2 pt-1.5 border-t border-slate-100 flex items-center justify-between">
+                  <span class="text-[11px] text-emerald-700 font-semibold flex items-center gap-1">
+                    <span>📎</span><span>แนบใบรับรองแพทย์แล้ว</span>
+                  </span>
+                  <a href="${item.attachmentUrl}" target="_blank" rel="noopener noreferrer" class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 transition">
+                    ดูเอกสาร
+                  </a>
+                </div>
+              `;
+            } else if (item.leaveType === 'ลาป่วย' || item.leaveType.includes('ป่วย')) {
+              certSection = `
+                <div class="mt-2 pt-1.5 border-t border-slate-100 flex items-center justify-between">
+                  <span class="text-[11px] text-slate-500">ใบรับรองแพทย์:</span>
+                  <button type="button" onclick="openMedicalCertModal('${item.docNo}')" class="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 flex items-center gap-1 transition">
+                    <span>📷</span><span>แนบใบรับรองแพทย์</span>
+                  </button>
+                </div>
+              `;
+            }
+
             return `
               <div class="p-3 bg-white rounded-xl border border-slate-200 shadow-sm text-xs">
                 <div class="flex items-center justify-between mb-1.5">
@@ -859,6 +1052,7 @@
                   เหตุผล: ${item.reason || '-'}
                 </p>
                 ${item.approverName && item.approverName !== '-' ? `<p class="text-[10px] text-slate-400 mt-1 border-t border-slate-100 pt-1">ผู้อนุมัติ: ${item.approverName} (${item.approvedAt})</p>` : ''}
+                ${certSection}
               </div>
             `;
           }).join('');
@@ -867,6 +1061,126 @@
         }
       } catch (err) {
         container.innerHTML = '<p class="text-xs text-red-500 text-center py-4">โหลดประวัติไม่สำเร็จ: ' + err.message + '</p>';
+      }
+    }
+
+    // ==========================================
+    // Medical Certificate Upload Logic
+    // ==========================================
+    let currentMedCertDocNo = '';
+    let currentMedCertBase64 = '';
+    let currentMedCertMimeType = '';
+    let currentMedCertFileName = '';
+
+    function openMedicalCertModal(docNo) {
+      currentMedCertDocNo = docNo;
+      currentMedCertBase64 = '';
+      currentMedCertMimeType = '';
+      currentMedCertFileName = '';
+
+      document.getElementById('medCertDocNoDisplay').innerText = docNo;
+      document.getElementById('medCertFileInput').value = '';
+      document.getElementById('medCertRemarks').value = '';
+      document.getElementById('medCertPreviewBox').classList.add('hidden');
+      document.getElementById('modalMedicalCert').classList.remove('hidden');
+    }
+
+    function closeMedicalCertModal() {
+      document.getElementById('modalMedicalCert').classList.add('hidden');
+      currentMedCertDocNo = '';
+      currentMedCertBase64 = '';
+    }
+
+    function previewMedCertFile(event) {
+      const file = event.target.files && event.target.files[0];
+      if (!file) return;
+
+      currentMedCertMimeType = file.type || 'image/jpeg';
+      currentMedCertFileName = file.name;
+      document.getElementById('medCertFileName').innerText = file.name;
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const rawDataUrl = e.target.result;
+
+        // Compress image using canvas to ensure swift upload
+        if (file.type.startsWith('image/')) {
+          const img = new Image();
+          img.onload = function() {
+            const canvas = document.createElement('canvas');
+            const maxDim = 1200;
+            let width = img.width;
+            let height = img.height;
+            if (width > maxDim || height > maxDim) {
+              if (width > height) {
+                height = Math.round((height * maxDim) / width);
+                width = maxDim;
+              } else {
+                width = Math.round((width * maxDim) / height);
+                height = maxDim;
+              }
+            }
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+            currentMedCertBase64 = canvas.toDataURL('image/jpeg', 0.8);
+            document.getElementById('medCertPreviewImg').src = currentMedCertBase64;
+            document.getElementById('medCertPreviewBox').classList.remove('hidden');
+          };
+          img.src = rawDataUrl;
+        } else {
+          currentMedCertBase64 = rawDataUrl;
+          document.getElementById('medCertPreviewImg').src = 'https://via.placeholder.com/150?text=PDF+File';
+          document.getElementById('medCertPreviewBox').classList.remove('hidden');
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+
+    async function submitMedicalCertUpload() {
+      if (!currentMedCertDocNo) {
+        showToast('ไม่พบเลขที่เอกสารการลา', 'error');
+        return;
+      }
+      if (!currentMedCertBase64) {
+        showToast('กรุณาเลือกไฟล์หรือถ่ายภาพใบรับรองแพทย์ก่อน', 'error');
+        return;
+      }
+
+      const btn = document.getElementById('btnUploadMedCert');
+      btn.disabled = true;
+      btn.innerHTML = '<span class="inline-block animate-spin mr-1">⏳</span> กำลังอัปโหลด...';
+
+      const payload = {
+        action: 'uploadMedicalCert',
+        docNo: currentMedCertDocNo,
+        base64Content: currentMedCertBase64,
+        mimeType: currentMedCertMimeType || 'image/jpeg',
+        fileName: currentMedCertFileName || `MedCert_${currentMedCertDocNo}.jpg`,
+        remarks: document.getElementById('medCertRemarks').value.trim()
+      };
+
+      try {
+        const response = await fetch(API_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify(payload)
+        });
+        const res = await response.json();
+
+        if (res && res.success) {
+          showToast(res.message || 'แนบใบรับรองแพทย์เรียบร้อยแล้ว');
+          closeMedicalCertModal();
+          loadLeaveHistory();
+        } else {
+          showToast((res && res.error) || 'อัปโหลดไม่สำเร็จ กรุณาลองใหม่อีกครั้ง', 'error');
+        }
+      } catch (err) {
+        showToast('เกิดข้อผิดพลาดในการอัปโหลด: ' + err.message, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<span>อัปโหลดเอกสาร</span>';
       }
     }
 
