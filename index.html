@@ -557,6 +557,30 @@
       });
     }
 
+    function formatCleanDate(str) {
+      if (!str) return '-';
+      const s = String(str).trim();
+      const m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+      if (m) return `${m[3]}/${m[2]}/${m[1]}`;
+      const mDmy = s.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+      if (mDmy) return `${mDmy[1]}/${mDmy[2]}/${mDmy[3]}`;
+      return s.slice(0, 10);
+    }
+
+    function formatCleanTime(str) {
+      if (!str) return '';
+      const s = String(str).trim();
+      const m = s.match(/(\d{2}:\d{2})(?::\d{2})?/);
+      return m ? m[1] : s.slice(0, 5);
+    }
+
+    function formatCleanShift(str) {
+      if (!str) return '';
+      let s = String(str).trim();
+      s = s.replace(/^กะ+/, '');
+      return 'กะ' + s;
+    }
+
     function showToast(message, type = 'success') {
       const t = document.getElementById('toast');
       t.innerText = message;
@@ -1046,7 +1070,7 @@
                   ${statusBadge}
                 </div>
                 <p class="text-slate-600 mb-1">
-                  📅 ${item.startDate} ${item.startTime || ''} ถึง ${item.endDate} ${item.endTime || ''} (${item.totalHours} ชม.)
+                  📅 ${formatCleanDate(item.startDate)} ${formatCleanTime(item.startTime)} ถึง ${formatCleanDate(item.endDate)} ${formatCleanTime(item.endTime)} (${item.totalHours} ชม. ${formatCleanShift(item.shift)})
                 </p>
                 <p class="text-slate-500 text-[11px]">
                   เหตุผล: ${item.reason || '-'}
@@ -1320,7 +1344,7 @@
                   <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800">${l.leaveType}</span>
                 </div>
                 <p class="text-slate-600">
-                  📅 ${l.startDate} ${l.startTime} ถึง ${l.endDate} ${l.endTime} (${l.totalHours} ชม. กะ${l.shift})
+                  📅 ${formatCleanDate(l.startDate)} ${formatCleanTime(l.startTime)} ถึง ${formatCleanDate(l.endDate)} ${formatCleanTime(l.endTime)} (${l.totalHours} ชม. ${formatCleanShift(l.shift)})
                 </p>
                 <p class="text-slate-500 text-[11px]">เหตุผล: ${l.reason || '-'}</p>
                 <div class="flex space-x-2 pt-2 border-t border-slate-100">
@@ -1346,7 +1370,7 @@
                   <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-800">OT ${o.totalHours} ชม.</span>
                 </div>
                 <p class="text-slate-600">
-                  ⏱️ วันที่ ${o.date} เวลา ${o.startTime} - ${o.endTime} (กะ${o.shift})
+                  ⏱️ วันที่ ${formatCleanDate(o.date)} เวลา ${formatCleanTime(o.startTime)} - ${formatCleanTime(o.endTime)} (${formatCleanShift(o.shift)})
                 </p>
                 <p class="text-slate-500 text-[11px]">งาน: ${o.taskDescription || '-'}</p>
                 <div class="flex space-x-2 pt-2 border-t border-slate-100">
@@ -1381,7 +1405,8 @@
         const res = await jsonpRequest({
           action: 'processApproval',
           docNo: docNo,
-          action: action,
+          decision: action,
+          approvalAction: action,
           approverCode: state.currentUser.employeeCode,
           approverName: state.currentUser.fullName
         });
