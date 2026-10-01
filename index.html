@@ -45,6 +45,13 @@
     .btn-submit { width: 100%; background: #06C755; color: white; border: none; padding: 12px; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; }
     .btn-cancel { width: 100%; background: #e0e0e0; color: #555; border: none; padding: 12px; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; margin-top: 10px; }
 
+    /* โครงสร้างใหม่ของกล่องโควต้าวันลา (Grid) */
+    .quota-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 20px; }
+    .quota-box { background: #e8f5e9; border: 1px solid #c8e6c9; border-radius: 8px; padding: 10px 5px; text-align: center; }
+    .quota-box-title { font-size: 11px; color: #2e7d32; font-weight: bold; margin-bottom: 5px; }
+    .quota-box-val { font-size: 22px; font-weight: bold; color: #06C755; }
+    .quota-box-unit { font-size: 10px; color: #2e7d32; }
+
     .history-card { border: 1px solid #e0e0e0; border-radius: 8px; padding: 12px; margin-bottom: 10px; background: white; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
     .history-header { display: flex; justify-content: space-between; margin-bottom: 8px; }
     .history-type { font-weight: bold; color: #333; font-size: 15px; }
@@ -108,20 +115,13 @@
       <div class="form-group">
         <label>ประเภทการลา</label>
         <select id="leaveType">
-          <option value="">-- เลือกประเภทการลา --</option>
-          <option value="ลาป่วย">ลาป่วย</option>
-          <option value="ลากิจ">ลากิจ</option>
-          <option value="ลาพักร้อน">ลาพักร้อน</option>
+          <option value="">-- กำลังดึงข้อมูล... --</option>
+          <!-- ตัวเลือกจะถูกสร้างอัตโนมัติจาก Google Sheets -->
         </select>
       </div>
       <div class="form-group"><label>วัน-เวลา เริ่มต้น</label><input type="datetime-local" id="leaveStartDate"></div>
       <div class="form-group"><label>วัน-เวลา สิ้นสุด</label><input type="datetime-local" id="leaveEndDate"></div>
       <div class="form-group"><label>เหตุผลการลา</label><textarea id="leaveReason" placeholder="ระบุรายละเอียด..."></textarea></div>
-      <div class="form-group">
-        <label>แนบรูปใบรับรองแพทย์ (ถ้ามี)</label>
-        <input type="file" id="leaveFile" accept="image/*" disabled>
-        <p style="font-size: 11px; color: #888; margin-top: 5px;">*ระบบแนบไฟล์ยังไม่เปิดใช้งานในเวอร์ชันทดสอบนี้</p>
-      </div>
 
       <button id="btnSubmitLeave" class="btn-submit" onclick="submitLeave()">ส่งคำขอลางาน</button>
       <button class="btn-cancel" onclick="closeModule()">กลับหน้าหลัก</button>
@@ -133,12 +133,13 @@
         <button class="btn-close" onclick="closeModule()">✖</button>
       </div>
       
-      <div style="text-align: center; padding: 20px; background: #e8f5e9; border-radius: 12px; margin-bottom: 20px;">
-        <div style="font-size: 14px; color: #2e7d32; font-weight: bold;">วันลาคงเหลือของปีนี้</div>
-        <div style="font-size: 42px; font-weight: bold; color: #06C755; margin: 5px 0;">
-          <span id="displayQuotaValue">-</span>
-        </div>
-        <div style="font-size: 14px; color: #2e7d32;">วัน</div>
+      <!-- โครงสร้าง Grid โควต้าแยกประเภท -->
+      <div class="quota-grid">
+        <div class="quota-box"><div class="quota-box-title">ลาป่วย</div><div class="quota-box-val" id="q-sick">-</div><div class="quota-box-unit">วัน</div></div>
+        <div class="quota-box"><div class="quota-box-title">ลากิจ(รับเงิน)</div><div class="quota-box-val" id="q-p-paid">-</div><div class="quota-box-unit">วัน</div></div>
+        <div class="quota-box"><div class="quota-box-title">ลากิจ(ไม่รับ)</div><div class="quota-box-val" id="q-p-unpaid">-</div><div class="quota-box-unit">วัน</div></div>
+        <div class="quota-box"><div class="quota-box-title">ลาพักร้อน</div><div class="quota-box-val" id="q-annual">-</div><div class="quota-box-unit">วัน</div></div>
+        <div class="quota-box"><div class="quota-box-title">ลาคลอด</div><div class="quota-box-val" id="q-maternity">-</div><div class="quota-box-unit">วัน</div></div>
       </div>
 
       <h4 style="color: #333; margin-bottom: 10px; border-bottom: 1px solid #ddd; padding-bottom: 5px;">ประวัติการยื่นลาล่าสุด</h4>
@@ -158,6 +159,7 @@
     
     let currentLineUserId = "";
     let currentEmpId = ""; 
+    let myQuota = null; // เก็บข้อมูลโควต้าของคนๆ นี้
 
     async function startApp() {
       const status = document.getElementById("status");
@@ -174,10 +176,31 @@
           img.style.display = "block";
         }
         document.getElementById("lineUserIdDisplay").innerText = "UID: " + currentLineUserId;
+        
+        // เมื่อเริ่มแอป ให้ดึงการตั้งค่าระบบและเช็คข้อมูลพนักงานไปพร้อมๆ กัน
+        loadSystemConfig();
         checkEmployee();
+
       } catch (error) {
         status.innerHTML = "❌ เกิดข้อผิดพลาด<br>" + error.message;
       }
+    }
+
+    // =========================================
+    // ฟังก์ชันใหม่: ดึงรายชื่อการลาจาก Sheet มาสร้าง Dropdown
+    // =========================================
+    function loadSystemConfig() {
+      jsonpRequest({ action: "getConfig" })
+      .then(function(result) {
+        if(result && result.success && result.leaveTypes) {
+          const select = document.getElementById("leaveType");
+          select.innerHTML = '<option value="">-- เลือกประเภทการลา --</option>';
+          result.leaveTypes.forEach(type => {
+            select.innerHTML += `<option value="${type.name}">${type.name}</option>`;
+          });
+        }
+      })
+      .catch(function(err) { console.error("โหลดตั้งค่าล้มเหลว", err); });
     }
 
     function checkEmployee() {
@@ -193,6 +216,7 @@
           document.getElementById("registerBox").style.display = "none";
           retryBtn.style.display = "none";
           currentEmpId = result.data.empId; 
+          myQuota = result.data.quota; // เก็บโควต้าที่ดึงมา
           showEmployee(result.data);
         } else {
           document.getElementById("employeeInfo").style.display = "none";
@@ -296,18 +320,15 @@
       .finally(function() { btnSubmit.innerText = "ส่งคำขอลางาน"; btnSubmit.disabled = false; });
     }
 
-    // =========================================
-    // ฟังก์ชันช่วยแปลงวันที่ให้เป็นภาษาไทยแบบสวยงาม
-    // =========================================
     function formatThaiDateTime(dateString) {
       if (!dateString) return "-";
       const d = new Date(dateString);
-      if (isNaN(d.getTime())) return dateString; // ถ้าแปลงไม่ได้ ให้คืนค่าเดิมกลับไป
+      if (isNaN(d.getTime())) return dateString; 
       
       const day = d.getDate();
       const months = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
       const month = months[d.getMonth()];
-      const year = d.getFullYear() + 543; // แปลงเป็นปี พ.ศ.
+      const year = d.getFullYear() + 543; 
       
       const hours = String(d.getHours()).padStart(2, '0');
       const minutes = String(d.getMinutes()).padStart(2, '0');
@@ -319,14 +340,19 @@
       const listDiv = document.getElementById("historyListContainer");
       listDiv.innerHTML = "<p style='text-align:center; color:#888; font-size:14px;'>กำลังดึงข้อมูลประวัติการลา...</p>";
 
-      jsonpRequest({
-        action: "getLeaveHistory",
-        empId: currentEmpId
-      })
+      // อัปเดตตัวเลขโควต้าลงบนหน้าจอ (ดึงค่าจาก myQuota ที่เก็บไว้ตอนเช็คพนักงาน)
+      if(myQuota) {
+        document.getElementById("q-sick").innerText = myQuota.sick;
+        document.getElementById("q-p-paid").innerText = myQuota.personalPaid;
+        document.getElementById("q-p-unpaid").innerText = myQuota.personalUnpaid;
+        document.getElementById("q-annual").innerText = myQuota.annual;
+        // เพิ่มคอลัมน์ J (ลาคลอด)
+        document.getElementById("q-maternity").innerText = myQuota.maternity || 0; 
+      }
+
+      jsonpRequest({ action: "getLeaveHistory", empId: currentEmpId })
       .then(function(result) {
         if(result && result.success) {
-          document.getElementById("displayQuotaValue").innerText = result.quota;
-          
           if(result.history.length === 0) {
             listDiv.innerHTML = "<p style='text-align:center; color:#888; font-size:14px;'>ยังไม่มีประวัติการลางาน</p>";
             return;
@@ -338,7 +364,6 @@
             if(item.status === "อนุมัติ") statusClass = "status-approve";
             if(item.status === "ไม่อนุมัติ") statusClass = "status-reject";
 
-            // เรียกใช้ฟังก์ชันแปลงวันที่ตรงนี้
             const startStr = formatThaiDateTime(item.start);
             const endStr = formatThaiDateTime(item.end);
 
