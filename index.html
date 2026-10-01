@@ -2,430 +2,1122 @@
 <html lang="th">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>HR Leave System</title>
-  <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-  <style>
-    body { font-family: 'Sarabun', Arial, sans-serif; background: #f5f5f5; margin: 0; padding: 10px; text-align: center; }
-    .card { max-width: 420px; margin: 20px auto; background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
-    
-    #profileImage { width: 90px; height: 90px; border-radius: 50%; display: none; margin: 10px auto; object-fit: cover; border: 3px solid #06C755;}
-    #status { margin-top: 10px; font-size: 14px; color: #666;}
-    
-    #employeeInfo { display: none; margin-top: 15px; }
-    .emp-name { font-size: 20px; font-weight: bold; margin: 5px 0; color: #333; }
-    .emp-id { font-size: 14px; color: #888; margin-bottom: 15px;}
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Minamida Mobile Portal | ระบบพนักงานโรงงาน</title>
 
-    #registerBox { display: none; margin-top: 25px; text-align: left; background: #f9f9f9; padding: 15px; border-radius: 10px;}
-    #registerBox h3 { margin-top: 0; color: #333; }
-    input[type="text"] { width: 100%; box-sizing: border-box; padding: 12px; font-size: 16px; border: 1px solid #ccc; border-radius: 8px; margin-top: 10px; }
-    button.btn-register, button.btn-retry { width: 100%; padding: 12px; margin-top: 15px; border: none; border-radius: 8px; background: #06C755; color: white; font-size: 16px; font-weight: bold; cursor: pointer; }
-    button.btn-retry { background: #ff9800; display: none; }
-    button:disabled { background: #aaa; cursor: not-allowed; }
+  <!-- Google Fonts: Prompt -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
 
-    #mainMenu { display: none; margin-top: 20px; }
-    .grid-container { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin-top: 15px; }
-    .menu-btn { background: #f0f7f4; border: 1px solid #d1e8df; padding: 20px 10px; border-radius: 12px; cursor: pointer; color: #333; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-    .menu-icon { font-size: 28px; margin-bottom: 8px; }
-    .menu-text { font-size: 14px; font-weight: bold; }
-
-    .module-box { display: none; text-align: left; margin-top: 15px; animation: fadeIn 0.3s; }
-    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-    .module-header { display: flex; align-items: center; justify-content: space-between; border-bottom: 2px solid #eee; padding-bottom: 10px; margin-bottom: 15px; }
-    .module-header h3 { margin: 0; color: #333; }
-    .btn-close { background: none; border: none; font-size: 24px; cursor: pointer; color: #999; padding: 0; }
-    
-    .form-group { margin-bottom: 15px; }
-    .form-group label { display: block; font-size: 14px; font-weight: bold; margin-bottom: 5px; color: #555; }
-    .form-group select, .form-group input[type="datetime-local"], .form-group textarea, .form-group input[type="file"] { 
-      width: 100%; box-sizing: border-box; padding: 10px; border: 1px solid #ccc; border-radius: 6px; font-family: inherit; font-size: 15px; background: white;
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Prompt', 'sans-serif'] },
+          colors: {
+            line: '#06C755',
+            'line-dark': '#059669',
+            brand: '#0f766e',
+            'brand-dark': '#134e4a'
+          }
+        }
+      }
     }
-    .form-group textarea { resize: vertical; height: 80px; }
-    
-    .btn-submit { width: 100%; background: #06C755; color: white; border: none; padding: 12px; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; }
-    .btn-cancel { width: 100%; background: #e0e0e0; color: #555; border: none; padding: 12px; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; margin-top: 10px; }
+  </script>
 
-    /* โครงสร้างใหม่ของกล่องโควต้าวันลา (Grid) */
-    .quota-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 20px; }
-    .quota-box { background: #e8f5e9; border: 1px solid #c8e6c9; border-radius: 8px; padding: 10px 5px; text-align: center; }
-    .quota-box-title { font-size: 11px; color: #2e7d32; font-weight: bold; margin-bottom: 5px; }
-    .quota-box-val { font-size: 22px; font-weight: bold; color: #06C755; }
-    .quota-box-unit { font-size: 10px; color: #2e7d32; }
+  <!-- LINE LIFF SDK v2 -->
+  <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 
-    .history-card { border: 1px solid #e0e0e0; border-radius: 8px; padding: 12px; margin-bottom: 10px; background: white; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
-    .history-header { display: flex; justify-content: space-between; margin-bottom: 8px; }
-    .history-type { font-weight: bold; color: #333; font-size: 15px; }
-    .history-status { font-size: 12px; font-weight: bold; padding: 2px 8px; border-radius: 4px; }
-    .status-wait { background: #fff3cd; color: #856404; }
-    .status-approve { background: #d4edda; color: #155724; }
-    .status-reject { background: #f8d7da; color: #721c24; }
-    .history-detail { font-size: 13px; color: #666; margin-bottom: 3px; }
-
-    .small { font-size: 10px; color: #ccc; word-break: break-all; margin-top: 30px; text-align: center; }
+  <style>
+    body { font-family: 'Prompt', sans-serif; background-color: #f1f5f9; -webkit-tap-highlight-color: transparent; }
+    .glass-card { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); }
+    .animate-fadeIn { animation: fadeIn 0.25s ease-out; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
   </style>
 </head>
+<body class="min-h-screen text-slate-800 pb-12 flex flex-col items-center">
 
-<body>
-  <div class="card">
-    <div id="status">กำลังเชื่อมต่อระบบ LINE...</div>
-    <img id="profileImage" alt="LINE Profile">
-    
-    <div id="employeeInfo">
-      <div class="emp-name" id="displayEmpName"></div>
-      <div class="emp-id" id="displayEmpId"></div>
-    </div>
+  <!-- App Container -->
+  <main class="w-full max-w-md px-4 pt-4">
 
-    <div id="registerBox">
-      <h3>👋 ยินดีต้อนรับ</h3>
-      <p style="font-size: 14px; color:#555; margin-bottom: 5px;">กรุณายืนยันตัวตนด้วยรหัสพนักงานของคุณ</p>
-      <input id="empIdInput" type="text" inputmode="numeric" placeholder="เช่น 2011393">
-      <button id="registerBtn" class="btn-register" onclick="registerEmployee()">ยืนยันตัวตน</button>
-    </div>
-
-    <button id="retryBtn" class="btn-retry" onclick="checkEmployee()">🔄 ลองใหม่อีกครั้ง</button>
-
-    <div id="mainMenu">
-      <hr style="border: 0; border-top: 1px solid #eee; margin-bottom: 20px;">
-      <div class="grid-container">
-        <div class="menu-btn" onclick="openModule('leave')">
-          <div class="menu-icon">📅</div>
-          <div class="menu-text">ยื่นลางาน</div>
+    <!-- Header & Brand Bar -->
+    <header class="flex items-center justify-between py-2 mb-3 border-b border-slate-200">
+      <div class="flex items-center space-x-2">
+        <div class="w-8 h-8 rounded-lg bg-emerald-600 flex items-center justify-center text-white font-bold text-sm shadow-sm">
+          M
         </div>
-        <div class="menu-btn" onclick="openModule('quota')">
-          <div class="menu-icon">📊</div>
-          <div class="menu-text">วันลาคงเหลือ</div>
-        </div>
-        <div class="menu-btn" onclick="openModule('ot')">
-          <div class="menu-icon">⏱</div>
-          <div class="menu-text">ขอทำโอที (OT)</div>
-        </div>
-        <div class="menu-btn" onclick="openModule('time')">
-          <div class="menu-icon">🕒</div>
-          <div class="menu-text">เช็คเวลาเข้า-ออก</div>
+        <div>
+          <h1 class="text-base font-bold leading-tight text-slate-800">MINAMIDA MOBILE</h1>
+          <p class="text-[11px] text-slate-500">Minamida (Thailand) Co., Ltd.</p>
         </div>
       </div>
+      <div id="connectionBadge" class="flex items-center space-x-1.5 px-2.5 py-1 bg-emerald-50 text-emerald-700 rounded-full text-xs font-medium border border-emerald-200">
+        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+        <span id="connectionText">เชื่อมต่อแล้ว</span>
+      </div>
+    </header>
+
+    <!-- Global Toast Alert -->
+    <div id="toast" class="hidden fixed top-4 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-xl shadow-lg text-sm font-medium transition-all max-w-[90%] text-center"></div>
+
+    <!-- Status Message Screen (Initial Loading) -->
+    <section id="loadingScreen" class="glass-card rounded-2xl p-8 text-center shadow-sm border border-slate-200 my-6">
+      <div class="inline-block animate-spin rounded-full h-10 w-10 border-4 border-emerald-500 border-t-transparent mb-4"></div>
+      <h2 id="loadingTitle" class="text-base font-semibold text-slate-700">กำลังเชื่อมต่อ LINE LIFF...</h2>
+      <p id="loadingDetail" class="text-xs text-slate-500 mt-1">กรุณารอสักครู่ ระบบกำลังตรวจสอบสิทธิ์การเข้าใช้งาน</p>
+    </section>
+
+    <!-- Onboarding / Registration Screen -->
+    <section id="registerScreen" class="hidden glass-card rounded-2xl p-6 shadow-sm border border-slate-200 mb-6 animate-fadeIn">
+      <div class="text-center mb-5">
+        <img id="regLineAvatar" class="w-20 h-20 rounded-full mx-auto mb-3 border-2 border-emerald-500 object-cover shadow-sm bg-slate-100" src="https://via.placeholder.com/80" alt="Avatar">
+        <h2 id="regLineName" class="text-lg font-bold text-slate-800">ยินดีต้อนรับ</h2>
+        <p class="text-xs text-slate-500 mt-1">ยืนยันตัวตนพนักงานครั้งแรกเพื่อผูกบัญชี LINE</p>
+      </div>
+
+      <div class="space-y-4 text-left">
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">รหัสพนักงาน (Employee ID)</label>
+          <input id="inputEmpId" type="text" inputmode="numeric" placeholder="เช่น 2011393 หรือ 1304033" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm font-medium bg-white">
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">วัน/เดือน/ปีเกิด (DDMMYYYY พ.ศ. หรือ ค.ศ.)</label>
+          <input id="inputBirthdate" type="text" inputmode="numeric" maxlength="8" placeholder="เช่น 01012535 หรือ 15081995" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm font-medium bg-white">
+          <p class="text-[11px] text-slate-400 mt-1">กรอกตัวเลข 8 หลัก เช่น เกิดวันที่ 1 มกราคม 2535 ให้กรอก 01012535</p>
+        </div>
+
+        <button id="btnRegister" onclick="handleRegister()" class="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-semibold text-sm shadow-md transition-all flex items-center justify-center space-x-2 mt-2">
+          <span>ยืนยันข้อมูลและเริ่มใช้งาน</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- Main Dashboard -->
+    <div id="mainDashboard" class="hidden space-y-4 animate-fadeIn">
+
+      <!-- Profile Header Card -->
+      <section class="glass-card rounded-2xl p-4 shadow-sm border border-slate-200">
+        <div class="flex items-center space-x-3.5">
+          <img id="dashAvatar" class="w-14 h-14 rounded-full border-2 border-emerald-500 object-cover bg-slate-100 flex-shrink-0" src="https://via.placeholder.com/60" alt="Avatar">
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center space-x-2">
+              <h2 id="dashEmpName" class="text-sm font-bold text-slate-800 truncate">-</h2>
+              <span id="dashRoleBadge" class="hidden px-2 py-0.5 bg-emerald-100 text-emerald-800 text-[10px] font-bold rounded-full">หัวหน้างาน</span>
+            </div>
+            <p class="text-xs text-slate-500 mt-0.5">
+              รหัส: <span id="dashEmpId" class="font-semibold text-slate-700">-</span> |
+              แผนก: <span id="dashDept" class="font-semibold text-slate-700">-</span>
+            </p>
+            <div class="flex items-center space-x-2 mt-1">
+              <span id="dashShift" class="inline-flex items-center text-[11px] text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md">
+                ☀️ กะกลางวัน
+              </span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Quick Action Launcher Grid -->
+      <section class="grid grid-cols-2 gap-3">
+        <!-- 1. ยื่นลางาน -->
+        <button onclick="openView('leave')" class="glass-card p-4 rounded-2xl border border-slate-200 text-left hover:border-emerald-400 hover:shadow-md transition-all flex flex-col justify-between">
+          <div class="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center text-xl mb-2">
+            📅
+          </div>
+          <div>
+            <h3 class="text-sm font-bold text-slate-800">ยื่นลางาน</h3>
+            <p class="text-[11px] text-slate-500 mt-0.5">ลาป่วย พักร้อน ลากิจ</p>
+          </div>
+        </button>
+
+        <!-- 2. วันลาคงเหลือ -->
+        <button onclick="openView('quota')" class="glass-card p-4 rounded-2xl border border-slate-200 text-left hover:border-blue-400 hover:shadow-md transition-all flex flex-col justify-between">
+          <div class="w-10 h-10 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center text-xl mb-2">
+            📊
+          </div>
+          <div>
+            <h3 class="text-sm font-bold text-slate-800">วันลาคงเหลือ</h3>
+            <p class="text-[11px] text-slate-500 mt-0.5">เช็คสิทธิ์และประวัติ</p>
+          </div>
+        </button>
+
+        <!-- 3. ขอทำโอที (OT) -->
+        <button onclick="openView('ot')" class="glass-card p-4 rounded-2xl border border-slate-200 text-left hover:border-amber-400 hover:shadow-md transition-all flex flex-col justify-between">
+          <div class="w-10 h-10 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center text-xl mb-2">
+            ⏱️
+          </div>
+          <div>
+            <h3 class="text-sm font-bold text-slate-800">ขอทำโอที (OT)</h3>
+            <p class="text-[11px] text-slate-500 mt-0.5">ยื่นเวลาล่วงเวลา</p>
+          </div>
+        </button>
+
+        <!-- 4. อนุมัติงานค้าง (เฉพาะหัวหน้างาน) -->
+        <button id="btnApprovalsCard" onclick="openView('approvals')" class="hidden glass-card p-4 rounded-2xl border-2 border-emerald-500 bg-emerald-50/50 text-left hover:shadow-md transition-all flex flex-col justify-between relative overflow-hidden">
+          <div class="flex items-center justify-between w-full mb-2">
+            <div class="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center text-xl">
+              ✅
+            </div>
+            <span id="pendingBadgeCount" class="px-2 py-0.5 bg-red-500 text-white text-[11px] font-bold rounded-full shadow-sm">0</span>
+          </div>
+          <div>
+            <h3 class="text-sm font-bold text-emerald-900">อนุมัติงานค้าง</h3>
+            <p class="text-[11px] text-emerald-700 mt-0.5">ลา & โอทีลูกทีม</p>
+          </div>
+        </button>
+
+        <!-- 5. ลงเวลาป้อมยาม Info Card -->
+        <div id="cardTimeInfo" class="glass-card p-4 rounded-2xl border border-slate-200 text-left flex flex-col justify-between">
+          <div class="w-10 h-10 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center text-xl mb-2">
+            🕒
+          </div>
+          <div>
+            <h3 class="text-sm font-bold text-slate-800">เวลาเข้า-ออก</h3>
+            <p class="text-[11px] text-slate-500 mt-0.5">สแกนบัตรที่ป้อมยาม</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Recent Announcements / Notice -->
+      <section class="glass-card rounded-2xl p-4 border border-slate-200 shadow-sm">
+        <div class="flex items-center space-x-2 mb-2">
+          <span class="text-emerald-600 text-base">📢</span>
+          <h3 class="text-xs font-bold text-slate-700 uppercase tracking-wide">ประกาศและแนวทางปฏิบัติ</h3>
+        </div>
+        <p class="text-xs text-slate-600 leading-relaxed">
+          • ยื่นคำขอลางานล่วงหน้าอย่างน้อย 1 วัน (ยกเว้นกรณีลาป่วยฉุกเฉิน)<br>
+          • ระบบคิดช่วงเวลาทีละ 15 นาที เพื่อความถูกต้องในการคำนวณเบี้ยขยันและค่าจ้าง<br>
+          • ตรวจสอบผลการอนุมัติได้ที่เมนู <b>"วันลาคงเหลือ"</b> ระบบจะปรับสถานะให้ทันทีเมื่อหัวหน้างานอนุมัติ
+        </p>
+      </section>
+
     </div>
 
-    <div id="leaveModule" class="module-box">
-      <div class="module-header">
-        <h3>📅 ยื่นลางาน</h3>
-        <button class="btn-close" onclick="closeModule()">✖</button>
-      </div>
-      
-      <div class="form-group">
-        <label>ประเภทการลา</label>
-        <select id="leaveType">
-          <option value="">-- กำลังดึงข้อมูล... --</option>
-          <!-- ตัวเลือกจะถูกสร้างอัตโนมัติจาก Google Sheets -->
-        </select>
-      </div>
-      <div class="form-group"><label>วัน-เวลา เริ่มต้น</label><input type="datetime-local" id="leaveStartDate"></div>
-      <div class="form-group"><label>วัน-เวลา สิ้นสุด</label><input type="datetime-local" id="leaveEndDate"></div>
-      <div class="form-group"><label>เหตุผลการลา</label><textarea id="leaveReason" placeholder="ระบุรายละเอียด..."></textarea></div>
-
-      <button id="btnSubmitLeave" class="btn-submit" onclick="submitLeave()">ส่งคำขอลางาน</button>
-      <button class="btn-cancel" onclick="closeModule()">กลับหน้าหลัก</button>
-    </div>
-
-    <div id="quotaModule" class="module-box">
-      <div class="module-header">
-        <h3>📊 วันลาคงเหลือ</h3>
-        <button class="btn-close" onclick="closeModule()">✖</button>
-      </div>
-      
-      <!-- โครงสร้าง Grid โควต้าแยกประเภท -->
-      <div class="quota-grid">
-        <div class="quota-box"><div class="quota-box-title">ลาป่วย</div><div class="quota-box-val" id="q-sick">-</div><div class="quota-box-unit">วัน</div></div>
-        <div class="quota-box"><div class="quota-box-title">ลากิจ(รับเงิน)</div><div class="quota-box-val" id="q-p-paid">-</div><div class="quota-box-unit">วัน</div></div>
-        <div class="quota-box"><div class="quota-box-title">ลากิจ(ไม่รับ)</div><div class="quota-box-val" id="q-p-unpaid">-</div><div class="quota-box-unit">วัน</div></div>
-        <div class="quota-box"><div class="quota-box-title">ลาพักร้อน</div><div class="quota-box-val" id="q-annual">-</div><div class="quota-box-unit">วัน</div></div>
-        <div class="quota-box"><div class="quota-box-title">ลาคลอด</div><div class="quota-box-val" id="q-maternity">-</div><div class="quota-box-unit">วัน</div></div>
+    <!-- ======================================================== -->
+    <!-- VIEW: 1. ยื่นลางาน (Leave Form) -->
+    <!-- ======================================================== -->
+    <section id="viewLeave" class="hidden glass-card rounded-2xl p-5 shadow-sm border border-slate-200 animate-fadeIn">
+      <div class="flex items-center justify-between pb-3 mb-4 border-b border-slate-200">
+        <div class="flex items-center space-x-2">
+          <span class="text-xl">📅</span>
+          <h2 class="text-base font-bold text-slate-800">ยื่นคำขอลางาน</h2>
+        </div>
+        <button onclick="closeCurrentView()" class="p-1 rounded-lg text-slate-400 hover:text-slate-600 text-lg">✖</button>
       </div>
 
-      <h4 style="color: #333; margin-bottom: 10px; border-bottom: 1px solid #ddd; padding-bottom: 5px;">ประวัติการยื่นลาล่าสุด</h4>
-      <div id="historyListContainer">
-        <p style="text-align:center; color:#888; font-size:14px;">กำลังโหลดประวัติการลา...</p>
+      <form id="formLeave" onsubmit="submitLeave(event)" class="space-y-3.5 text-left">
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">ประเภทการลา <span class="text-red-500">*</span></label>
+          <select id="leaveType" required class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm bg-white focus:ring-2 focus:ring-emerald-500 focus:outline-none font-medium">
+            <option value="">-- กำลังโหลดตัวเลือก... --</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">กะการทำงาน (Shift) <span class="text-red-500">*</span></label>
+          <div class="grid grid-cols-2 gap-2">
+            <label class="flex items-center space-x-2 p-2.5 rounded-xl border border-slate-200 cursor-pointer text-xs font-medium bg-white">
+              <input type="radio" name="leaveShift" value="กะกลางวัน" checked onchange="handleShiftChange('DAY')" class="text-emerald-600 focus:ring-emerald-500">
+              <span>☀️ กะกลางวัน (08:00-17:00)</span>
+            </label>
+            <label class="flex items-center space-x-2 p-2.5 rounded-xl border border-slate-200 cursor-pointer text-xs font-medium bg-white">
+              <input type="radio" name="leaveShift" value="กะกลางคืน" onchange="handleShiftChange('NIGHT')" class="text-emerald-600 focus:ring-emerald-500">
+              <span>🌙 กะกลางคืน (20:00-05:00)</span>
+            </label>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">รูปแบบการลา</label>
+          <div class="grid grid-cols-3 gap-2">
+            <button type="button" onclick="setLeaveDurationPreset('FULL')" id="btnPresetFull" class="py-2 text-xs font-bold rounded-lg border border-emerald-600 bg-emerald-50 text-emerald-700">เต็มวัน (8 ชม.)</button>
+            <button type="button" onclick="setLeaveDurationPreset('HALF')" id="btnPresetHalf" class="py-2 text-xs font-medium rounded-lg border border-slate-200 bg-white text-slate-600">ครึ่งวัน (4 ชม.)</button>
+            <button type="button" onclick="setLeaveDurationPreset('HOURLY')" id="btnPresetHourly" class="py-2 text-xs font-medium rounded-lg border border-slate-200 bg-white text-slate-600">ระบุเวลา (15น.)</button>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2.5">
+          <div>
+            <label class="block text-[11px] font-semibold text-slate-600 mb-1">วันที่เริ่มต้น <span class="text-red-500">*</span></label>
+            <input id="leaveStartDate" type="date" required onchange="calcLeaveHours()" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
+          </div>
+          <div>
+            <label class="block text-[11px] font-semibold text-slate-600 mb-1">วันที่สิ้นสุด <span class="text-red-500">*</span></label>
+            <input id="leaveEndDate" type="date" required onchange="calcLeaveHours()" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
+          </div>
+        </div>
+
+        <!-- Time Selectors with 15-minute step -->
+        <div id="timeRangeBox" class="grid grid-cols-2 gap-2.5">
+          <div>
+            <label class="block text-[11px] font-semibold text-slate-600 mb-1">เวลาเริ่ม (ก้าวละ 15 นาที)</label>
+            <select id="leaveStartTime" onchange="calcLeaveHours()" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs bg-white focus:outline-none font-medium">
+              <!-- Dynamically populated 15-min options -->
+            </select>
+          </div>
+          <div>
+            <label class="block text-[11px] font-semibold text-slate-600 mb-1">เวลาสิ้นสุด (ก้าวละ 15 นาที)</label>
+            <select id="leaveEndTime" onchange="calcLeaveHours()" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs bg-white focus:outline-none font-medium">
+              <!-- Dynamically populated 15-min options -->
+            </select>
+          </div>
+        </div>
+
+        <div class="p-2.5 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between text-xs">
+          <span class="text-slate-600 font-medium">คำนวณเวลารวม:</span>
+          <span class="font-bold text-emerald-700 text-sm"><span id="lblTotalHours">8</span> ชั่วโมง (<span id="lblTotalDays">1</span> วันทำงาน)</span>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">เหตุผลการลา <span class="text-red-500">*</span></label>
+          <textarea id="leaveReason" rows="2" required placeholder="ระบุเหตุผลความจำเป็น เช่น ไปพบแพทย์, ธุระครอบครัว..." class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500"></textarea>
+        </div>
+
+        <button type="submit" id="btnSubmitLeave" class="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-sm shadow-md transition-all flex items-center justify-center space-x-2">
+          <span>ส่งคำขอลางาน</span>
+        </button>
+      </form>
+    </section>
+
+    <!-- ======================================================== -->
+    <!-- VIEW: 2. วันลาคงเหลือ & ประวัติ (Quota & History) -->
+    <!-- ======================================================== -->
+    <section id="viewQuota" class="hidden space-y-4 animate-fadeIn">
+      <div class="glass-card rounded-2xl p-4 shadow-sm border border-slate-200">
+        <div class="flex items-center justify-between pb-2 mb-3 border-b border-slate-200">
+          <div class="flex items-center space-x-2">
+            <span class="text-xl">📊</span>
+            <h2 class="text-base font-bold text-slate-800">สิทธิ์วันลาคงเหลือประจำปี</h2>
+          </div>
+          <button onclick="closeCurrentView()" class="p-1 rounded-lg text-slate-400 hover:text-slate-600 text-lg">✖</button>
+        </div>
+
+        <!-- Quota Grid Cards -->
+        <div class="grid grid-cols-2 gap-2.5 mb-2">
+          <div class="p-3 rounded-xl bg-emerald-50 border border-emerald-100 text-center">
+            <p class="text-[11px] font-semibold text-emerald-800">ลาป่วย</p>
+            <p id="quotaSickRemain" class="text-2xl font-bold text-emerald-700 my-0.5">-</p>
+            <p class="text-[10px] text-emerald-600">คงเหลือ (จาก 30 วัน)</p>
+          </div>
+          <div class="p-3 rounded-xl bg-blue-50 border border-blue-100 text-center">
+            <p class="text-[11px] font-semibold text-blue-800">พักร้อน</p>
+            <p id="quotaAnnualRemain" class="text-2xl font-bold text-blue-700 my-0.5">-</p>
+            <p class="text-[10px] text-blue-600">คงเหลือ (จาก 6 วัน)</p>
+          </div>
+          <div class="p-3 rounded-xl bg-amber-50 border border-amber-100 text-center">
+            <p class="text-[11px] font-semibold text-amber-800">ลากิจ (ได้เงิน)</p>
+            <p id="quotaPaidRemain" class="text-2xl font-bold text-amber-700 my-0.5">-</p>
+            <p class="text-[10px] text-amber-600">คงเหลือ (จาก 6 วัน)</p>
+          </div>
+          <div class="p-3 rounded-xl bg-slate-100 border border-slate-200 text-center">
+            <p class="text-[11px] font-semibold text-slate-700">ลากิจ (ไม่รับเงิน)</p>
+            <p id="quotaUnpaidUsed" class="text-2xl font-bold text-slate-800 my-0.5">-</p>
+            <p class="text-[10px] text-slate-500">ใช้ไปแล้ว (วัน)</p>
+          </div>
+        </div>
       </div>
 
-      <button class="btn-cancel" onclick="closeModule()">กลับหน้าหลัก</button>
-    </div>
+      <!-- Leave History Section -->
+      <div class="glass-card rounded-2xl p-4 shadow-sm border border-slate-200">
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="text-xs font-bold text-slate-700 uppercase tracking-wide">ประวัติการยื่นลางานล่าสุด</h3>
+          <button onclick="loadLeaveHistory()" class="text-xs text-emerald-600 font-semibold flex items-center space-x-1 hover:underline">
+            <span>🔄 รีเฟรช</span>
+          </button>
+        </div>
 
-    <div id="lineUserIdDisplay" class="small"></div>
-  </div>
+        <div id="leaveHistoryList" class="space-y-2.5">
+          <p class="text-xs text-slate-400 text-center py-4">กำลังโหลดประวัติ...</p>
+        </div>
+      </div>
+    </section>
 
+    <!-- ======================================================== -->
+    <!-- VIEW: 3. ขอทำโอที (OT Request & History) -->
+    <!-- ======================================================== -->
+    <section id="viewOT" class="hidden glass-card rounded-2xl p-5 shadow-sm border border-slate-200 animate-fadeIn">
+      <div class="flex items-center justify-between pb-3 mb-4 border-b border-slate-200">
+        <div class="flex items-center space-x-2">
+          <span class="text-xl">⏱️</span>
+          <h2 class="text-base font-bold text-slate-800">ยื่นขอทำโอที (OT)</h2>
+        </div>
+        <button onclick="closeCurrentView()" class="p-1 rounded-lg text-slate-400 hover:text-slate-600 text-lg">✖</button>
+      </div>
+
+      <form id="formOT" onsubmit="submitOT(event)" class="space-y-3 text-left">
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">วันที่ทำโอที <span class="text-red-500">*</span></label>
+          <input id="otDate" type="date" required class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium">
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">กะการทำงาน (Shift) <span class="text-red-500">*</span></label>
+          <div class="grid grid-cols-2 gap-2">
+            <label class="flex items-center space-x-2 p-2.5 rounded-xl border border-slate-200 cursor-pointer text-xs font-medium bg-white">
+              <input type="radio" name="otShift" value="กะกลางวัน" checked onchange="setOtShiftPreset('DAY')" class="text-emerald-600 focus:ring-emerald-500">
+              <span>☀️ กะกลางวัน (ต่อกะ)</span>
+            </label>
+            <label class="flex items-center space-x-2 p-2.5 rounded-xl border border-slate-200 cursor-pointer text-xs font-medium bg-white">
+              <input type="radio" name="otShift" value="กะกลางคืน" onchange="setOtShiftPreset('NIGHT')" class="text-emerald-600 focus:ring-emerald-500">
+              <span>🌙 กะกลางคืน (ต่อกะ)</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2.5">
+          <div>
+            <label class="block text-[11px] font-semibold text-slate-600 mb-1">เวลาเริ่ม (ก้าวละ 15 นาที)</label>
+            <select id="otStartTime" onchange="calcOtHours()" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs bg-white focus:outline-none font-medium">
+            </select>
+          </div>
+          <div>
+            <label class="block text-[11px] font-semibold text-slate-600 mb-1">เวลาสิ้นสุด (ก้าวละ 15 นาที)</label>
+            <select id="otEndTime" onchange="calcOtHours()" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs bg-white focus:outline-none font-medium">
+            </select>
+          </div>
+        </div>
+
+        <div class="p-2.5 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between text-xs">
+          <span class="text-slate-600 font-medium">ชั่วโมงโอทีรวม:</span>
+          <span class="font-bold text-amber-700 text-sm"><span id="lblOtHours">3</span> ชั่วโมง</span>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">รายละเอียดงานที่ทำโอที <span class="text-red-500">*</span></label>
+          <textarea id="otDescription" rows="2" required placeholder="ระบุงาน เช่น เร่งผลิตชิ้นงานส่งลูกค้า, ซ่อมเครื่องจักรด่วน..." class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500"></textarea>
+        </div>
+
+        <button type="submit" id="btnSubmitOT" class="w-full py-3 bg-amber-600 hover:bg-amber-700 text-white rounded-xl font-bold text-sm shadow-md transition-all flex items-center justify-center space-x-2">
+          <span>ส่งคำขอทำโอที</span>
+        </button>
+      </form>
+
+      <!-- OT History Mini List -->
+      <div class="mt-5 pt-4 border-t border-slate-200">
+        <h3 class="text-xs font-bold text-slate-700 uppercase tracking-wide mb-2">ประวัติการขอโอทีล่าสุด</h3>
+        <div id="otHistoryList" class="space-y-2 text-xs">
+          <p class="text-slate-400 text-center py-2">กำลังโหลดประวัติ...</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ======================================================== -->
+    <!-- VIEW: 4. อนุมัติงานค้างสำหรับหัวหน้างาน (Pending Approvals) -->
+    <!-- ======================================================== -->
+    <section id="viewApprovals" class="hidden space-y-4 animate-fadeIn">
+      <div class="glass-card rounded-2xl p-4 shadow-sm border border-slate-200">
+        <div class="flex items-center justify-between pb-2 mb-3 border-b border-slate-200">
+          <div class="flex items-center space-x-2">
+            <span class="text-xl">✅</span>
+            <h2 class="text-base font-bold text-slate-800">อนุมัติงานค้างลูกทีม</h2>
+          </div>
+          <button onclick="closeCurrentView()" class="p-1 rounded-lg text-slate-400 hover:text-slate-600 text-lg">✖</button>
+        </div>
+
+        <!-- Approvals Sub-Tabs (Leave vs OT) -->
+        <div class="flex border-b border-slate-200 mb-3">
+          <button onclick="switchApprovalTab('leaves')" id="tabAppLeave" class="flex-1 py-2 text-xs font-bold text-emerald-700 border-b-2 border-emerald-600 text-center">
+            คำขอลางาน (<span id="appLeaveCount">0</span>)
+          </button>
+          <button onclick="switchApprovalTab('ot')" id="tabAppOT" class="flex-1 py-2 text-xs font-medium text-slate-500 border-b-2 border-transparent text-center">
+            คำขอโอที (<span id="appOtCount">0</span>)
+          </button>
+        </div>
+
+        <!-- Leaves Pending List -->
+        <div id="appLeavesContainer" class="space-y-3">
+          <p class="text-xs text-slate-400 text-center py-4">ไม่มีรายการลารออนุมัติ</p>
+        </div>
+
+        <!-- OT Pending List -->
+        <div id="appOtContainer" class="hidden space-y-3">
+          <p class="text-xs text-slate-400 text-center py-4">ไม่มีรายการโอทีรออนุมัติ</p>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Application Logic -->
   <script>
+    // ==========================================
+    // Configuration & State
+    // ==========================================
     const LIFF_ID = "2011799105-A1YwHp4u";
-    const API_URL = "https://script.google.com/macros/s/AKfycbxB8jCDzKtqrMs0BPCDyeXhSOocRVFRuRLp7OyTR_JKOZMcm0ueEWTOinoky4GQ_x16/exec";
-    
-    let currentLineUserId = "";
-    let currentEmpId = ""; 
-    let myQuota = null; // เก็บข้อมูลโควต้าของคนๆ นี้
+    const API_URL = "https://script.google.com/macros/s/AKfycby6LmtU-GITlnyN4W-P8CR8qqUL9UFiWprbrVkQsgVfGunD64pF5hK4q9BrdYuKLWfz7Q/exec";
 
-    async function startApp() {
-      const status = document.getElementById("status");
-      try {
-        await liff.init({ liffId: LIFF_ID });
-        if (!liff.isLoggedIn()) { liff.login(); return; }
+    let state = {
+      lineUserId: '',
+      lineProfile: null,
+      currentUser: null,
+      config: null,
+      currentView: 'dashboard'
+    };
 
-        const profile = await liff.getProfile();
-        currentLineUserId = profile.userId;
-
-        if (profile.pictureUrl) {
-          const img = document.getElementById("profileImage");
-          img.src = profile.pictureUrl;
-          img.style.display = "block";
-        }
-        document.getElementById("lineUserIdDisplay").innerText = "UID: " + currentLineUserId;
-        
-        // เมื่อเริ่มแอป ให้ดึงการตั้งค่าระบบและเช็คข้อมูลพนักงานไปพร้อมๆ กัน
-        loadSystemConfig();
-        checkEmployee();
-
-      } catch (error) {
-        status.innerHTML = "❌ เกิดข้อผิดพลาด<br>" + error.message;
-      }
-    }
-
-    // =========================================
-    // ฟังก์ชันใหม่: ดึงรายชื่อการลาจาก Sheet มาสร้าง Dropdown
-    // =========================================
-    function loadSystemConfig() {
-      jsonpRequest({ action: "getConfig" })
-      .then(function(result) {
-        if(result && result.success && result.leaveTypes) {
-          const select = document.getElementById("leaveType");
-          select.innerHTML = '<option value="">-- เลือกประเภทการลา --</option>';
-          result.leaveTypes.forEach(type => {
-            select.innerHTML += `<option value="${type.name}">${type.name}</option>`;
-          });
-        }
-      })
-      .catch(function(err) { console.error("โหลดตั้งค่าล้มเหลว", err); });
-    }
-
-    function checkEmployee() {
-      const status = document.getElementById("status");
-      const retryBtn = document.getElementById("retryBtn");
-      status.style.display = "block";
-      status.innerText = "กำลังเชื่อมต่อฐานข้อมูล HR...";
-      retryBtn.style.display = "none";
-
-      jsonpRequest({ action: "check", lineUserId: currentLineUserId })
-      .then(function(result) {
-        if (result && result.success && result.data && result.data.found) {
-          document.getElementById("registerBox").style.display = "none";
-          retryBtn.style.display = "none";
-          currentEmpId = result.data.empId; 
-          myQuota = result.data.quota; // เก็บโควต้าที่ดึงมา
-          showEmployee(result.data);
-        } else {
-          document.getElementById("employeeInfo").style.display = "none";
-          document.getElementById("mainMenu").style.display = "none";
-          status.innerText = ""; 
-          document.getElementById("registerBox").style.display = "block";
-        }
-      })
-      .catch(function(error) {
-        status.innerHTML = "❌ เชื่อมต่อฐานข้อมูลไม่ได้<br>" + error.message;
-        retryBtn.style.display = "block"; 
-      });
-    }
-
-    function registerEmployee() {
-      const empId = document.getElementById("empIdInput").value.trim();
-      const status = document.getElementById("status");
-      const btn = document.getElementById("registerBtn");
-
-      if (!empId) { alert("กรุณากรอกรหัสพนักงาน"); return; }
-      btn.disabled = true;
-      status.innerText = "กำลังยืนยันตัวตน...";
-
-      jsonpRequest({ action: "register", empId: empId, lineUserId: currentLineUserId })
-      .then(function(result) {
-        if (result && result.success) {
-          status.innerText = "✅ ยืนยันตัวตนสำเร็จ";
-          document.getElementById("registerBox").style.display = "none";
-          return checkEmployee(); 
-        } else {
-          status.innerText = "❌ " + (result.error || "ลงทะเบียนไม่สำเร็จ");
-        }
-      })
-      .catch(function(error) { status.innerHTML = "❌ เกิดข้อผิดพลาด<br>" + error.message; })
-      .finally(function() { btn.disabled = false; });
-    }
-
-    function showEmployee(data) {
-      document.getElementById("status").style.display = "none"; 
-      document.getElementById("employeeInfo").style.display = "block";
-      document.getElementById("displayEmpName").innerText = data.name;
-      document.getElementById("displayEmpId").innerText = "รหัสพนักงาน: " + data.empId;
-      document.getElementById("mainMenu").style.display = "block";
-    }
-
-    function openModule(moduleName) {
-      document.getElementById("mainMenu").style.display = "none";
-      document.getElementById("leaveModule").style.display = "none";
-      document.getElementById("quotaModule").style.display = "none";
-
-      if(moduleName === 'leave') {
-        document.getElementById("leaveModule").style.display = "block";
-      } else if (moduleName === 'quota') {
-        document.getElementById("quotaModule").style.display = "block";
-        loadLeaveHistory(); 
-      } else {
-        alert("กำลังเปิดเมนู: " + moduleName + "\n(จะพัฒนาในขั้นตอนต่อไปครับ)");
-        document.getElementById("mainMenu").style.display = "block"; 
-      }
-    }
-
-    function closeModule() {
-      document.getElementById("leaveModule").style.display = "none";
-      document.getElementById("quotaModule").style.display = "none";
-      document.getElementById("mainMenu").style.display = "block";
-    }
-
-    function submitLeave() {
-      const type = document.getElementById("leaveType").value;
-      const start = document.getElementById("leaveStartDate").value;
-      const end = document.getElementById("leaveEndDate").value;
-      const reason = document.getElementById("leaveReason").value;
-      const btnSubmit = document.getElementById("btnSubmitLeave");
-
-      if(!type || !start || !end) { alert("กรุณาเลือกประเภทการลา และระบุวัน-เวลาให้ครบถ้วน"); return; }
-      
-      btnSubmit.innerText = "กำลังส่งข้อมูล...";
-      btnSubmit.disabled = true;
-
-      jsonpRequest({
-        action: "requestLeave",
-        empId: currentEmpId,
-        type: type,
-        start: start,
-        end: end,
-        reason: reason
-      })
-      .then(function(result) {
-        if (result && result.success) {
-          alert("✅ ส่งคำขอลางานเรียบร้อยแล้ว");
-          document.getElementById("leaveType").value = "";
-          document.getElementById("leaveStartDate").value = "";
-          document.getElementById("leaveEndDate").value = "";
-          document.getElementById("leaveReason").value = "";
-          closeModule(); 
-        } else {
-          alert("❌ ไม่สามารถส่งข้อมูลได้: " + (result.error || "Unknow Error"));
-        }
-      })
-      .catch(function(error) { alert("❌ ติดปัญหาการเชื่อมต่อเซิร์ฟเวอร์: " + error.message); })
-      .finally(function() { btnSubmit.innerText = "ส่งคำขอลางาน"; btnSubmit.disabled = false; });
-    }
-
-    function formatThaiDateTime(dateString) {
-      if (!dateString) return "-";
-      const d = new Date(dateString);
-      if (isNaN(d.getTime())) return dateString; 
-      
-      const day = d.getDate();
-      const months = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
-      const month = months[d.getMonth()];
-      const year = d.getFullYear() + 543; 
-      
-      const hours = String(d.getHours()).padStart(2, '0');
-      const minutes = String(d.getMinutes()).padStart(2, '0');
-      
-      return `${day} ${month} ${year} เวลา ${hours}:${minutes} น.`;
-    }
-
-    function loadLeaveHistory() {
-      const listDiv = document.getElementById("historyListContainer");
-      listDiv.innerHTML = "<p style='text-align:center; color:#888; font-size:14px;'>กำลังดึงข้อมูลประวัติการลา...</p>";
-
-      // อัปเดตตัวเลขโควต้าลงบนหน้าจอ (ดึงค่าจาก myQuota ที่เก็บไว้ตอนเช็คพนักงาน)
-      if(myQuota) {
-        document.getElementById("q-sick").innerText = myQuota.sick;
-        document.getElementById("q-p-paid").innerText = myQuota.personalPaid;
-        document.getElementById("q-p-unpaid").innerText = myQuota.personalUnpaid;
-        document.getElementById("q-annual").innerText = myQuota.annual;
-        // เพิ่มคอลัมน์ J (ลาคลอด)
-        document.getElementById("q-maternity").innerText = myQuota.maternity || 0; 
-      }
-
-      jsonpRequest({ action: "getLeaveHistory", empId: currentEmpId })
-      .then(function(result) {
-        if(result && result.success) {
-          if(result.history.length === 0) {
-            listDiv.innerHTML = "<p style='text-align:center; color:#888; font-size:14px;'>ยังไม่มีประวัติการลางาน</p>";
-            return;
-          }
-
-          let html = "";
-          result.history.forEach(item => {
-            let statusClass = "status-wait";
-            if(item.status === "อนุมัติ") statusClass = "status-approve";
-            if(item.status === "ไม่อนุมัติ") statusClass = "status-reject";
-
-            const startStr = formatThaiDateTime(item.start);
-            const endStr = formatThaiDateTime(item.end);
-
-            html += `
-              <div class="history-card">
-                <div class="history-header">
-                  <span class="history-type">${item.type}</span>
-                  <span class="history-status ${statusClass}">${item.status}</span>
-                </div>
-                <div class="history-detail"><b>เริ่ม:</b> ${startStr}</div>
-                <div class="history-detail"><b>สิ้นสุด:</b> ${endStr}</div>
-                ${item.reason ? `<div class="history-detail" style="color:#999; margin-top:5px; border-top:1px dashed #eee; padding-top:5px;"><b>เหตุผล:</b> ${item.reason}</div>` : ''}
-              </div>
-            `;
-          });
-          listDiv.innerHTML = html;
-        } else {
-          listDiv.innerHTML = `<p style='text-align:center; color:red; font-size:14px;'>เกิดข้อผิดพลาด: ${result.error}</p>`;
-        }
-      })
-      .catch(function(err) {
-        listDiv.innerHTML = `<p style='text-align:center; color:red; font-size:14px;'>เชื่อมต่อล้มเหลว: ${err.message}</p>`;
-      });
-    }
-
+    // ==========================================
+    // Utility: JSONP Requester (Bypasses CORS & Google 302 Redirects)
+    // ==========================================
     function jsonpRequest(params) {
-      return new Promise(function(resolve, reject) {
-        const callbackName = "jsonpCallback_" + Date.now() + "_" + Math.floor(Math.random() * 100000);
-        const script = document.createElement("script");
-        const query = new URLSearchParams(params);
-        
-        query.append("_t", Date.now());
-        query.append("callback", callbackName);
+      return new Promise((resolve, reject) => {
+        const callbackName = 'liff_cb_' + Date.now() + '_' + Math.floor(Math.random() * 10000);
+        params.callback = callbackName;
+        params._t = Date.now(); // Cache buster
 
-        const timeout = setTimeout(function() {
+        const queryString = Object.keys(params)
+          .map(k => encodeURIComponent(k) + '=' + encodeURIComponent(params[k]))
+          .join('&');
+
+        const script = document.createElement('script');
+        script.src = API_URL + '?' + queryString;
+        script.async = true;
+
+        const timeout = setTimeout(() => {
           cleanup();
-          reject(new Error("เชื่อมต่อเซิร์ฟเวอร์หมดเวลา (กดปุ่มลองใหม่อีกครั้ง)"));
-        }, 35000);
+          reject(new Error('การเชื่อมต่อเซิร์ฟเวอร์หมดเวลา (Timeout)'));
+        }, 30000);
+
+        function cleanup() {
+          clearTimeout(timeout);
+          if (window[callbackName]) delete window[callbackName];
+          if (script.parentNode) script.parentNode.removeChild(script);
+        }
 
         window[callbackName] = function(data) {
-          clearTimeout(timeout);
           cleanup();
           resolve(data);
         };
 
-        function cleanup() {
-          if (script.parentNode) script.parentNode.removeChild(script);
-          delete window[callbackName];
-        }
-
         script.onerror = function() {
-          clearTimeout(timeout);
           cleanup();
-          reject(new Error("ไม่สามารถโหลดข้อมูลจากเซิร์ฟเวอร์ได้"));
+          reject(new Error('ไม่สามารถเชื่อมต่อ Google Apps Script API ได้'));
         };
 
-        script.src = API_URL + "?" + query.toString();
         document.body.appendChild(script);
       });
     }
 
-    startApp();
+    function showToast(message, type = 'success') {
+      const t = document.getElementById('toast');
+      t.innerText = message;
+      t.className = 'fixed top-4 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-xl shadow-lg text-sm font-medium transition-all max-w-[90%] text-center ' +
+        (type === 'success' ? 'bg-emerald-600 text-white' : type === 'error' ? 'bg-red-600 text-white' : 'bg-slate-800 text-white');
+      t.classList.remove('hidden');
+      setTimeout(() => t.classList.add('hidden'), 3500);
+    }
+
+    // ==========================================
+    // App Initialization (LIFF Setup)
+    // ==========================================
+    async function initApp() {
+      try {
+        await liff.init({ liffId: LIFF_ID });
+
+        if (!liff.isLoggedIn()) {
+          document.getElementById('loadingTitle').innerText = 'กำลังเข้าสู่ระบบ LINE...';
+          liff.login();
+          return;
+        }
+
+        const profile = await liff.getProfile();
+        state.lineProfile = profile;
+        state.lineUserId = profile.userId;
+
+        document.getElementById('loadingTitle').innerText = 'กำลังเชื่อมต่อฐานข้อมูลโรงงาน...';
+
+        // โหลด System Config และตรวจสอบพนักงานไปพร้อมกัน
+        await Promise.all([
+          loadConfig(),
+          checkEmployeeRegistration(profile.userId)
+        ]);
+
+      } catch (err) {
+        console.error(err);
+        document.getElementById('loadingTitle').innerText = '❌ เกิดข้อผิดพลาดในการเชื่อมต่อ';
+        document.getElementById('loadingDetail').innerHTML = err.message + '<br><button onclick="location.reload()" class="mt-3 px-4 py-2 bg-emerald-600 text-white rounded-lg text-xs font-semibold">ลองใหม่อีกครั้ง</button>';
+      }
+    }
+
+    async function loadConfig() {
+      try {
+        const res = await jsonpRequest({ action: 'getConfig' });
+        if (res && res.success) {
+          state.config = res;
+          populateTimeOptions();
+          populateLeaveTypes(res.leaveTypes);
+        }
+      } catch (e) {
+        console.warn('Failed to load config', e);
+      }
+    }
+
+    function populateTimeOptions() {
+      const startSelect = document.getElementById('leaveStartTime');
+      const endSelect = document.getElementById('leaveEndTime');
+      const otStart = document.getElementById('otStartTime');
+      const otEnd = document.getElementById('otEndTime');
+
+      let options = '';
+      for (let h = 0; h < 24; h++) {
+        const hh = String(h).padStart(2, '0');
+        ['00', '15', '30', '45'].forEach(mm => {
+          const time = `${hh}:${mm}`;
+          options += `<option value="${time}">${time} น.</option>`;
+        });
+      }
+
+      startSelect.innerHTML = options;
+      endSelect.innerHTML = options;
+      otStart.innerHTML = options;
+      otEnd.innerHTML = options;
+
+      // Default values
+      startSelect.value = '08:00';
+      endSelect.value = '17:00';
+      otStart.value = '17:30';
+      otEnd.value = '20:30';
+    }
+
+    function populateLeaveTypes(types) {
+      const select = document.getElementById('leaveType');
+      if (!types || types.length === 0) return;
+      select.innerHTML = '<option value="">-- เลือกประเภทการลา --</option>' +
+        types.map(t => `<option value="${t.name}">${t.name} (${t.desc})</option>`).join('');
+    }
+
+    // ==========================================
+    // Employee Check & Registration Flow
+    // ==========================================
+    async function checkEmployeeRegistration(lineUid) {
+      try {
+        const res = await jsonpRequest({ action: 'checkEmployee', lineUserId: lineUid });
+        document.getElementById('loadingScreen').classList.add('hidden');
+
+        if (res && res.success && res.found && res.data) {
+          state.currentUser = res.data;
+          renderDashboard(res.data);
+        } else {
+          // ไม่พบพนักงาน -> แสดงหน้าจอ Onboarding
+          showRegisterScreen();
+        }
+      } catch (err) {
+        showToast('เชื่อมต่อฐานข้อมูลล้มเหลว: ' + err.message, 'error');
+        showRegisterScreen();
+      }
+    }
+
+    function showRegisterScreen() {
+      document.getElementById('loadingScreen').classList.add('hidden');
+      document.getElementById('mainDashboard').classList.add('hidden');
+      document.getElementById('registerScreen').classList.remove('hidden');
+
+      if (state.lineProfile) {
+        document.getElementById('regLineName').innerText = state.lineProfile.displayName || 'พนักงาน';
+        if (state.lineProfile.pictureUrl) {
+          document.getElementById('regLineAvatar').src = state.lineProfile.pictureUrl;
+        }
+      }
+    }
+
+    async function handleRegister() {
+      const empId = document.getElementById('inputEmpId').value.trim();
+      const birth = document.getElementById('inputBirthdate').value.trim();
+      const btn = document.getElementById('btnRegister');
+
+      if (!empId) {
+        showToast('กรุณากรอกรหัสพนักงาน', 'error');
+        return;
+      }
+      if (!birth || birth.length !== 8) {
+        showToast('กรุณากรอกวันเดือนปีเกิดตัวเลข 8 หลัก (เช่น 01012535)', 'error');
+        return;
+      }
+
+      btn.disabled = true;
+      btn.innerHTML = '<span class="inline-block animate-spin mr-2">⏳</span> กำลังยืนยันข้อมูล...';
+
+      try {
+        const res = await jsonpRequest({
+          action: 'registerEmployee',
+          empId: empId,
+          birthdate: birth,
+          lineUserId: state.lineUserId
+        });
+
+        if (res && res.success && res.found) {
+          showToast('ยืนยันตัวตนสำเร็จ! ยินดีต้อนรับสู่ระบบ');
+          state.currentUser = res.data;
+          document.getElementById('registerScreen').classList.add('hidden');
+          renderDashboard(res.data);
+        } else {
+          showToast(res.error || 'ไม่พบข้อมูลที่ตรงกัน กรุณาตรวจสอบรหัสพนักงานและวันเกิด', 'error');
+        }
+      } catch (err) {
+        showToast('เกิดข้อผิดพลาด: ' + err.message, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.innerText = 'ยืนยันข้อมูลและเริ่มใช้งาน';
+      }
+    }
+
+    // ==========================================
+    // Dashboard Rendering
+    // ==========================================
+    function renderDashboard(user) {
+      document.getElementById('mainDashboard').classList.remove('hidden');
+
+      // Profile details
+      document.getElementById('dashEmpName').innerText = user.fullName || 'พนักงาน';
+      document.getElementById('dashEmpId').innerText = user.employeeCode || '-';
+      document.getElementById('dashDept').innerText = user.department || '-';
+      document.getElementById('dashShift').innerText = user.shift && user.shift.includes('คืน') ? '🌙 กะกลางคืน' : '☀️ กะกลางวัน';
+
+      if (state.lineProfile && state.lineProfile.pictureUrl) {
+        document.getElementById('dashAvatar').src = state.lineProfile.pictureUrl;
+      }
+
+      // Check Supervisor Card
+      if (user.isSupervisor) {
+        document.getElementById('dashRoleBadge').classList.remove('hidden');
+        document.getElementById('btnApprovalsCard').classList.remove('hidden');
+        document.getElementById('cardTimeInfo').classList.add('hidden'); // Swap position
+        loadPendingApprovalsCount();
+      }
+
+      // Pre-fill default dates
+      const todayStr = new Date().toISOString().split('T')[0];
+      document.getElementById('leaveStartDate').value = todayStr;
+      document.getElementById('leaveEndDate').value = todayStr;
+      document.getElementById('otDate').value = todayStr;
+
+      // Update Quotas
+      if (user.quota) {
+        renderQuotas(user.quota);
+      }
+    }
+
+    function renderQuotas(quota) {
+      document.getElementById('quotaSickRemain').innerText = quota.sickRemaining ?? '30';
+      document.getElementById('quotaAnnualRemain').innerText = quota.annualRemaining ?? '6';
+      document.getElementById('quotaPaidRemain').innerText = quota.personalPaidRemaining ?? '6';
+      document.getElementById('quotaUnpaidUsed').innerText = quota.personalUnpaidUsedDays ?? '0';
+    }
+
+    // ==========================================
+    // View Switcher (Hub & Spoke Pattern)
+    // ==========================================
+    function openView(viewName) {
+      document.getElementById('mainDashboard').classList.add('hidden');
+      document.getElementById('viewLeave').classList.add('hidden');
+      document.getElementById('viewQuota').classList.add('hidden');
+      document.getElementById('viewOT').classList.add('hidden');
+      document.getElementById('viewApprovals').classList.add('hidden');
+
+      if (viewName === 'leave') {
+        document.getElementById('viewLeave').classList.remove('hidden');
+      } else if (viewName === 'quota') {
+        document.getElementById('viewQuota').classList.remove('hidden');
+        loadLeaveHistory();
+      } else if (viewName === 'ot') {
+        document.getElementById('viewOT').classList.remove('hidden');
+        loadOtHistory();
+      } else if (viewName === 'approvals') {
+        document.getElementById('viewApprovals').classList.remove('hidden');
+        loadApprovalsList();
+      }
+      state.currentView = viewName;
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function closeCurrentView() {
+      document.getElementById('viewLeave').classList.add('hidden');
+      document.getElementById('viewQuota').classList.add('hidden');
+      document.getElementById('viewOT').classList.add('hidden');
+      document.getElementById('viewApprovals').classList.add('hidden');
+      document.getElementById('mainDashboard').classList.remove('hidden');
+      state.currentView = 'dashboard';
+    }
+
+    // ==========================================
+    // Leave Module Logic
+    // ==========================================
+    function setLeaveDurationPreset(preset) {
+      const fullBtn = document.getElementById('btnPresetFull');
+      const halfBtn = document.getElementById('btnPresetHalf');
+      const hourlyBtn = document.getElementById('btnPresetHourly');
+      const timeBox = document.getElementById('timeRangeBox');
+
+      [fullBtn, halfBtn, hourlyBtn].forEach(b => {
+        b.className = 'py-2 text-xs font-medium rounded-lg border border-slate-200 bg-white text-slate-600';
+      });
+
+      if (preset === 'FULL') {
+        fullBtn.className = 'py-2 text-xs font-bold rounded-lg border border-emerald-600 bg-emerald-50 text-emerald-700';
+        document.getElementById('leaveStartTime').value = '08:00';
+        document.getElementById('leaveEndTime').value = '17:00';
+      } else if (preset === 'HALF') {
+        halfBtn.className = 'py-2 text-xs font-bold rounded-lg border border-emerald-600 bg-emerald-50 text-emerald-700';
+        document.getElementById('leaveStartTime').value = '08:00';
+        document.getElementById('leaveEndTime').value = '12:00';
+      } else {
+        hourlyBtn.className = 'py-2 text-xs font-bold rounded-lg border border-emerald-600 bg-emerald-50 text-emerald-700';
+      }
+      calcLeaveHours();
+    }
+
+    function calcLeaveHours() {
+      const start = document.getElementById('leaveStartTime').value;
+      const end = document.getElementById('leaveEndTime').value;
+      const startDate = document.getElementById('leaveStartDate').value;
+      const endDate = document.getElementById('leaveEndDate').value;
+
+      if (!startDate || !endDate) return;
+
+      const [sH, sM] = start.split(':').map(Number);
+      const [eH, eM] = end.split(':').map(Number);
+      let diffMinutes = (eH * 60 + eM) - (sH * 60 + sM);
+
+      // หักเวลาพักเที่ยง 1 ชม. (ถ้าคลุมช่วง 12:00-13:00)
+      if (sH <= 12 && eH >= 13) {
+        diffMinutes -= 60;
+      }
+      if (diffMinutes < 0) diffMinutes = 0;
+
+      const hours = +(diffMinutes / 60).toFixed(2);
+      document.getElementById('lblTotalHours').innerText = hours;
+      document.getElementById('lblTotalDays').innerText = +(hours / 8).toFixed(2);
+    }
+
+    async function submitLeave(e) {
+      e.preventDefault();
+      const btn = document.getElementById('btnSubmitLeave');
+      const shift = document.querySelector('input[name="leaveShift"]:checked').value;
+
+      const payload = {
+        action: 'requestLeave',
+        empId: state.currentUser.employeeCode,
+        leaveType: document.getElementById('leaveType').value,
+        shift: shift,
+        startDate: document.getElementById('leaveStartDate').value,
+        startTime: document.getElementById('leaveStartTime').value,
+        endDate: document.getElementById('leaveEndDate').value,
+        endTime: document.getElementById('leaveEndTime').value,
+        totalHours: document.getElementById('lblTotalHours').innerText,
+        reason: document.getElementById('leaveReason').value.trim()
+      };
+
+      btn.disabled = true;
+      btn.innerHTML = '<span class="inline-block animate-spin mr-2">⏳</span> กำลังส่งคำขอ...';
+
+      try {
+        const res = await jsonpRequest(payload);
+        if (res && res.success) {
+          showToast(res.message || 'ส่งคำขอลางานสำเร็จแล้ว');
+          document.getElementById('formLeave').reset();
+          closeCurrentView();
+          openView('quota');
+        } else {
+          showToast(res.error || 'ส่งคำขอไม่สำเร็จ', 'error');
+        }
+      } catch (err) {
+        showToast('เกิดข้อผิดพลาด: ' + err.message, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.innerText = 'ส่งคำขอลางาน';
+      }
+    }
+
+    async function loadLeaveHistory() {
+      const container = document.getElementById('leaveHistoryList');
+      container.innerHTML = '<p class="text-xs text-slate-400 text-center py-4">กำลังโหลดประวัติ...</p>';
+
+      try {
+        const res = await jsonpRequest({
+          action: 'getLeaveHistory',
+          empId: state.currentUser.employeeCode
+        });
+
+        if (res && res.success && res.history && res.history.length > 0) {
+          container.innerHTML = res.history.map(item => {
+            let statusBadge = '<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-amber-100 text-amber-800">รออนุมัติ</span>';
+            if (item.status === 'APPROVED') statusBadge = '<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-emerald-100 text-emerald-800">อนุมัติแล้ว</span>';
+            else if (item.status === 'REJECTED') statusBadge = '<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-red-100 text-red-800">ปฏิเสธ</span>';
+
+            return `
+              <div class="p-3 bg-white rounded-xl border border-slate-200 shadow-sm text-xs">
+                <div class="flex items-center justify-between mb-1.5">
+                  <span class="font-bold text-slate-800 text-sm">${item.leaveType}</span>
+                  ${statusBadge}
+                </div>
+                <p class="text-slate-600 mb-1">
+                  📅 ${item.startDate} ${item.startTime || ''} ถึง ${item.endDate} ${item.endTime || ''} (${item.totalHours} ชม.)
+                </p>
+                <p class="text-slate-500 text-[11px]">
+                  เหตุผล: ${item.reason || '-'}
+                </p>
+                ${item.approverName && item.approverName !== '-' ? `<p class="text-[10px] text-slate-400 mt-1 border-t border-slate-100 pt-1">ผู้อนุมัติ: ${item.approverName} (${item.approvedAt})</p>` : ''}
+              </div>
+            `;
+          }).join('');
+        } else {
+          container.innerHTML = '<p class="text-xs text-slate-400 text-center py-4">ยังไม่มีประวัติการยื่นลางาน</p>';
+        }
+      } catch (err) {
+        container.innerHTML = '<p class="text-xs text-red-500 text-center py-4">โหลดประวัติไม่สำเร็จ: ' + err.message + '</p>';
+      }
+    }
+
+    // ==========================================
+    // OT Module Logic
+    // ==========================================
+    function setOtShiftPreset(shift) {
+      if (shift === 'DAY') {
+        document.getElementById('otStartTime').value = '17:30';
+        document.getElementById('otEndTime').value = '20:30';
+      } else {
+        document.getElementById('otStartTime').value = '05:30';
+        document.getElementById('otEndTime').value = '08:30';
+      }
+      calcOtHours();
+    }
+
+    function calcOtHours() {
+      const start = document.getElementById('otStartTime').value;
+      const end = document.getElementById('otEndTime').value;
+      const [sH, sM] = start.split(':').map(Number);
+      const [eH, eM] = end.split(':').map(Number);
+
+      let diffMinutes = (eH * 60 + eM) - (sH * 60 + sM);
+      if (diffMinutes < 0) diffMinutes += 24 * 60; // ข้ามวัน
+
+      const hours = +(diffMinutes / 60).toFixed(2);
+      document.getElementById('lblOtHours').innerText = hours;
+    }
+
+    async function submitOT(e) {
+      e.preventDefault();
+      const btn = document.getElementById('btnSubmitOT');
+      const shift = document.querySelector('input[name="otShift"]:checked').value;
+
+      const payload = {
+        action: 'requestOT',
+        empId: state.currentUser.employeeCode,
+        date: document.getElementById('otDate').value,
+        shift: shift,
+        startTime: document.getElementById('otStartTime').value,
+        endTime: document.getElementById('otEndTime').value,
+        totalHours: document.getElementById('lblOtHours').innerText,
+        taskDescription: document.getElementById('otDescription').value.trim()
+      };
+
+      btn.disabled = true;
+      btn.innerHTML = '<span class="inline-block animate-spin mr-2">⏳</span> กำลังส่งคำขอโอที...';
+
+      try {
+        const res = await jsonpRequest(payload);
+        if (res && res.success) {
+          showToast(res.message || 'ส่งคำขอทำโอทีเรียบร้อยแล้ว');
+          document.getElementById('formOT').reset();
+          loadOtHistory();
+        } else {
+          showToast(res.error || 'ส่งคำขอไม่สำเร็จ', 'error');
+        }
+      } catch (err) {
+        showToast('เกิดข้อผิดพลาด: ' + err.message, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.innerText = 'ส่งคำขอทำโอที';
+      }
+    }
+
+    async function loadOtHistory() {
+      const container = document.getElementById('otHistoryList');
+      try {
+        const res = await jsonpRequest({
+          action: 'getOTHistory',
+          empId: state.currentUser.employeeCode
+        });
+
+        if (res && res.success && res.history && res.history.length > 0) {
+          container.innerHTML = res.history.map(item => {
+            let badge = item.status === 'APPROVED' ? '<span class="text-emerald-600 font-bold">อนุมัติแล้ว</span>' :
+                        item.status === 'REJECTED' ? '<span class="text-red-500 font-bold">ปฏิเสธ</span>' :
+                        '<span class="text-amber-600 font-bold">รออนุมัติ</span>';
+            return `
+              <div class="p-2.5 bg-slate-50 rounded-xl border border-slate-200">
+                <div class="flex justify-between items-center mb-1">
+                  <span class="font-bold text-slate-800">${item.date} (${item.startTime} - ${item.endTime})</span>
+                  <span>${badge}</span>
+                </div>
+                <p class="text-slate-600 text-[11px]">${item.totalHours} ชม. | งาน: ${item.taskDescription}</p>
+              </div>
+            `;
+          }).join('');
+        } else {
+          container.innerHTML = '<p class="text-slate-400 text-center py-2">ยังไม่มีประวัติการขอโอที</p>';
+        }
+      } catch (e) {
+        container.innerHTML = '<p class="text-slate-400 text-center py-2">โหลดประวัติไม่สำเร็จ</p>';
+      }
+    }
+
+    // ==========================================
+    // Supervisor Approvals Logic
+    // ==========================================
+    async function loadPendingApprovalsCount() {
+      try {
+        const res = await jsonpRequest({
+          action: 'getPendingApprovals',
+          empId: state.currentUser.employeeCode
+        });
+        if (res && res.success) {
+          const totalCount = (res.leaves ? res.leaves.length : 0) + (res.ot ? res.ot.length : 0);
+          document.getElementById('pendingBadgeCount').innerText = totalCount;
+        }
+      } catch (e) {}
+    }
+
+    async function loadApprovalsList() {
+      const leavesCont = document.getElementById('appLeavesContainer');
+      const otCont = document.getElementById('appOtContainer');
+      leavesCont.innerHTML = '<p class="text-xs text-slate-400 text-center py-4">กำลังโหลดรายการรออนุมัติ...</p>';
+      otCont.innerHTML = '<p class="text-xs text-slate-400 text-center py-4">กำลังโหลดรายการรออนุมัติ...</p>';
+
+      try {
+        const res = await jsonpRequest({
+          action: 'getPendingApprovals',
+          empId: state.currentUser.employeeCode
+        });
+
+        if (res && res.success) {
+          document.getElementById('appLeaveCount').innerText = res.leaves.length;
+          document.getElementById('appOtCount').innerText = res.ot.length;
+          document.getElementById('pendingBadgeCount').innerText = res.leaves.length + res.ot.length;
+
+          // Render leaves
+          if (res.leaves.length > 0) {
+            leavesCont.innerHTML = res.leaves.map(l => `
+              <div id="card-app-${l.docNo}" class="p-3.5 bg-white rounded-xl border border-slate-200 shadow-sm text-xs space-y-2">
+                <div class="flex justify-between items-center">
+                  <span class="font-bold text-slate-800 text-sm">${l.fullName} (${l.department})</span>
+                  <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800">${l.leaveType}</span>
+                </div>
+                <p class="text-slate-600">
+                  📅 ${l.startDate} ${l.startTime} ถึง ${l.endDate} ${l.endTime} (${l.totalHours} ชม. กะ${l.shift})
+                </p>
+                <p class="text-slate-500 text-[11px]">เหตุผล: ${l.reason || '-'}</p>
+                <div class="flex space-x-2 pt-2 border-t border-slate-100">
+                  <button onclick="handleApproveAction('${l.docNo}', 'APPROVE')" class="flex-1 py-1.5 bg-emerald-600 text-white rounded-lg font-bold text-xs shadow-sm hover:bg-emerald-700">
+                    ✅ อนุมัติ
+                  </button>
+                  <button onclick="handleApproveAction('${l.docNo}', 'REJECT')" class="flex-1 py-1.5 bg-slate-100 text-red-600 border border-red-200 rounded-lg font-bold text-xs hover:bg-red-50">
+                    ❌ ปฏิเสธ
+                  </button>
+                </div>
+              </div>
+            `).join('');
+          } else {
+            leavesCont.innerHTML = '<p class="text-xs text-slate-400 text-center py-4">ไม่มีรายการลารออนุมัติ 🎉</p>';
+          }
+
+          // Render OT
+          if (res.ot.length > 0) {
+            otCont.innerHTML = res.ot.map(o => `
+              <div id="card-app-${o.docNo}" class="p-3.5 bg-white rounded-xl border border-slate-200 shadow-sm text-xs space-y-2">
+                <div class="flex justify-between items-center">
+                  <span class="font-bold text-slate-800 text-sm">${o.fullName} (${o.department})</span>
+                  <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-800">OT ${o.totalHours} ชม.</span>
+                </div>
+                <p class="text-slate-600">
+                  ⏱️ วันที่ ${o.date} เวลา ${o.startTime} - ${o.endTime} (กะ${o.shift})
+                </p>
+                <p class="text-slate-500 text-[11px]">งาน: ${o.taskDescription || '-'}</p>
+                <div class="flex space-x-2 pt-2 border-t border-slate-100">
+                  <button onclick="handleApproveAction('${o.docNo}', 'APPROVE')" class="flex-1 py-1.5 bg-emerald-600 text-white rounded-lg font-bold text-xs shadow-sm hover:bg-emerald-700">
+                    ✅ อนุมัติ
+                  </button>
+                  <button onclick="handleApproveAction('${o.docNo}', 'REJECT')" class="flex-1 py-1.5 bg-slate-100 text-red-600 border border-red-200 rounded-lg font-bold text-xs hover:bg-red-50">
+                    ❌ ปฏิเสธ
+                  </button>
+                </div>
+              </div>
+            `).join('');
+          } else {
+            otCont.innerHTML = '<p class="text-xs text-slate-400 text-center py-4">ไม่มีรายการโอทีรออนุมัติ 🎉</p>';
+          }
+        }
+      } catch (err) {
+        leavesCont.innerHTML = '<p class="text-xs text-red-500 text-center py-4">โหลดข้อมูลล้มเหลว</p>';
+      }
+    }
+
+    async function handleApproveAction(docNo, action) {
+      if (!confirm(`ยืนยันการ${action === 'APPROVE' ? 'อนุมัติ' : 'ปฏิเสธ'}คำขอเลขที่ ${docNo} หรือไม่?`)) return;
+
+      const card = document.getElementById(`card-app-${docNo}`);
+      if (card) {
+        card.style.opacity = '0.5';
+        card.style.pointerEvents = 'none';
+      }
+
+      try {
+        const res = await jsonpRequest({
+          action: 'processApproval',
+          docNo: docNo,
+          action: action,
+          approverCode: state.currentUser.employeeCode,
+          approverName: state.currentUser.fullName
+        });
+
+        if (res && res.success) {
+          showToast(res.message || 'บันทึกเรียบร้อย');
+          // In-place removal
+          if (card) {
+            card.remove();
+          }
+          loadPendingApprovalsCount();
+        } else {
+          showToast(res.error || 'เกิดข้อผิดพลาดในการบันทึก', 'error');
+          if (card) {
+            card.style.opacity = '1';
+            card.style.pointerEvents = 'auto';
+          }
+        }
+      } catch (err) {
+        showToast('เกิดข้อผิดพลาด: ' + err.message, 'error');
+        if (card) {
+          card.style.opacity = '1';
+          card.style.pointerEvents = 'auto';
+        }
+      }
+    }
+
+    function switchApprovalTab(tab) {
+      const leavesCont = document.getElementById('appLeavesContainer');
+      const otCont = document.getElementById('appOtContainer');
+      const tabLeave = document.getElementById('tabAppLeave');
+      const tabOT = document.getElementById('tabAppOT');
+
+      if (tab === 'leaves') {
+        leavesCont.classList.remove('hidden');
+        otCont.classList.add('hidden');
+        tabLeave.className = 'flex-1 py-2 text-xs font-bold text-emerald-700 border-b-2 border-emerald-600 text-center';
+        tabOT.className = 'flex-1 py-2 text-xs font-medium text-slate-500 border-b-2 border-transparent text-center';
+      } else {
+        leavesCont.classList.add('hidden');
+        otCont.classList.remove('hidden');
+        tabOT.className = 'flex-1 py-2 text-xs font-bold text-emerald-700 border-b-2 border-emerald-600 text-center';
+        tabLeave.className = 'flex-1 py-2 text-xs font-medium text-slate-500 border-b-2 border-transparent text-center';
+      }
+    }
+
+    // ==========================================
+    // Run on Page Load
+    // ==========================================
+    window.addEventListener('DOMContentLoaded', initApp);
   </script>
 </body>
 </html>
