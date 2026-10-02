@@ -173,7 +173,54 @@
           </div>
         </button>
 
-        <!-- 4. อนุมัติงานค้าง (เฉพาะหัวหน้างาน) -->
+        <!-- 4. สลิปเงินเดือน (e-Pay Slip) -->
+        <button onclick="openView('payslip')" class="glass-card p-4 rounded-2xl border border-slate-200 text-left hover:border-teal-400 hover:shadow-md transition-all flex flex-col justify-between">
+          <div class="w-10 h-10 rounded-xl bg-teal-100 text-teal-700 flex items-center justify-center text-xl mb-2">
+            💵
+          </div>
+          <div>
+            <h3 class="text-sm font-bold text-slate-800">สลิปเงินเดือน</h3>
+            <p class="text-[11px] text-slate-500 mt-0.5">เงินเดือน & OT รายงวด</p>
+          </div>
+        </button>
+
+        <!-- 5. กะ & เวลาทำงาน (Shift & Attendance) -->
+        <button onclick="openView('shiftAtt')" class="glass-card p-4 rounded-2xl border border-slate-200 text-left hover:border-purple-400 hover:shadow-md transition-all flex flex-col justify-between">
+          <div class="w-10 h-10 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center text-xl mb-2">
+            🕒
+          </div>
+          <div>
+            <h3 class="text-sm font-bold text-slate-800">กะ & เวลาทำงาน</h3>
+            <p class="text-[11px] text-slate-500 mt-0.5">ปฏิทิน & บันทึกสแกน</p>
+          </div>
+        </button>
+
+        <!-- 6. ขอสลับกะ (Shift Swap) -->
+        <button onclick="openView('swap')" class="glass-card p-4 rounded-2xl border border-slate-200 text-left hover:border-cyan-400 hover:shadow-md transition-all flex flex-col justify-between relative">
+          <div class="flex items-center justify-between w-full mb-2">
+            <div class="w-10 h-10 rounded-xl bg-cyan-100 text-cyan-700 flex items-center justify-center text-xl">
+              🔄
+            </div>
+            <span id="swapBadgeCount" class="hidden px-2 py-0.5 bg-red-500 text-white text-[11px] font-bold rounded-full shadow-sm">0</span>
+          </div>
+          <div>
+            <h3 class="text-sm font-bold text-slate-800">ขอสลับกะ</h3>
+            <p class="text-[11px] text-slate-500 mt-0.5">แลกกะกับเพื่อนร่วมงาน</p>
+          </div>
+        </button>
+
+        <!-- 7. แจ้งความปลอดภัย (Safety & Near-Miss) -->
+        <button onclick="openView('safety')" class="glass-card p-4 rounded-2xl border border-slate-200 text-left hover:border-rose-400 hover:shadow-md transition-all flex flex-col justify-between">
+          <div class="w-10 h-10 rounded-xl bg-rose-100 text-rose-700 flex items-center justify-center text-xl mb-2">
+            🦺
+          </div>
+          <div>
+            <h3 class="text-sm font-bold text-slate-800">แจ้งความปลอดภัย</h3>
+            <p class="text-[11px] text-slate-500 mt-0.5">จุดเสี่ยง & Near-Miss</p>
+          </div>
+        </button>
+
+        <!-- 8. อนุมัติงานค้าง (เฉพาะหัวหน้างาน) -->
         <button id="btnApprovalsCard" onclick="openView('approvals')" class="hidden glass-card p-4 rounded-2xl border-2 border-emerald-500 bg-emerald-50/50 text-left hover:shadow-md transition-all flex flex-col justify-between relative overflow-hidden">
           <div class="flex items-center justify-between w-full mb-2">
             <div class="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center text-xl">
@@ -186,17 +233,6 @@
             <p class="text-[11px] text-emerald-700 mt-0.5">ลา & โอทีลูกทีม</p>
           </div>
         </button>
-
-        <!-- 5. ลงเวลาป้อมยาม Info Card -->
-        <div id="cardTimeInfo" class="glass-card p-4 rounded-2xl border border-slate-200 text-left flex flex-col justify-between">
-          <div class="w-10 h-10 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center text-xl mb-2">
-            🕒
-          </div>
-          <div>
-            <h3 class="text-sm font-bold text-slate-800">เวลาเข้า-ออก</h3>
-            <p class="text-[11px] text-slate-500 mt-0.5">สแกนบัตรที่ป้อมยาม</p>
-          </div>
-        </div>
       </section>
 
       <!-- Recent Announcements / Notice -->
@@ -496,6 +532,324 @@
         </div>
       </div>
     </div>
+
+    <!-- ======================================================== -->
+    <!-- VIEW: 5. สลิปเงินเดือน (e-Pay Slip) -->
+    <!-- ======================================================== -->
+    <section id="viewPaySlip" class="hidden glass-card rounded-2xl p-5 shadow-sm border border-slate-200 animate-fadeIn text-left">
+      <div class="flex items-center justify-between pb-3 mb-4 border-b border-slate-200">
+        <div class="flex items-center space-x-2">
+          <span class="text-xl">💵</span>
+          <div>
+            <h2 class="text-base font-bold text-slate-800">สลิปเงินเดือนดิจิทัล</h2>
+            <p class="text-[10px] text-slate-500">ข้อมูลเงินเดือน ค่าล่วงเวลา และรายการหัก</p>
+          </div>
+        </div>
+        <button onclick="closeCurrentView()" class="p-1 rounded-lg text-slate-400 hover:text-slate-600 text-lg">✖</button>
+      </div>
+
+      <!-- Auth Protection Gate (ถ้ายังไม่ได้ยืนยัน PIN / วันเกิด) -->
+      <div id="slipAuthBox" class="hidden p-4 rounded-xl bg-amber-50 border border-amber-200 text-center mb-4">
+        <div class="w-10 h-10 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center text-lg mx-auto mb-2">🔒</div>
+        <h3 class="text-xs font-bold text-amber-900 mb-1">ยืนยันตัวตนเพื่อดูข้อมูลเงินเดือน</h3>
+        <p class="text-[11px] text-amber-700 mb-3">กรุณาระบุวันเกิด 8 หลัก (ววดดปปปป) หรือรหัส PIN</p>
+        <div class="flex space-x-2 max-w-xs mx-auto">
+          <input type="password" id="slipAuthInput" inputmode="numeric" placeholder="เช่น 01012535 หรือ PIN" class="flex-1 px-3 py-2 rounded-xl border border-amber-300 text-xs text-center font-bold bg-white focus:outline-none focus:ring-2 focus:ring-amber-500">
+          <button onclick="submitPaySlipAuth()" class="px-4 py-2 bg-amber-600 text-white rounded-xl text-xs font-bold hover:bg-amber-700 transition">ยืนยัน</button>
+        </div>
+      </div>
+
+      <!-- Slip Content Container -->
+      <div id="slipContent" class="space-y-4">
+        <!-- Cycle Selector -->
+        <div class="flex items-center justify-between bg-slate-50 p-3 rounded-xl border border-slate-200">
+          <label class="text-xs font-semibold text-slate-600">เลือกรอบเงินเดือน:</label>
+          <select id="slipCycleSelect" onchange="changePaySlipCycle(this.value)" class="text-xs font-bold px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+            <option value="">กำลังโหลดงวดเงินเดือน...</option>
+          </select>
+        </div>
+
+        <!-- Net Pay Hero Card -->
+        <div class="p-4 rounded-2xl bg-gradient-to-br from-emerald-600 to-teal-700 text-white shadow-md">
+          <div class="flex items-center justify-between text-xs opacity-90 mb-1">
+            <span id="slipCycleTitle">รอบเงินเดือน</span>
+            <span id="slipPayoutDate" class="bg-white/20 px-2 py-0.5 rounded-full text-[10px]">จ่าย: -</span>
+          </div>
+          <p class="text-[11px] opacity-80 mt-1">ยอดเงินได้สุทธิ (Net Pay)</p>
+          <div class="text-2xl font-extrabold tracking-tight mt-0.5">
+            ฿<span id="slipNetPay">0.00</span>
+          </div>
+          <div class="mt-2 pt-2 border-t border-white/20 flex justify-between text-[11px] opacity-90">
+            <span>รายได้รวม: ฿<span id="slipGrossPay">0.00</span></span>
+            <span>รายการหักรวม: ฿<span id="slipTotalDeductions">0.00</span></span>
+          </div>
+        </div>
+
+        <!-- Breakdown: Earnings -->
+        <div class="p-3.5 rounded-xl bg-white border border-slate-200 shadow-xs space-y-2 text-xs">
+          <div class="flex items-center justify-between pb-1.5 border-b border-slate-100 font-bold text-slate-700">
+            <span>🟢 รายการเงินได้ (Earnings)</span>
+            <span class="text-emerald-600">+฿<span id="slipGrossPaySub">0.00</span></span>
+          </div>
+          <div class="flex justify-between text-slate-600">
+            <span>ฐานเงินเดือน / ค่าจ้าง</span>
+            <span class="font-medium">฿<span id="slipBaseSalary">0.00</span></span>
+          </div>
+          <div class="flex justify-between text-slate-600">
+            <span>ค่าล่วงเวลา (OT 1.5 เท่า)</span>
+            <span class="font-medium"><span id="slipOtHrs15">0</span> ชม. (฿<span id="slipOtPay15">0.00</span>)</span>
+          </div>
+          <div class="flex justify-between text-slate-600">
+            <span>ค่าล่วงเวลา (OT 2.0 เท่า)</span>
+            <span class="font-medium"><span id="slipOtHrs20">0</span> ชม. (฿<span id="slipOtPay20">0.00</span>)</span>
+          </div>
+          <div class="flex justify-between text-slate-600">
+            <span>ค่าล่วงเวลา (OT 3.0 เท่า)</span>
+            <span class="font-medium"><span id="slipOtHrs30">0</span> ชม. (฿<span id="slipOtPay30">0.00</span>)</span>
+          </div>
+          <div class="flex justify-between text-slate-600">
+            <span>เบี้ยขยัน (Diligent Allowance)</span>
+            <span class="font-medium">ขั้น <span id="slipDiligentStep">-</span> (฿<span id="slipDiligentAmt">0.00</span>)</span>
+          </div>
+          <div class="flex justify-between text-slate-600">
+            <span>ค่ากะ / อื่นๆ</span>
+            <span class="font-medium">฿<span id="slipOtherEarnings">0.00</span></span>
+          </div>
+        </div>
+
+        <!-- Breakdown: Deductions -->
+        <div class="p-3.5 rounded-xl bg-white border border-slate-200 shadow-xs space-y-2 text-xs">
+          <div class="flex items-center justify-between pb-1.5 border-b border-slate-100 font-bold text-slate-700">
+            <span>🔴 รายการหัก (Deductions)</span>
+            <span class="text-red-500">-฿<span id="slipTotalDeductSub">0.00</span></span>
+          </div>
+          <div class="flex justify-between text-slate-600">
+            <span>ประกันสังคม (5%)</span>
+            <span class="font-medium">฿<span id="slipSsoDeduct">0.00</span></span>
+          </div>
+          <div class="flex justify-between text-slate-600">
+            <span>ภาษี หัก ณ ที่จ่าย</span>
+            <span class="font-medium">฿<span id="slipTaxDeduct">0.00</span></span>
+          </div>
+          <div class="flex justify-between text-slate-600">
+            <span>หักลาไม่รับค่าจ้าง / ขาดงาน</span>
+            <span class="font-medium">฿<span id="slipUnpaidDeduct">0.00</span></span>
+          </div>
+        </div>
+
+        <!-- Work Summary -->
+        <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 text-[11px] text-slate-600 flex justify-between">
+          <span>วันทำงานจริง: <b id="slipWorkDays" class="text-slate-800">0</b> วัน</span>
+          <span>ชั่วโมงทำงานรวม: <b id="slipWorkHours" class="text-slate-800">0</b> ชม.</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ======================================================== -->
+    <!-- VIEW: 6. กะ & เวลาทำงาน (Shift & Attendance) -->
+    <!-- ======================================================== -->
+    <section id="viewShiftAtt" class="hidden glass-card rounded-2xl p-5 shadow-sm border border-slate-200 animate-fadeIn text-left">
+      <div class="flex items-center justify-between pb-3 mb-4 border-b border-slate-200">
+        <div class="flex items-center space-x-2">
+          <span class="text-xl">🕒</span>
+          <div>
+            <h2 class="text-base font-bold text-slate-800">กะ & เวลาทำงาน</h2>
+            <p class="text-[10px] text-slate-500">ปฏิทินโรงงานและบันทึกเวลาเข้า-ออก</p>
+          </div>
+        </div>
+        <button onclick="closeCurrentView()" class="p-1 rounded-lg text-slate-400 hover:text-slate-600 text-lg">✖</button>
+      </div>
+
+      <!-- Current Shift Banner -->
+      <div class="p-3.5 rounded-xl bg-purple-50 border border-purple-200 flex items-center justify-between mb-4">
+        <div>
+          <span class="text-[10px] font-bold text-purple-700 uppercase tracking-wide">กะการทำงานปัจจุบัน</span>
+          <h3 id="shiftCurrentTitle" class="text-sm font-bold text-purple-900 mt-0.5">☀️ กะกลางวัน (08:00 - 17:00)</h3>
+        </div>
+        <span class="text-2xl">🏭</span>
+      </div>
+
+      <!-- Company Calendar Card -->
+      <div class="p-3.5 rounded-xl bg-white border border-slate-200 shadow-xs mb-4">
+        <div class="flex items-center justify-between mb-2 pb-2 border-b border-slate-100">
+          <h4 class="text-xs font-bold text-slate-700">📅 ปฏิทินวันทำงานโรงงาน</h4>
+          <span id="shiftCalendarMonth" class="text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md">-</span>
+        </div>
+        <div class="flex space-x-2 text-[11px] mb-2.5">
+          <span class="bg-emerald-50 text-emerald-800 px-2 py-0.5 rounded border border-emerald-200">วันทำงาน: <b id="calWorkDaysCnt">0</b></span>
+          <span class="bg-red-50 text-red-700 px-2 py-0.5 rounded border border-red-200">วันหยุด: <b id="calHolidayCnt">0</b></span>
+        </div>
+        <div id="calDaysGrid" class="grid grid-cols-7 gap-1 text-center text-[10px]">
+          <!-- Dynamic Calendar Days -->
+        </div>
+      </div>
+
+      <!-- Kiosk Recent Scans Card -->
+      <div class="p-3.5 rounded-xl bg-white border border-slate-200 shadow-xs">
+        <div class="flex items-center justify-between mb-2 pb-2 border-b border-slate-100">
+          <h4 class="text-xs font-bold text-slate-700">⏱️ ประวัติการสแกนนิ้ว/บาร์โค้ดล่าสุด</h4>
+          <span class="text-[10px] text-slate-400">ป้อมยาม</span>
+        </div>
+        <div id="shiftRecentScansList" class="space-y-2 text-xs">
+          <!-- Dynamic Scan Logs -->
+        </div>
+      </div>
+    </section>
+
+    <!-- ======================================================== -->
+    <!-- VIEW: 7. ขอสลับกะ (Shift Swap) -->
+    <!-- ======================================================== -->
+    <section id="viewSwap" class="hidden glass-card rounded-2xl p-5 shadow-sm border border-slate-200 animate-fadeIn text-left">
+      <div class="flex items-center justify-between pb-3 mb-3 border-b border-slate-200">
+        <div class="flex items-center space-x-2">
+          <span class="text-xl">🔄</span>
+          <div>
+            <h2 class="text-base font-bold text-slate-800">สลับกะการทำงาน</h2>
+            <p class="text-[10px] text-slate-500">ส่งคำขอแลกกะกับเพื่อนร่วมงาน</p>
+          </div>
+        </div>
+        <button onclick="closeCurrentView()" class="p-1 rounded-lg text-slate-400 hover:text-slate-600 text-lg">✖</button>
+      </div>
+
+      <!-- Swap Navigation Tabs -->
+      <div class="flex border-b border-slate-200 mb-3 text-xs">
+        <button id="tabSwapIncoming" onclick="switchSwapTab('incoming')" class="flex-1 py-2 font-bold text-cyan-700 border-b-2 border-cyan-600 text-center relative">
+          <span>รอเรายืนยัน</span>
+          <span id="tabSwapIncomingBadge" class="hidden ml-1 px-1.5 py-0.2 bg-red-500 text-white text-[9px] rounded-full">0</span>
+        </button>
+        <button id="tabSwapNew" onclick="switchSwapTab('new')" class="flex-1 py-2 font-medium text-slate-500 border-b-2 border-transparent text-center">
+          <span>ยื่นขอแลกกะ</span>
+        </button>
+        <button id="tabSwapHistory" onclick="switchSwapTab('history')" class="flex-1 py-2 font-medium text-slate-500 border-b-2 border-transparent text-center">
+          <span>ประวัติของฉัน</span>
+        </button>
+      </div>
+
+      <!-- Tab Content: 1. Incoming Requests -->
+      <div id="swapIncomingContainer" class="space-y-3">
+        <div id="swapIncomingList" class="space-y-2.5">
+          <!-- Dynamic Incoming Swaps -->
+        </div>
+      </div>
+
+      <!-- Tab Content: 2. New Swap Request Form -->
+      <form id="formShiftSwap" onsubmit="submitShiftSwap(event)" class="hidden space-y-3 text-xs">
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">รหัสพนักงานเพื่อนร่วมงานที่จะแลกกะ <span class="text-red-500">*</span></label>
+          <input type="text" id="swapTargetEmpId" required placeholder="เช่น 1304033 หรือ 1401078" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white font-medium focus:ring-2 focus:ring-cyan-500 focus:outline-none">
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">วันที่ต้องการแลก <span class="text-red-500">*</span></label>
+            <input type="date" id="swapDate" required class="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white focus:ring-2 focus:ring-cyan-500 focus:outline-none font-medium">
+          </div>
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">กะที่เราจะเปลี่ยนไปทำ</label>
+            <select id="swapTargetShift" class="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white focus:ring-2 focus:ring-cyan-500 focus:outline-none font-medium">
+              <option value="Night">🌙 กะกลางคืน</option>
+              <option value="Day">☀️ กะกลางวัน</option>
+            </select>
+          </div>
+        </div>
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">เหตุผลในการขอสลับกะ <span class="text-red-500">*</span></label>
+          <textarea id="swapReason" required rows="2" placeholder="ระบุเหตุผล เช่น ติดธุระส่วนตัว, มีนัดพบแพทย์" class="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white focus:ring-2 focus:ring-cyan-500 focus:outline-none"></textarea>
+        </div>
+        <button type="submit" id="btnSubmitSwap" class="w-full py-2.5 bg-cyan-600 hover:bg-cyan-700 text-white rounded-xl font-bold shadow-sm transition">
+          ส่งคำขอสลับกะ
+        </button>
+      </form>
+
+      <!-- Tab Content: 3. My Requests History -->
+      <div id="swapHistoryContainer" class="hidden space-y-2.5">
+        <!-- Dynamic History -->
+      </div>
+    </section>
+
+    <!-- ======================================================== -->
+    <!-- VIEW: 8. แจ้งความปลอดภัย (Safety & Near-Miss) -->
+    <!-- ======================================================== -->
+    <section id="viewSafety" class="hidden glass-card rounded-2xl p-5 shadow-sm border border-slate-200 animate-fadeIn text-left">
+      <div class="flex items-center justify-between pb-3 mb-3 border-b border-slate-200">
+        <div class="flex items-center space-x-2">
+          <span class="text-xl">🦺</span>
+          <div>
+            <h2 class="text-base font-bold text-slate-800">แจ้งความปลอดภัย / Near-Miss</h2>
+            <p class="text-[10px] text-slate-500">รายงานจุดเสี่ยงเพื่อความปลอดภัยของทุกคน</p>
+          </div>
+        </div>
+        <button onclick="closeCurrentView()" class="p-1 rounded-lg text-slate-400 hover:text-slate-600 text-lg">✖</button>
+      </div>
+
+      <form id="formSafety" onsubmit="submitSafetyReport(event)" class="space-y-3 text-xs">
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">ประเภทเหตุการณ์ <span class="text-red-500">*</span></label>
+          <select id="safetyType" required class="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white font-medium focus:ring-2 focus:ring-rose-500 focus:outline-none">
+            <option value="Near-Miss">⚠️ เกือบเกิดอุบัติเหตุ (Near-Miss)</option>
+            <option value="Unsafe Condition">🛠️ จุดเสี่ยง / สภาพแวดล้อมไม่ปลอดภัย</option>
+            <option value="Unsafe Act">🚶‍♂️ พฤติกรรมที่ไม่ปลอดภัย</option>
+            <option value="Minor Injury">🩹 บาดเจ็บเล็กน้อย (ปฐมพยาบาล)</option>
+            <option value="Property Damage">💥 ทรัพย์สินหรือชิ้นงานเสียหาย</option>
+          </select>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">สถานที่ / บริเวณที่พบ <span class="text-red-500">*</span></label>
+            <input type="text" id="safetyLocation" required placeholder="เช่น โรงกลึง CNC แถว 3" class="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white focus:ring-2 focus:ring-rose-500 focus:outline-none">
+          </div>
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">เครื่องจักร / จุดติดตั้ง</label>
+            <input type="text" id="safetyMachine" placeholder="เช่น CNC-04 (ถ้ามี)" class="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white focus:ring-2 focus:ring-rose-500 focus:outline-none">
+          </div>
+        </div>
+
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">ระดับความเร่งด่วน <span class="text-red-500">*</span></label>
+          <div class="grid grid-cols-3 gap-2">
+            <label class="flex items-center space-x-1.5 p-2 rounded-xl border border-slate-200 cursor-pointer bg-white text-[11px]">
+              <input type="radio" name="safetyUrgency" value="LOW" class="text-rose-600 focus:ring-rose-500">
+              <span>ปกติ (Low)</span>
+            </label>
+            <label class="flex items-center space-x-1.5 p-2 rounded-xl border border-rose-300 cursor-pointer bg-rose-50 text-[11px] font-bold text-rose-800">
+              <input type="radio" name="safetyUrgency" value="HIGH" checked class="text-rose-600 focus:ring-rose-500">
+              <span>เร่งด่วน (High)</span>
+            </label>
+            <label class="flex items-center space-x-1.5 p-2 rounded-xl border border-red-400 cursor-pointer bg-red-100 text-[11px] font-bold text-red-900">
+              <input type="radio" name="safetyUrgency" value="CRITICAL" class="text-red-600 focus:ring-red-500">
+              <span>วิกฤต (Critical)</span>
+            </label>
+          </div>
+        </div>
+
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">รายละเอียดสิ่งที่พบหรือเกิดขึ้น <span class="text-red-500">*</span></label>
+          <textarea id="safetyDesc" required rows="3" placeholder="อธิบายสิ่งที่พบ เช่น พบคราบน้ำมันหกบนทางเดิน, เศษชิ้นงานกระเด็น" class="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white focus:ring-2 focus:ring-rose-500 focus:outline-none"></textarea>
+        </div>
+
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">การแก้ไขเบื้องต้นที่ทำไปแล้ว (ถ้ามี)</label>
+          <input type="text" id="safetyAction" placeholder="เช่น กั้นกรวยเตือน, เช็ดทำความสะอาดเบื้องต้น" class="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white focus:ring-2 focus:ring-rose-500 focus:outline-none">
+        </div>
+
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">แนบรูปถ่ายหลักฐาน</label>
+          <input type="file" id="safetyPhotoInput" accept="image/*" capture="environment" onchange="previewSafetyPhoto(event)" class="block w-full text-xs text-slate-500 file:mr-2 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-rose-50 file:text-rose-700 hover:file:bg-rose-100 cursor-pointer">
+          <div id="safetyPhotoPreviewBox" class="hidden mt-2 text-center">
+            <img id="safetyPhotoPreviewImg" class="max-h-36 mx-auto rounded-lg border border-slate-200 object-contain shadow-xs">
+          </div>
+        </div>
+
+        <div class="pt-1 flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-200">
+          <label for="safetyIsAnon" class="cursor-pointer text-slate-700">ไม่ประสงค์ออกนาม (Anonymous)</label>
+          <input type="checkbox" id="safetyIsAnon" class="w-4 h-4 text-rose-600 rounded">
+        </div>
+
+        <button type="submit" id="btnSubmitSafety" class="w-full py-3 bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-bold shadow-sm transition">
+          ส่งรายงานความปลอดภัยถึง จป. / HR
+        </button>
+      </form>
+    </section>
 
   </main>
 
@@ -909,6 +1263,10 @@
       document.getElementById('viewQuota').classList.add('hidden');
       document.getElementById('viewOT').classList.add('hidden');
       document.getElementById('viewApprovals').classList.add('hidden');
+      document.getElementById('viewPaySlip').classList.add('hidden');
+      document.getElementById('viewShiftAtt').classList.add('hidden');
+      document.getElementById('viewSwap').classList.add('hidden');
+      document.getElementById('viewSafety').classList.add('hidden');
 
       if (viewName === 'leave') {
         document.getElementById('viewLeave').classList.remove('hidden');
@@ -921,6 +1279,18 @@
       } else if (viewName === 'approvals') {
         document.getElementById('viewApprovals').classList.remove('hidden');
         loadApprovalsList();
+      } else if (viewName === 'payslip') {
+        document.getElementById('viewPaySlip').classList.remove('hidden');
+        loadPaySlip();
+      } else if (viewName === 'shiftAtt') {
+        document.getElementById('viewShiftAtt').classList.remove('hidden');
+        loadShiftAndAttendance();
+      } else if (viewName === 'swap') {
+        document.getElementById('viewSwap').classList.remove('hidden');
+        loadShiftSwaps();
+      } else if (viewName === 'safety') {
+        document.getElementById('viewSafety').classList.remove('hidden');
+        initSafetyForm();
       }
       state.currentView = viewName;
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -931,6 +1301,10 @@
       document.getElementById('viewQuota').classList.add('hidden');
       document.getElementById('viewOT').classList.add('hidden');
       document.getElementById('viewApprovals').classList.add('hidden');
+      document.getElementById('viewPaySlip').classList.add('hidden');
+      document.getElementById('viewShiftAtt').classList.add('hidden');
+      document.getElementById('viewSwap').classList.add('hidden');
+      document.getElementById('viewSafety').classList.add('hidden');
       document.getElementById('mainDashboard').classList.remove('hidden');
       state.currentView = 'dashboard';
     }
@@ -1450,6 +1824,407 @@
         otCont.classList.remove('hidden');
         tabOT.className = 'flex-1 py-2 text-xs font-bold text-emerald-700 border-b-2 border-emerald-600 text-center';
         tabLeave.className = 'flex-1 py-2 text-xs font-medium text-slate-500 border-b-2 border-transparent text-center';
+      }
+    }
+
+    // ==========================================
+    // 5. Mobile e-Pay Slip Logic
+    // ==========================================
+    let paySlipAuthKey = '';
+
+    async function loadPaySlip(targetCycleId = null) {
+      if (!state.currentUser) return;
+      const authBox = document.getElementById('slipAuthBox');
+      const contentBox = document.getElementById('slipContent');
+
+      try {
+        const payload = {
+          action: 'getMobilePaySlip',
+          empId: state.currentUser.employeeCode,
+          lineUserId: state.lineUserId,
+          pinOrBirthdate: paySlipAuthKey
+        };
+        if (targetCycleId) payload.cycleId = targetCycleId;
+
+        const res = await jsonpRequest(payload);
+        if (res && res.success && res.data && res.data.slip) {
+          authBox.classList.add('hidden');
+          contentBox.classList.remove('hidden');
+          renderPaySlipData(res.data);
+        } else {
+          // If auth required
+          authBox.classList.remove('hidden');
+          contentBox.classList.add('hidden');
+          if (res && res.error && !res.error.includes('PIN')) {
+            showToast(res.error, 'error');
+          }
+        }
+      } catch (err) {
+        showToast('ไม่สามารถโหลดสลิปเงินเดือน: ' + err.message, 'error');
+      }
+    }
+
+    function submitPaySlipAuth() {
+      const input = document.getElementById('slipAuthInput');
+      const val = input.value.trim();
+      if (!val) {
+        showToast('กรุณาระบุวันเกิดหรือ PIN', 'error');
+        return;
+      }
+      paySlipAuthKey = val;
+      loadPaySlip();
+    }
+
+    function changePaySlipCycle(cycleId) {
+      if (cycleId) loadPaySlip(cycleId);
+    }
+
+    function renderPaySlipData(data) {
+      const s = data.slip;
+      document.getElementById('slipCycleTitle').innerText = data.cycleName || s.CycleId || 'รอบเงินเดือน';
+      document.getElementById('slipPayoutDate').innerText = data.payoutDate ? 'จ่าย: ' + formatCleanDate(data.payoutDate) : 'สถานะ: ' + (s.Status || 'CONFIRMED');
+      document.getElementById('slipNetPay').innerText = parseFloat(s.NetPay || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      document.getElementById('slipGrossPay').innerText = parseFloat(s.GrossPay || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      document.getElementById('slipTotalDeductions').innerText = parseFloat(s.TotalDeductions || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+      document.getElementById('slipGrossPaySub').innerText = parseFloat(s.GrossPay || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      document.getElementById('slipBaseSalary').innerText = parseFloat(s.BaseSalary || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+      document.getElementById('slipOtHrs15').innerText = s.OtHours15 || 0;
+      document.getElementById('slipOtPay15').innerText = parseFloat(s.OtPay15 || 0).toLocaleString('en-US', { minimumFractionDigits: 2 });
+      document.getElementById('slipOtHrs20').innerText = s.OtHours20 || 0;
+      document.getElementById('slipOtPay20').innerText = parseFloat(s.OtPay20 || 0).toLocaleString('en-US', { minimumFractionDigits: 2 });
+      document.getElementById('slipOtHrs30').innerText = s.OtHours30 || 0;
+      document.getElementById('slipOtPay30').innerText = parseFloat(s.OtPay30 || 0).toLocaleString('en-US', { minimumFractionDigits: 2 });
+
+      document.getElementById('slipDiligentStep').innerText = s.DiligentStep || '-';
+      document.getElementById('slipDiligentAmt').innerText = parseFloat(s.DiligentAllowance || 0).toLocaleString('en-US', { minimumFractionDigits: 2 });
+      document.getElementById('slipOtherEarnings').innerText = parseFloat(parseFloat(s.ShiftAllowance || 0) + parseFloat(s.OtherEarnings || 0)).toLocaleString('en-US', { minimumFractionDigits: 2 });
+
+      document.getElementById('slipTotalDeductSub').innerText = parseFloat(s.TotalDeductions || 0).toLocaleString('en-US', { minimumFractionDigits: 2 });
+      document.getElementById('slipSsoDeduct').innerText = parseFloat(s.SocialSecurityDeduct || 0).toLocaleString('en-US', { minimumFractionDigits: 2 });
+      document.getElementById('slipTaxDeduct').innerText = parseFloat(s.TaxDeduct || 0).toLocaleString('en-US', { minimumFractionDigits: 2 });
+      document.getElementById('slipUnpaidDeduct').innerText = parseFloat(s.UnpaidLeaveDeduct || 0).toLocaleString('en-US', { minimumFractionDigits: 2 });
+
+      document.getElementById('slipWorkDays').innerText = s.ActualWorkDays || 0;
+      document.getElementById('slipWorkHours').innerText = s.TotalWorkHours || 0;
+
+      // Populate cycle dropdown if available
+      const select = document.getElementById('slipCycleSelect');
+      if (data.availableCycles && data.availableCycles.length > 0) {
+        select.innerHTML = data.availableCycles.map(c => `
+          <option value="${c.cycleId}" ${c.cycleId === s.CycleId ? 'selected' : ''}>${c.cycleId} (${c.status})</option>
+        `).join('');
+      } else {
+        select.innerHTML = `<option value="${s.CycleId}">${s.CycleId}</option>`;
+      }
+    }
+
+    // ==========================================
+    // 6. Shift & Attendance Logic
+    // ==========================================
+    async function loadShiftAndAttendance(targetYear = null, targetMonth = null) {
+      if (!state.currentUser) return;
+      try {
+        const payload = {
+          action: 'getMobileShiftAndAttendance',
+          empId: state.currentUser.employeeCode
+        };
+        if (targetYear) payload.year = targetYear;
+        if (targetMonth) payload.month = targetMonth;
+
+        const res = await jsonpRequest(payload);
+        if (res && res.success && res.data) {
+          renderShiftAndAttendanceData(res.data);
+        } else {
+          showToast(res.error || 'ไม่สามารถโหลดข้อมูลกะและเวลาได้', 'error');
+        }
+      } catch (err) {
+        showToast('เกิดข้อผิดพลาด: ' + err.message, 'error');
+      }
+    }
+
+    function renderShiftAndAttendanceData(data) {
+      const emp = data.employee;
+      const curShift = (emp.currentShift === 'Night' || String(emp.currentShift).includes('กลางคืน')) ? '🌙 กะกลางคืน (20:00 - 05:00)' : '☀️ กะกลางวัน (08:00 - 17:00)';
+      document.getElementById('shiftCurrentTitle').innerText = curShift;
+
+      // Calendar
+      const cal = data.calendar;
+      document.getElementById('shiftCalendarMonth').innerText = `เดือน ${cal.month || '-'}/${cal.year || '-'}`;
+      document.getElementById('calWorkDaysCnt').innerText = cal.workDaysCount || 0;
+      document.getElementById('calHolidayCnt').innerText = cal.holidaysCount || 0;
+
+      const daysGrid = document.getElementById('calDaysGrid');
+      if (cal.days && cal.days.length > 0) {
+        daysGrid.innerHTML = cal.days.map(d => {
+          const isWork = d.isWorkDay;
+          const bgClass = isWork ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-red-50 text-red-600 border-red-200 font-bold';
+          return `
+            <div class="p-1 rounded border ${bgClass} flex flex-col justify-between h-9">
+              <span class="text-[9px] opacity-70">${d.dayOfWeek || ''}</span>
+              <span class="font-bold">${d.day}</span>
+            </div>
+          `;
+        }).join('');
+      } else {
+        daysGrid.innerHTML = '<p class="col-span-7 text-slate-400 py-2">ไม่มีข้อมูลปฏิทิน</p>';
+      }
+
+      // Recent Kiosk Scans
+      const scansList = document.getElementById('shiftRecentScansList');
+      if (data.recentScans && data.recentScans.length > 0) {
+        scansList.innerHTML = data.recentScans.slice(0, 15).map(s => {
+          return `
+            <div class="p-2.5 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
+              <div>
+                <span class="font-bold text-slate-800">${formatCleanDate(s.Date)}</span>
+                <span class="text-[10px] text-slate-500 ml-1">(${formatCleanShift(s.Shift || 'กลางวัน')})</span>
+              </div>
+              <div class="text-right">
+                <span class="font-mono font-bold text-emerald-700">${formatCleanTime(s.CheckInTime || s.ScanTime)}</span>
+                ${s.CheckOutTime ? `<span class="text-slate-400 text-[10px] mx-1">-</span><span class="font-mono font-bold text-blue-700">${formatCleanTime(s.CheckOutTime)}</span>` : '<span class="text-[10px] text-amber-600 ml-1">(ยังไม่สแกนออก)</span>'}
+              </div>
+            </div>
+          `;
+        }).join('');
+      } else {
+        scansList.innerHTML = '<p class="text-slate-400 py-3 text-center">ยังไม่มีประวัติการสแกนนิ้ว/บาร์โค้ด</p>';
+      }
+    }
+
+    // ==========================================
+    // 7. Peer Shift Swap Logic
+    // ==========================================
+    async function loadShiftSwaps() {
+      if (!state.currentUser) return;
+      try {
+        const res = await jsonpRequest({
+          action: 'getMobileShiftSwaps',
+          empId: state.currentUser.employeeCode
+        });
+
+        if (res && res.success && res.data) {
+          renderShiftSwapsData(res.data);
+        }
+      } catch (err) {
+        showToast('ไม่สามารถโหลดข้อมูลสลับกะ: ' + err.message, 'error');
+      }
+    }
+
+    function switchSwapTab(tab) {
+      const incomingCont = document.getElementById('swapIncomingContainer');
+      const formSwap = document.getElementById('formShiftSwap');
+      const histCont = document.getElementById('swapHistoryContainer');
+      const tabInc = document.getElementById('tabSwapIncoming');
+      const tabNew = document.getElementById('tabSwapNew');
+      const tabHist = document.getElementById('tabSwapHistory');
+
+      [incomingCont, formSwap, histCont].forEach(el => el.classList.add('hidden'));
+      [tabInc, tabNew, tabHist].forEach(el => {
+        el.className = 'flex-1 py-2 font-medium text-slate-500 border-b-2 border-transparent text-center';
+      });
+
+      if (tab === 'incoming') {
+        incomingCont.classList.remove('hidden');
+        tabInc.className = 'flex-1 py-2 font-bold text-cyan-700 border-b-2 border-cyan-600 text-center relative';
+      } else if (tab === 'new') {
+        formSwap.classList.remove('hidden');
+        tabNew.className = 'flex-1 py-2 font-bold text-cyan-700 border-b-2 border-cyan-600 text-center';
+      } else {
+        histCont.classList.remove('hidden');
+        tabHist.className = 'flex-1 py-2 font-bold text-cyan-700 border-b-2 border-cyan-600 text-center';
+      }
+    }
+
+    function renderShiftSwapsData(data) {
+      // 1. Incoming badge & list
+      const incomingList = document.getElementById('swapIncomingList');
+      const badge = document.getElementById('tabSwapIncomingBadge');
+      const topBadge = document.getElementById('swapBadgeCount');
+      const inc = data.incoming || [];
+
+      if (inc.length > 0) {
+        badge.innerText = inc.length;
+        badge.classList.remove('hidden');
+        if (topBadge) {
+          topBadge.innerText = inc.length;
+          topBadge.classList.remove('hidden');
+        }
+
+        incomingList.innerHTML = inc.map(s => `
+          <div class="p-3 bg-white rounded-xl border border-cyan-200 shadow-xs space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="font-bold text-slate-800">${s.RequesterName} (${s.RequesterDept})</span>
+              <span class="text-[10px] bg-cyan-50 text-cyan-800 border border-cyan-200 px-2 py-0.5 rounded-full font-bold">รอคุณยืนยัน</span>
+            </div>
+            <p class="text-slate-600 text-[11px]">
+              ขอสลับกะ <b>${s.RequesterShift}</b> (${formatCleanDate(s.RequesterDate)}) ➔ กับกะของคุณ <b>${s.TargetShift}</b> (${formatCleanDate(s.TargetDate)})
+            </p>
+            <p class="text-slate-500 text-[10px] italic">เหตุผล: "${s.Reason || '-'}"</p>
+            <div class="flex space-x-2 pt-2 border-t border-slate-100">
+              <button onclick="processSwapAction('${s.SwapId}', 'PEER_ACCEPT')" class="flex-1 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold text-xs shadow-xs transition">
+                ยินยอม (Accept)
+              </button>
+              <button onclick="processSwapAction('${s.SwapId}', 'PEER_REJECT')" class="flex-1 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg font-semibold text-xs transition">
+                ปฏิเสธ (Reject)
+              </button>
+            </div>
+          </div>
+        `).join('');
+      } else {
+        badge.classList.add('hidden');
+        if (topBadge) topBadge.classList.add('hidden');
+        incomingList.innerHTML = '<p class="text-slate-400 py-6 text-center text-xs">ไม่มีคำขอสลับกะที่รอคุณยืนยันในขณะนี้</p>';
+      }
+
+      // 2. History list
+      const histCont = document.getElementById('swapHistoryContainer');
+      const myReqs = data.myRequests || [];
+      if (myReqs.length > 0) {
+        histCont.innerHTML = myReqs.map(s => {
+          let stColor = 'bg-amber-50 text-amber-800 border-amber-200';
+          let stText = 'รอเพื่อนยืนยัน';
+          if (s.OverallStatus === 'PENDING_SUPERVISOR') {
+            stColor = 'bg-blue-50 text-blue-800 border-blue-200';
+            stText = 'รอหัวหน้าอนุมัติ';
+          } else if (s.OverallStatus === 'APPROVED') {
+            stColor = 'bg-emerald-50 text-emerald-800 border-emerald-200';
+            stText = 'อนุมัติแล้ว';
+          } else if (s.OverallStatus === 'REJECTED') {
+            stColor = 'bg-red-50 text-red-700 border-red-200';
+            stText = 'ไม่อนุมัติ / ปฏิเสธ';
+          }
+
+          return `
+            <div class="p-3 bg-white rounded-xl border border-slate-200 shadow-xs space-y-1.5">
+              <div class="flex items-center justify-between">
+                <span class="font-bold text-slate-800 text-xs">กับคุณ ${s.TargetName}</span>
+                <span class="text-[10px] px-2 py-0.5 rounded-full font-bold border ${stColor}">${stText}</span>
+              </div>
+              <p class="text-[11px] text-slate-600">
+                สลับกะ ${s.RequesterShift} (${formatCleanDate(s.RequesterDate)}) ➔ กะ ${s.TargetShift}
+              </p>
+              <p class="text-[10px] text-slate-400">เลขที่: ${s.SwapId}</p>
+            </div>
+          `;
+        }).join('');
+      } else {
+        histCont.innerHTML = '<p class="text-slate-400 py-6 text-center text-xs">คุณยังไม่เคยยื่นคำขอสลับกะ</p>';
+      }
+    }
+
+    async function submitShiftSwap(e) {
+      e.preventDefault();
+      const btn = document.getElementById('btnSubmitSwap');
+      btn.disabled = true;
+      btn.innerText = 'กำลังส่งคำขอ...';
+
+      try {
+        const res = await jsonpRequest({
+          action: 'submitMobileShiftSwap',
+          requesterEmpId: state.currentUser.employeeCode,
+          targetEmpId: document.getElementById('swapTargetEmpId').value.trim(),
+          requesterDate: document.getElementById('swapDate').value,
+          targetDate: document.getElementById('swapDate').value,
+          targetShift: document.getElementById('swapTargetShift').value,
+          reason: document.getElementById('swapReason').value.trim()
+        });
+
+        if (res && res.success) {
+          showToast(res.message || 'ส่งคำขอสลับกะเรียบร้อยแล้ว');
+          document.getElementById('formShiftSwap').reset();
+          loadShiftSwaps();
+          switchSwapTab('history');
+        } else {
+          showToast(res.error || 'เกิดข้อผิดพลาดในการส่งคำขอ', 'error');
+        }
+      } catch (err) {
+        showToast('เกิดข้อผิดพลาด: ' + err.message, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.innerText = 'ส่งคำขอสลับกะ';
+      }
+    }
+
+    async function processSwapAction(swapId, action) {
+      try {
+        const res = await jsonpRequest({
+          action: 'processMobileShiftSwap',
+          swapId: swapId,
+          action: action,
+          callerEmpId: state.currentUser.employeeCode
+        });
+
+        if (res && res.success) {
+          showToast(res.message || 'ดำเนินการเรียบร้อยแล้ว');
+          loadShiftSwaps();
+        } else {
+          showToast(res.error || 'ไม่สามารถดำเนินการได้', 'error');
+        }
+      } catch (err) {
+        showToast('เกิดข้อผิดพลาด: ' + err.message, 'error');
+      }
+    }
+
+    // ==========================================
+    // 8. Safety & Near-Miss Incident Logic
+    // ==========================================
+    let safetyPhotoBase64 = '';
+
+    function previewSafetyPhoto(e) {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(evt) {
+        safetyPhotoBase64 = evt.target.result;
+        document.getElementById('safetyPhotoPreviewImg').src = safetyPhotoBase64;
+        document.getElementById('safetyPhotoPreviewBox').classList.remove('hidden');
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function initSafetyForm() {
+      document.getElementById('formSafety').reset();
+      safetyPhotoBase64 = '';
+      document.getElementById('safetyPhotoPreviewBox').classList.add('hidden');
+    }
+
+    async function submitSafetyReport(e) {
+      e.preventDefault();
+      const btn = document.getElementById('btnSubmitSafety');
+      btn.disabled = true;
+      btn.innerText = 'กำลังส่งรายงาน...';
+
+      const isAnon = document.getElementById('safetyIsAnon').checked;
+
+      try {
+        const res = await jsonpRequest({
+          action: 'submitMobileSafetyReport',
+          reporterEmpId: isAnon ? 'ANONYMOUS' : state.currentUser.employeeCode,
+          reporterName: isAnon ? 'ไม่ประสงค์ออกนาม' : state.currentUser.fullName,
+          reporterDept: state.currentUser.department,
+          incidentType: document.getElementById('safetyType').value,
+          location: document.getElementById('safetyLocation').value.trim(),
+          machineId: document.getElementById('safetyMachine').value.trim(),
+          urgency: document.querySelector('input[name="safetyUrgency"]:checked').value,
+          description: document.getElementById('safetyDesc').value.trim(),
+          immediateAction: document.getElementById('safetyAction').value.trim(),
+          fileBase64: safetyPhotoBase64
+        });
+
+        if (res && res.success) {
+          showToast(res.message || 'บันทึกรายงานความปลอดภัยเรียบร้อยแล้ว');
+          closeCurrentView();
+        } else {
+          showToast(res.error || 'เกิดข้อผิดพลาดในการบันทึกรายงาน', 'error');
+        }
+      } catch (err) {
+        showToast('เกิดข้อผิดพลาด: ' + err.message, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.innerText = 'ส่งรายงานความปลอดภัยถึง จป. / HR';
       }
     }
 
