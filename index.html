@@ -583,13 +583,16 @@
           </button>
         </div>
 
-        <!-- Approvals Sub-Tabs (Leave vs OT) -->
+        <!-- Approvals Sub-Tabs (Leave vs OT vs MNW) -->
         <div class="flex border-b border-slate-200 mb-3">
           <button onclick="switchApprovalTab('leaves')" id="tabAppLeave" class="flex-1 py-2 text-xs font-bold text-emerald-700 border-b-2 border-emerald-600 text-center">
-            คำขอลางาน (<span id="appLeaveCount">0</span>)
+            ลางาน (<span id="appLeaveCount">0</span>)
           </button>
           <button onclick="switchApprovalTab('ot')" id="tabAppOT" class="flex-1 py-2 text-xs font-medium text-slate-500 border-b-2 border-transparent text-center">
-            คำขอโอที (<span id="appOtCount">0</span>)
+            โอที (<span id="appOtCount">0</span>)
+          </button>
+          <button onclick="switchApprovalTab('mnw')" id="tabAppMnw" class="flex-1 py-2 text-xs font-medium text-slate-500 border-b-2 border-transparent text-center">
+            แจ้งซ่อม (<span id="appMnwCount">0</span>)
           </button>
         </div>
 
@@ -601,6 +604,11 @@
         <!-- OT Pending List -->
         <div id="appOtContainer" class="hidden space-y-3">
           <p class="text-xs text-slate-400 text-center py-4">ไม่มีรายการโอทีรออนุมัติ</p>
+        </div>
+
+        <!-- MNW Pending List -->
+        <div id="appMnwContainer" class="hidden space-y-3">
+          <p class="text-xs text-slate-400 text-center py-4">ไม่มีรายการแจ้งซ่อมรออนุมัติ</p>
         </div>
       </div>
     </section>
@@ -1157,15 +1165,20 @@
             <input type="text" id="mnwArea" required placeholder="เช่น CNC-02, Line 1" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs bg-white focus:outline-none">
           </div>
           <div>
-            <label class="block text-[11px] font-semibold text-slate-600 mb-1">ประเภทงาน</label>
-            <select id="mnwNature" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs bg-white focus:outline-none font-medium">
-              <option value="ซ่อมเครื่องจักร">ซ่อมเครื่องจักร</option>
-              <option value="ซ่อมไฟฟ้า">ซ่อมไฟฟ้า/ระบบควบคุม</option>
-              <option value="ซ่อมโครงสร้าง/อาคาร">ซ่อมโครงสร้าง/อาคาร</option>
-              <option value="สร้าง/ดัดแปลงชิ้นงาน">สร้าง/ดัดแปลงชิ้นงาน</option>
-              <option value="อื่นๆ">อื่นๆ</option>
-            </select>
+            <label class="block text-[11px] font-semibold text-slate-600 mb-1">กำหนดเสร็จที่ต้องการ</label>
+            <input type="date" id="mnwDueDate" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs bg-white focus:outline-none font-medium">
           </div>
+        </div>
+
+        <div>
+          <label class="block text-[11px] font-semibold text-slate-600 mb-1">ประเภทงาน</label>
+          <select id="mnwNature" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs bg-white focus:outline-none font-medium">
+            <option value="ซ่อมเครื่องจักร">ซ่อมเครื่องจักร</option>
+            <option value="ซ่อมไฟฟ้า">ซ่อมไฟฟ้า/ระบบควบคุม</option>
+            <option value="ซ่อมโครงสร้าง/อาคาร">ซ่อมโครงสร้าง/อาคาร</option>
+            <option value="สร้าง/ดัดแปลงชิ้นงาน">สร้าง/ดัดแปลงชิ้นงาน</option>
+            <option value="อื่นๆ">อื่นๆ</option>
+          </select>
         </div>
 
         <div>
@@ -1256,6 +1269,22 @@
           <input type="text" id="handoverRecName" placeholder="ชื่อ-สกุลผู้รับมอบงานหน้างาน" class="w-full mt-1.5 px-3 py-1.5 rounded-lg border border-slate-300 text-xs">
         </div>
 
+        <!-- 3. ภาพถ่ายผลงานหลังซ่อมเสร็จ -->
+        <div>
+          <label class="text-[11px] font-bold text-slate-700 block mb-1">3. ภาพถ่ายเครื่องจักร / ผลงานหลังซ่อมเสร็จ</label>
+          <input type="file" id="mnwHandoverPhotoFile" accept="image/*" capture="environment" class="hidden" onchange="handleMnwHandoverPhotoSelected(event)">
+          <div class="flex items-center space-x-2">
+            <button type="button" onclick="document.getElementById('mnwHandoverPhotoFile').click()" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded-xl text-xs font-semibold text-slate-700 flex items-center space-x-1.5 shadow-sm">
+              <span>📷 ถ่ายภาพผลงานหลังซ่อม</span>
+            </button>
+            <span id="mnwHandoverPhotoName" class="text-[11px] text-slate-500 truncate max-w-[150px]">ยังไม่ได้เลือกรูป</span>
+          </div>
+          <div id="mnwHandoverPhotoPreviewContainer" class="hidden mt-2 relative inline-block">
+            <img id="mnwHandoverPhotoPreview" class="w-20 h-20 object-cover rounded-xl border-2 border-emerald-500 shadow-sm" src="" alt="Preview">
+            <button type="button" onclick="clearMnwHandoverPhoto()" class="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs shadow-md">✖</button>
+          </div>
+        </div>
+
         <div>
           <label class="text-[11px] font-bold text-slate-700 block mb-1">บันทึกผลการส่งมอบ / หมายเหตุ</label>
           <textarea id="handoverNotes" rows="2" placeholder="เช่น ทดสอบเดินเครื่องปกติ, ผลการตัดตรงตามสเปก" class="w-full px-3 py-1.5 rounded-lg border border-slate-300 text-xs"></textarea>
@@ -1264,6 +1293,51 @@
         <button type="button" onclick="submitMnwHandoverSignatures()" id="btnSubmitHandover" class="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs shadow-md transition-all">
           <span>บันทึกการส่งมอบและลายเซ็น</span>
         </button>
+      </div>
+    </div>
+
+    <!-- Modal รับงานซ่อม & ประเมินงบประมาณ (Estimate Cost Modal) -->
+    <div id="modalMnwEstCost" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+      <div class="bg-white w-full max-w-sm rounded-2xl p-5 shadow-2xl space-y-3 text-left animate-fadeIn">
+        <div class="flex items-center justify-between pb-2 border-b border-slate-200">
+          <h3 class="text-sm font-bold text-slate-800 flex items-center space-x-1.5">
+            <span>🛠️ รับงานซ่อม & ประเมินงบ</span>
+          </h3>
+          <button type="button" onclick="closeMnwEstCostModal()" class="text-slate-400 hover:text-slate-600 text-lg">✖</button>
+        </div>
+        <p id="estCostOrderInfo" class="text-xs text-slate-600 bg-slate-50 p-2.5 rounded-xl border border-slate-200 leading-relaxed">-</p>
+        
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">งบประมาณประเมิน (บาท) <span class="text-red-500">*</span></label>
+          <input type="number" id="mnwEstCostInput" placeholder="0" min="0" step="100" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm font-bold bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
+          <div class="p-2 mt-1.5 bg-amber-50 rounded-lg border border-amber-200 text-[10px] text-amber-900 space-y-0.5">
+            <p class="font-bold">เงื่อนไขการอนุมัติงบประมาณ:</p>
+            <p>• <b>≤ 3,000 บาท:</b> เริ่มงานซ่อมได้ทันที</p>
+            <p>• <b>3,001 - 10,000 บาท:</b> เสนอ ผจก.แผนกอนุมัติ</p>
+            <p>• <b>> 10,000 บาท:</b> เสนอ ผจก.โรงงานอนุมัติ</p>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">หมายเหตุช่าง / การวินิจฉัย</label>
+          <input type="text" id="mnwEstCostComment" placeholder="เช่น อะไหล่ต้องสั่งซื้อจากภายนอก" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs bg-white focus:outline-none">
+        </div>
+
+        <div class="flex space-x-2 pt-2 border-t border-slate-100">
+          <button type="button" onclick="closeMnwEstCostModal()" class="flex-1 py-2.5 rounded-xl text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200">ยกเลิก</button>
+          <button type="button" id="btnSubmitEstCost" onclick="submitMnwEstCost()" class="flex-1 py-2.5 rounded-xl text-xs font-bold text-white bg-amber-600 hover:bg-amber-700 shadow-sm flex items-center justify-center">
+            <span>ยืนยันรับงาน</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal ดูภาพขยาย (Full-Size Image Viewer Modal) -->
+    <div id="modalMnwImagePreview" class="hidden fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4" onclick="closeMnwImagePreview()">
+      <div class="relative max-w-sm w-full bg-black/40 rounded-2xl p-2 flex flex-col items-center" onclick="event.stopPropagation()">
+        <button type="button" onclick="closeMnwImagePreview()" class="absolute -top-3 -right-3 bg-red-500 text-white rounded-full w-8 h-8 flex items-center justify-center text-sm font-bold shadow-lg z-10">✖</button>
+        <img id="mnwFullPreviewImg" class="max-h-[75vh] w-auto rounded-xl object-contain shadow-2xl" src="" alt="Full preview">
+        <p id="mnwFullPreviewCaption" class="text-xs text-white mt-2 text-center px-2 py-1 bg-black/60 rounded-lg max-w-full truncate"></p>
       </div>
     </div>
 
@@ -2184,6 +2258,7 @@
       e.preventDefault();
       const title = document.getElementById('mnwTitle').value.trim();
       const area = document.getElementById('mnwArea').value.trim();
+      const dueDate = document.getElementById('mnwDueDate') ? document.getElementById('mnwDueDate').value : '';
       const nature = document.getElementById('mnwNature').value;
       const detail = document.getElementById('mnwDetail').value.trim();
       const btn = document.getElementById('btnSubmitMnw');
@@ -2201,6 +2276,7 @@
           action: 'submitMobileMnwOrder',
           title: title,
           area: area,
+          estDueDate: dueDate,
           natureOfWork: nature,
           detail: detail,
           requesterId: state.currentUser ? state.currentUser.employeeCode : '',
@@ -2217,6 +2293,7 @@
           showToast('ยื่นแบบฟอร์มแจ้งซ่อมเรียบร้อยแล้ว!');
           document.getElementById('mnwTitle').value = '';
           document.getElementById('mnwArea').value = '';
+          if (document.getElementById('mnwDueDate')) document.getElementById('mnwDueDate').value = '';
           document.getElementById('mnwDetail').value = '';
           clearMnwPhoto();
           closeCurrentView();
@@ -2275,7 +2352,7 @@
 
       let list = cachedMnwOrders;
       if (currentMnwFilter === 'ACTIVE') {
-        list = list.filter(o => ['PENDING_SUPERVISOR', 'PENDING_MNW', 'IN_PROGRESS'].includes(String(o.Status)));
+        list = list.filter(o => ['PENDING_SUPERVISOR', 'PENDING_MNW', 'IN_PROGRESS', 'PENDING_DEPT_MANAGER', 'PENDING_FACTORY_MANAGER'].includes(String(o.Status)));
       } else if (currentMnwFilter === 'HANDOVER') {
         list = list.filter(o => ['READY_FOR_HANDOVER', 'PENDING_HANDOVER', 'IN_PROGRESS'].includes(String(o.Status)));
       } else if (currentMnwFilter === 'DONE') {
@@ -2292,8 +2369,13 @@
         let badgeColor = 'bg-amber-100 text-amber-800 border-amber-300';
         if (st === 'COMPLETED' || st === 'HANDED_OVER') badgeColor = 'bg-emerald-100 text-emerald-800 border-emerald-300';
         if (st === 'READY_FOR_HANDOVER') badgeColor = 'bg-blue-100 text-blue-800 border-blue-300';
+        if (st === 'IN_PROGRESS') badgeColor = 'bg-purple-100 text-purple-800 border-purple-300';
 
-        const canHandover = ['READY_FOR_HANDOVER', 'IN_PROGRESS'].includes(st);
+        const photoUrl = o.AttachmentUrl || '';
+        let thumbs = [];
+        try { thumbs = JSON.parse(o.AttachmentThumbnails || '[]'); } catch (e) { thumbs = []; }
+        const thumbUrl = thumbs[0] || photoUrl;
+        const estCostNum = parseFloat(o.EstCost) || 0;
 
         return `
           <div class="glass-card p-3.5 rounded-2xl border border-slate-200 text-left space-y-2">
@@ -2301,18 +2383,41 @@
               <span class="text-xs font-bold text-slate-800">${o.OrderNo}</span>
               <span class="text-[10px] px-2 py-0.5 rounded-full border ${badgeColor} font-semibold">${st}</span>
             </div>
-            <div>
-              <h4 class="text-xs font-bold text-slate-800 leading-snug">${o.Title || 'งานแจ้งซ่อม'}</h4>
-              <p class="text-[11px] text-slate-500 mt-0.5">จุดติดตั้ง: <b class="text-slate-700">${o.Area || '-'}</b> | แผนก: ${o.Department || '-'}</p>
-              ${o.Detail ? `<p class="text-[10px] text-slate-400 mt-1 line-clamp-2">${o.Detail}</p>` : ''}
-            </div>
-            <div class="flex items-center justify-between pt-1 border-t border-slate-100 text-[10px] text-slate-400">
-              <span>ผู้แจ้ง: ${o.RequesterName || o.RequesterId}</span>
-              ${canHandover ? `
-                <button type="button" onclick="openMnwHandoverModal('${o.OrderNo}', '${encodeURIComponent(o.Title || '')}')" class="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold text-[10px] shadow-xs flex items-center space-x-1">
-                  <span>✍️ เซ็นส่งมอบงาน</span>
-                </button>
+            <div class="flex gap-2.5">
+              ${thumbUrl ? `
+                <div class="flex-shrink-0 cursor-pointer" onclick="openMnwImagePreview('${photoUrl || thumbUrl}', '${o.OrderNo}: ${o.Title || ''}')">
+                  <img src="${thumbUrl}" class="w-14 h-14 object-cover rounded-lg border border-slate-200 shadow-2xs hover:opacity-90 transition" alt="Thumbnail">
+                  <span class="text-[9px] text-blue-600 block text-center mt-0.5 font-medium">🔍 ขยาย</span>
+                </div>
               ` : ''}
+              <div class="flex-1 space-y-0.5">
+                <h4 class="text-xs font-bold text-slate-800 leading-snug">${o.Title || 'งานแจ้งซ่อม'}</h4>
+                <p class="text-[11px] text-slate-500">จุดติดตั้ง: <b class="text-slate-700">${o.Area || '-'}</b> | แผนก: ${o.Department || '-'}</p>
+                ${o.EstDueDate ? `<p class="text-[10px] text-slate-500">กำหนดเสร็จ: <b>${formatCleanDate(o.EstDueDate)}</b></p>` : ''}
+                ${estCostNum > 0 ? `<p class="text-[10px] text-amber-700 font-bold">งบประมาณประเมิน: ฿${estCostNum.toLocaleString()}</p>` : ''}
+                ${o.Detail ? `<p class="text-[10px] text-slate-400 mt-1 line-clamp-2">${o.Detail}</p>` : ''}
+              </div>
+            </div>
+
+            <div class="flex items-center justify-between pt-1.5 border-t border-slate-100 text-[10px] text-slate-400">
+              <span>ผู้แจ้ง: ${o.RequesterName || o.RequesterId}</span>
+              <div class="flex space-x-1.5">
+                ${st === 'PENDING_MNW' ? `
+                  <button type="button" onclick="openMnwEstCostModal('${o.OrderNo}', '${encodeURIComponent(o.Title || '')}', ${estCostNum})" class="px-2.5 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded-lg font-bold text-[10px] shadow-xs flex items-center space-x-1">
+                    <span>🛠️ รับงาน & ประเมินงบ</span>
+                  </button>
+                ` : ''}
+                ${st === 'IN_PROGRESS' ? `
+                  <button type="button" onclick="finishMnwRepairWork('${o.OrderNo}')" class="px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold text-[10px] shadow-xs flex items-center space-x-1">
+                    <span>⚙️ ซ่อมเสร็จ / นัดตรวจรับ</span>
+                  </button>
+                ` : ''}
+                ${['READY_FOR_HANDOVER', 'IN_PROGRESS'].includes(st) ? `
+                  <button type="button" onclick="openMnwHandoverModal('${o.OrderNo}', '${encodeURIComponent(o.Title || '')}')" class="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold text-[10px] shadow-xs flex items-center space-x-1">
+                    <span>✍️ เซ็นส่งมอบงาน</span>
+                  </button>
+                ` : ''}
+              </div>
             </div>
           </div>
         `;
@@ -2387,10 +2492,57 @@
       return canvas.toDataURL() === blank.toDataURL();
     }
 
+    // --- Handover Photo Logic ---
+    let currentMnwHandoverPhotoBase64 = '';
+    function handleMnwHandoverPhotoSelected(e) {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(evt) {
+        const img = new Image();
+        img.onload = function() {
+          const maxDim = 1000;
+          let width = img.width;
+          let height = img.height;
+          if (width > height && width > maxDim) {
+            height = Math.round((height * maxDim) / width);
+            width = maxDim;
+          } else if (height > maxDim) {
+            width = Math.round((width * maxDim) / height);
+            height = maxDim;
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+          currentMnwHandoverPhotoBase64 = canvas.toDataURL('image/jpeg', 0.7);
+
+          document.getElementById('mnwHandoverPhotoPreview').src = currentMnwHandoverPhotoBase64;
+          document.getElementById('mnwHandoverPhotoPreviewContainer').classList.remove('hidden');
+          document.getElementById('mnwHandoverPhotoName').innerText = file.name;
+        };
+        img.src = evt.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function clearMnwHandoverPhoto() {
+      currentMnwHandoverPhotoBase64 = '';
+      const inp = document.getElementById('mnwHandoverPhotoFile');
+      if (inp) inp.value = '';
+      const prev = document.getElementById('mnwHandoverPhotoPreviewContainer');
+      if (prev) prev.classList.add('hidden');
+      const name = document.getElementById('mnwHandoverPhotoName');
+      if (name) name.innerText = 'ยังไม่ได้เลือกรูป';
+    }
+
     function openMnwHandoverModal(orderNo, encodedTitle) {
       activeHandoverOrderNo = orderNo;
       const title = decodeURIComponent(encodedTitle || '');
       document.getElementById('handoverOrderInfo').innerText = `เอกสาร: ${orderNo} - ${title}`;
+      clearMnwHandoverPhoto();
       document.getElementById('modalMnwHandover').classList.remove('hidden');
 
       if (state.currentUser) {
@@ -2409,6 +2561,7 @@
 
     function closeMnwHandoverModal() {
       document.getElementById('modalMnwHandover').classList.add('hidden');
+      clearMnwHandoverPhoto();
       activeHandoverOrderNo = null;
     }
 
@@ -2435,7 +2588,7 @@
       }
 
       btn.disabled = true;
-      btn.innerText = 'กำลังบันทึกลายเซ็นส่งมอบ...';
+      btn.innerText = 'กำลังบันทึกลายเซ็นและรูปส่งมอบ...';
 
       try {
         const payload = {
@@ -2445,7 +2598,8 @@
           receiverSignatureBase64: canvasRec.toDataURL('image/png'),
           technicianName: techName,
           receiverName: recName,
-          handoverNotes: notes
+          handoverNotes: notes,
+          handoverImageBase64: currentMnwHandoverPhotoBase64
         };
 
         const res = await postApiRequest(payload);
@@ -2463,6 +2617,98 @@
         btn.disabled = false;
         btn.innerText = 'บันทึกการส่งมอบและลายเซ็น';
       }
+    }
+
+    // --- MNW Estimate Cost Modal & Actions ---
+    let activeEstCostOrderNo = null;
+    function openMnwEstCostModal(orderNo, encodedTitle, currentCost) {
+      activeEstCostOrderNo = orderNo;
+      const title = decodeURIComponent(encodedTitle || '');
+      document.getElementById('estCostOrderInfo').innerText = `เอกสาร: ${orderNo} - ${title}`;
+      document.getElementById('mnwEstCostInput').value = currentCost || '';
+      document.getElementById('mnwEstCostComment').value = '';
+      document.getElementById('modalMnwEstCost').classList.remove('hidden');
+    }
+
+    function closeMnwEstCostModal() {
+      document.getElementById('modalMnwEstCost').classList.add('hidden');
+      activeEstCostOrderNo = null;
+    }
+
+    async function submitMnwEstCost() {
+      if (!activeEstCostOrderNo) return;
+      const costInput = document.getElementById('mnwEstCostInput').value;
+      const comment = document.getElementById('mnwEstCostComment').value.trim();
+      const cost = parseFloat(costInput) || 0;
+      const btn = document.getElementById('btnSubmitEstCost');
+
+      btn.disabled = true;
+      btn.innerText = 'กำลังบันทึก...';
+
+      try {
+        const payload = {
+          action: 'processMobileMnwApproval',
+          orderNo: activeEstCostOrderNo,
+          approvalAction: 'APPROVE',
+          estCost: cost,
+          approverCode: state.currentUser ? state.currentUser.employeeCode : '',
+          approverName: state.currentUser ? state.currentUser.fullName : '',
+          comment: comment || `ช่าง MNW ประเมินงบ ${cost.toLocaleString()} บาท`
+        };
+
+        const res = await postApiRequest(payload);
+        if (res && (res.success || res.status === 'success')) {
+          showToast(res.message || 'บันทึกการรับงานและประเมินงบเรียบร้อยแล้ว!');
+          closeMnwEstCostModal();
+          loadMobileMnwOrders();
+        } else {
+          showToast(res.error || res.message || 'บันทึกไม่สำเร็จ', 'error');
+        }
+      } catch (err) {
+        showToast('เกิดข้อผิดพลาด: ' + err.message, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.innerText = 'ยืนยันรับงาน';
+      }
+    }
+
+    async function finishMnwRepairWork(orderNo) {
+      if (!confirm(`ยืนยันว่าการซ่อมงานเลขที่ ${orderNo} ดำเนินการเสร็จแล้ว พร้อมตรวจรับส่งมอบงานหรือไม่?`)) return;
+
+      try {
+        const payload = {
+          action: 'processMobileMnwApproval',
+          orderNo: orderNo,
+          approvalAction: 'APPROVE',
+          approverCode: state.currentUser ? state.currentUser.employeeCode : '',
+          approverName: state.currentUser ? state.currentUser.fullName : '',
+          comment: 'ช่างซ่อมปฏิบัติงานเสร็จสิ้น พร้อมตรวจรับส่งมอบงาน'
+        };
+
+        const res = await postApiRequest(payload);
+        if (res && (res.success || res.status === 'success')) {
+          showToast('บันทึกสถานะพร้อมส่งมอบงานเรียบร้อยแล้ว!');
+          loadMobileMnwOrders();
+        } else {
+          showToast(res.error || res.message || 'บันทึกไม่สำเร็จ', 'error');
+        }
+      } catch (err) {
+        showToast('เกิดข้อผิดพลาด: ' + err.message, 'error');
+      }
+    }
+
+    // --- MNW Image Preview Modal ---
+    function openMnwImagePreview(imgUrl, caption) {
+      if (!imgUrl) return;
+      const img = document.getElementById('mnwFullPreviewImg');
+      const cap = document.getElementById('mnwFullPreviewCaption');
+      img.src = imgUrl;
+      cap.innerText = caption || 'ภาพถ่ายหน้างาน';
+      document.getElementById('modalMnwImagePreview').classList.remove('hidden');
+    }
+
+    function closeMnwImagePreview() {
+      document.getElementById('modalMnwImagePreview').classList.add('hidden');
     }
 
     // ==========================================
@@ -2837,7 +3083,7 @@
           empId: state.currentUser.employeeCode
         });
         if (res && res.success) {
-          const totalCount = (res.leaves ? res.leaves.length : 0) + (res.ot ? res.ot.length : 0);
+          const totalCount = (res.leaves ? res.leaves.length : 0) + (res.ot ? res.ot.length : 0) + (res.mnw ? res.mnw.length : 0);
           document.getElementById('pendingBadgeCount').innerText = totalCount;
         }
       } catch (e) {}
@@ -2846,8 +3092,10 @@
     async function loadApprovalsList() {
       const leavesCont = document.getElementById('appLeavesContainer');
       const otCont = document.getElementById('appOtContainer');
+      const mnwCont = document.getElementById('appMnwContainer');
       leavesCont.innerHTML = '<p class="text-xs text-slate-400 text-center py-4">กำลังโหลดรายการรออนุมัติ...</p>';
       otCont.innerHTML = '<p class="text-xs text-slate-400 text-center py-4">กำลังโหลดรายการรออนุมัติ...</p>';
+      if (mnwCont) mnwCont.innerHTML = '<p class="text-xs text-slate-400 text-center py-4">กำลังโหลดรายการรออนุมัติ...</p>';
 
       try {
         const res = await jsonpRequest({
@@ -2856,9 +3104,13 @@
         });
 
         if (res && res.success) {
-          document.getElementById('appLeaveCount').innerText = res.leaves.length;
-          document.getElementById('appOtCount').innerText = res.ot.length;
-          document.getElementById('pendingBadgeCount').innerText = res.leaves.length + res.ot.length;
+          const lCount = res.leaves ? res.leaves.length : 0;
+          const oCount = res.ot ? res.ot.length : 0;
+          const mCount = res.mnw ? res.mnw.length : 0;
+          document.getElementById('appLeaveCount').innerText = lCount;
+          document.getElementById('appOtCount').innerText = oCount;
+          if (document.getElementById('appMnwCount')) document.getElementById('appMnwCount').innerText = mCount;
+          document.getElementById('pendingBadgeCount').innerText = lCount + oCount + mCount;
 
           // Render leaves
           if (res.leaves.length > 0) {
@@ -2911,6 +3163,50 @@
           } else {
             otCont.innerHTML = '<p class="text-xs text-slate-400 text-center py-4">ไม่มีรายการโอทีรออนุมัติ 🎉</p>';
           }
+
+          // Render MNW
+          if (mnwCont) {
+            if (res.mnw && res.mnw.length > 0) {
+              mnwCont.innerHTML = res.mnw.map(m => {
+                const photoUrl = m.attachmentUrl || (m.attachmentUrls && m.attachmentUrls[0]) || '';
+                const thumbUrl = (m.attachmentThumbnails && m.attachmentThumbnails[0]) || photoUrl;
+                const costDisplay = m.estCost > 0 ? `<span class="text-amber-700 font-bold ml-1">฿${m.estCost.toLocaleString()}</span>` : '';
+                return `
+                  <div id="card-app-${m.docNo}" class="p-3.5 bg-white rounded-xl border border-slate-200 shadow-sm text-xs space-y-2">
+                    <div class="flex justify-between items-center">
+                      <span class="font-bold text-slate-800 text-sm">${m.fullName} (${m.department})</span>
+                      <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800">${m.status}</span>
+                    </div>
+                    <div class="flex gap-2.5">
+                      ${thumbUrl ? `
+                        <div class="flex-shrink-0 cursor-pointer" onclick="openMnwImagePreview('${photoUrl || thumbUrl}', '${m.docNo}: ${m.title}')">
+                          <img src="${thumbUrl}" class="w-16 h-16 object-cover rounded-lg border border-slate-200 shadow-2xs hover:opacity-90 transition" alt="Thumbnail">
+                          <span class="text-[9px] text-blue-600 block text-center mt-0.5 font-medium">🔍 ขยาย</span>
+                        </div>
+                      ` : ''}
+                      <div class="flex-1 space-y-1">
+                        <p class="font-semibold text-slate-800 text-xs">🛠️ ${m.title}</p>
+                        <p class="text-slate-600 text-[11px]">📍 จุดซ่อม: <b>${m.area || '-'}</b> (${m.natureOfWork || 'ซ่อมเครื่องจักร'})</p>
+                        ${m.estDueDate ? `<p class="text-slate-500 text-[10px]">📅 กำหนดเสร็จที่ต้องการ: <b>${formatCleanDate(m.estDueDate)}</b></p>` : ''}
+                        ${costDisplay ? `<p class="text-[11px] text-slate-600">💰 ประเมินงบ: ${costDisplay}</p>` : ''}
+                        ${m.detail ? `<p class="text-slate-500 text-[10px] line-clamp-2">อาการ: ${m.detail}</p>` : ''}
+                      </div>
+                    </div>
+                    <div class="flex space-x-2 pt-2 border-t border-slate-100">
+                      <button onclick="handleApproveAction('${m.docNo}', 'APPROVE')" class="flex-1 py-1.5 bg-emerald-600 text-white rounded-lg font-bold text-xs shadow-sm hover:bg-emerald-700">
+                        ✅ อนุมัติ
+                      </button>
+                      <button onclick="handleApproveAction('${m.docNo}', 'REJECT')" class="flex-1 py-1.5 bg-slate-100 text-red-600 border border-red-200 rounded-lg font-bold text-xs hover:bg-red-50">
+                        ❌ ปฏิเสธ
+                      </button>
+                    </div>
+                  </div>
+                `;
+              }).join('');
+            } else {
+              mnwCont.innerHTML = '<p class="text-xs text-slate-400 text-center py-4">ไม่มีรายการแจ้งซ่อมรออนุมัติ 🎉</p>';
+            }
+          }
         }
       } catch (err) {
         leavesCont.innerHTML = '<p class="text-xs text-red-500 text-center py-4">โหลดข้อมูลล้มเหลว</p>';
@@ -2962,20 +3258,21 @@
     function switchApprovalTab(tab) {
       const leavesCont = document.getElementById('appLeavesContainer');
       const otCont = document.getElementById('appOtContainer');
+      const mnwCont = document.getElementById('appMnwContainer');
       const tabLeave = document.getElementById('tabAppLeave');
       const tabOT = document.getElementById('tabAppOT');
+      const tabMnw = document.getElementById('tabAppMnw');
 
-      if (tab === 'leaves') {
-        leavesCont.classList.remove('hidden');
-        otCont.classList.add('hidden');
-        tabLeave.className = 'flex-1 py-2 text-xs font-bold text-emerald-700 border-b-2 border-emerald-600 text-center';
-        tabOT.className = 'flex-1 py-2 text-xs font-medium text-slate-500 border-b-2 border-transparent text-center';
-      } else {
-        leavesCont.classList.add('hidden');
-        otCont.classList.remove('hidden');
-        tabOT.className = 'flex-1 py-2 text-xs font-bold text-emerald-700 border-b-2 border-emerald-600 text-center';
-        tabLeave.className = 'flex-1 py-2 text-xs font-medium text-slate-500 border-b-2 border-transparent text-center';
-      }
+      const activeClass = 'flex-1 py-2 text-xs font-bold text-emerald-700 border-b-2 border-emerald-600 text-center';
+      const inactiveClass = 'flex-1 py-2 text-xs font-medium text-slate-500 border-b-2 border-transparent text-center';
+
+      if (leavesCont) leavesCont.classList.toggle('hidden', tab !== 'leaves');
+      if (otCont) otCont.classList.toggle('hidden', tab !== 'ot');
+      if (mnwCont) mnwCont.classList.toggle('hidden', tab !== 'mnw');
+
+      if (tabLeave) tabLeave.className = (tab === 'leaves') ? activeClass : inactiveClass;
+      if (tabOT) tabOT.className = (tab === 'ot') ? activeClass : inactiveClass;
+      if (tabMnw) tabMnw.className = (tab === 'mnw') ? activeClass : inactiveClass;
     }
 
     // ==========================================
