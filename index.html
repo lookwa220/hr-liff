@@ -1116,9 +1116,10 @@
 
       // Check Supervisor Card
       if (user.isSupervisor) {
-        document.getElementById('dashRoleBadge').classList.remove('hidden');
-        document.getElementById('btnApprovalsCard').classList.remove('hidden');
-        document.getElementById('cardTimeInfo').classList.add('hidden'); // Swap position
+        const roleBadge = document.getElementById('dashRoleBadge');
+        if (roleBadge) roleBadge.classList.remove('hidden');
+        const approvalsCard = document.getElementById('btnApprovalsCard');
+        if (approvalsCard) approvalsCard.classList.remove('hidden');
         loadPendingApprovalsCount();
       }
 
