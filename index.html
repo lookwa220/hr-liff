@@ -2413,7 +2413,7 @@
                   </button>
                 ` : ''}
                 ${['READY_FOR_HANDOVER', 'IN_PROGRESS'].includes(st) ? `
-                  <button type="button" onclick="openMnwHandoverModal('${o.OrderNo}', '${encodeURIComponent(o.Title || '')}')" class="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold text-[10px] shadow-xs flex items-center space-x-1">
+                  <button type="button" onclick="openMnwHandoverModal('${o.OrderNo}', '${encodeURIComponent(o.Title || '')}', '${encodeURIComponent(o.RequesterName || '')}')" class="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold text-[10px] shadow-xs flex items-center space-x-1">
                     <span>✍️ เซ็นส่งมอบงาน</span>
                   </button>
                 ` : ''}
@@ -2538,20 +2538,20 @@
       if (name) name.innerText = 'ยังไม่ได้เลือกรูป';
     }
 
-    function openMnwHandoverModal(orderNo, encodedTitle) {
+    function openMnwHandoverModal(orderNo, encodedTitle, encodedRequesterName) {
       activeHandoverOrderNo = orderNo;
       const title = decodeURIComponent(encodedTitle || '');
+      const reqName = decodeURIComponent(encodedRequesterName || '');
       document.getElementById('handoverOrderInfo').innerText = `เอกสาร: ${orderNo} - ${title}`;
       clearMnwHandoverPhoto();
       document.getElementById('modalMnwHandover').classList.remove('hidden');
 
-      if (state.currentUser) {
-        if (state.currentUser.department === 'MNW') {
-          document.getElementById('handoverTechName').value = state.currentUser.fullName || '';
-        } else {
-          document.getElementById('handoverRecName').value = state.currentUser.fullName || '';
-        }
-      }
+      // 1. ช่างผู้ส่งมอบ: ดึงชื่อเจ้าของโทรศัพท์เครื่องนี้ (ช่างที่กำลังดำเนินการส่งมอบงาน)
+      document.getElementById('handoverTechName').value = state.currentUser ? (state.currentUser.fullName || '') : '';
+
+      // 2. ผู้ตรวจรับมอบงานหน้างาน: ดึงชื่อผู้แจ้งซ่อมจากใบงาน (สามารถพิมพ์แก้ไขได้หากมีผู้รับมอบแทน)
+      const targetOrder = (cachedMnwOrders || []).find(o => String(o.OrderNo).trim() === String(orderNo).trim());
+      document.getElementById('handoverRecName').value = reqName || (targetOrder && targetOrder.RequesterName) || '';
 
       initSignaturePad('canvasTechSig');
       initSignaturePad('canvasRecSig');
