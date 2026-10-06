@@ -837,11 +837,11 @@
 
         <!-- Segmented Tab Navigation -->
         <div class="grid grid-cols-2 p-1 bg-slate-100 rounded-xl text-xs font-semibold">
-          <button type="button" onclick="switchPersonalTab('payslip')" id="btnTabPersonalPayslip" class="py-2 rounded-lg bg-white text-emerald-700 shadow-sm transition font-bold">
-            💵 สลิปเงินเดือน
+          <button type="button" onclick="switchPersonalTab('shiftAtt')" id="btnTabPersonalShiftAtt" class="py-2 rounded-lg bg-white text-purple-700 shadow-sm transition font-bold">
+            🕒 กะ & ปฏิทินวันทำงาน
           </button>
-          <button type="button" onclick="switchPersonalTab('shiftAtt')" id="btnTabPersonalShiftAtt" class="py-2 rounded-lg text-slate-600 hover:bg-white transition font-medium">
-            🕒 กะ & เวลาทำงาน
+          <button type="button" onclick="switchPersonalTab('payslip')" id="btnTabPersonalPayslip" class="py-2 rounded-lg text-slate-600 hover:bg-white transition font-medium">
+            💵 สลิปเงินเดือน
           </button>
         </div>
       </div>
@@ -1820,7 +1820,11 @@
         const va = document.getElementById('viewApprovals');
         if (va) va.classList.remove('hidden');
         loadApprovalsList();
-      } else if (viewName === 'personal' || viewName === 'payslip') {
+      } else if (viewName === 'personal' || viewName === 'shiftAtt') {
+        const vp = document.getElementById('viewPersonal');
+        if (vp) vp.classList.remove('hidden');
+        switchPersonalTab('shiftAtt');
+      } else if (viewName === 'payslip') {
         const vp = document.getElementById('viewPersonal');
         if (vp) vp.classList.remove('hidden');
         switchPersonalTab('payslip');
@@ -1950,12 +1954,19 @@
             document.getElementById('selectedRoomId').value = r.RoomId;
           }
           return `
-            <div id="roomCard_${r.RoomId}" onclick="selectMobileRoom('${r.RoomId}')" class="cursor-pointer p-3 rounded-xl border ${isSelected ? 'border-indigo-500 bg-indigo-50/70 ring-2 ring-indigo-200' : 'border-slate-200 bg-white hover:border-slate-300'} text-left transition">
-              <div class="flex items-center justify-between">
-                <span class="text-xs font-bold text-slate-800">${r.RoomName || r.RoomId}</span>
-                <span class="text-[10px] text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded font-semibold">${r.Capacity || '-'} ที่นั่ง</span>
+            <div id="roomCard_${r.RoomId}" onclick="selectMobileRoom('${r.RoomId}')" class="cursor-pointer p-3 rounded-2xl border ${isSelected ? 'border-indigo-500 bg-indigo-50/70 ring-2 ring-indigo-200 shadow-sm' : 'border-slate-200 bg-white hover:border-slate-300'} text-left transition flex flex-col justify-between overflow-hidden">
+              <div>
+                ${r.ImageUrl ? `
+                  <div class="w-full h-24 mb-2 rounded-xl overflow-hidden bg-slate-100 border border-slate-200/60">
+                    <img src="${r.ImageUrl}" alt="${r.RoomName || ''}" class="w-full h-full ${r.ImageFit === 'contain' ? 'object-contain bg-slate-900' : 'object-cover'} ${r.ImageFocus === 'top' ? 'object-top' : (r.ImageFocus === 'bottom' ? 'object-bottom' : 'object-center')}">
+                  </div>
+                ` : ''}
+                <div class="flex items-center justify-between gap-1">
+                  <span class="text-xs font-bold text-slate-800 truncate">${r.RoomName || r.RoomId}</span>
+                  <span class="text-[10px] text-indigo-700 bg-indigo-100 px-1.5 py-0.5 rounded-md font-bold shrink-0">${r.Capacity || '-'} ที่นั่ง</span>
+                </div>
+                <p class="text-[10px] text-slate-500 mt-1 truncate">${r.Floor ? '📍 ' + r.Floor : ''} ${r.Facilities || r.Equipment ? '• ' + (r.Facilities || r.Equipment) : ''}</p>
               </div>
-              <p class="text-[10px] text-slate-500 mt-1 truncate">${r.Equipment || 'โปรเจกเตอร์, ไวท์บอร์ด'}</p>
             </div>
           `;
         }).join('');
@@ -2090,12 +2101,25 @@
             document.getElementById('selectedVehicleId').value = v.VehicleId;
           }
           return `
-            <div id="vehCard_${v.VehicleId}" onclick="selectMobileVehicle('${v.VehicleId}')" class="cursor-pointer p-3 rounded-xl border ${isSelected ? 'border-blue-500 bg-blue-50/70 ring-2 ring-blue-200' : 'border-slate-200 bg-white hover:border-slate-300'} text-left transition">
-              <div class="flex items-center justify-between">
-                <span class="text-xs font-bold text-slate-800">${v.LicensePlate || v.VehicleId}</span>
-                <span class="text-[10px] text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded font-semibold">${v.Capacity || '-'} ที่นั่ง</span>
+            <div id="vehCard_${v.VehicleId}" onclick="selectMobileVehicle('${v.VehicleId}')" class="cursor-pointer p-3 rounded-2xl border ${isSelected ? 'border-sky-500 bg-sky-50/70 ring-2 ring-sky-200 shadow-sm' : 'border-slate-200 bg-white hover:border-slate-300'} text-left transition flex flex-col justify-between overflow-hidden">
+              <div>
+                ${v.ImageUrl ? `
+                  <div class="w-full h-24 mb-2 rounded-xl overflow-hidden bg-slate-100 border border-slate-200/60">
+                    <img src="${v.ImageUrl}" alt="${v.BrandModel || v.Brand || ''}" class="w-full h-full ${v.ImageFit === 'contain' ? 'object-contain bg-slate-900' : 'object-cover'} ${v.ImageFocus === 'top' ? 'object-top' : (v.ImageFocus === 'bottom' ? 'object-bottom' : 'object-center')}">
+                  </div>
+                ` : ''}
+                <div class="flex items-center justify-between gap-1">
+                  <span class="text-xs font-bold text-slate-800 truncate">${v.BrandModel || v.Brand || v.VehicleId}</span>
+                  <span class="text-[10px] text-sky-700 bg-sky-100 px-1.5 py-0.5 rounded-md font-bold shrink-0">${v.SeatCapacity || v.Capacity || 4} ที่นั่ง</span>
+                </div>
+                <div class="mt-1 inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 font-mono font-bold text-[10px] border border-slate-200">
+                  <span>${v.PlateNumber || v.LicensePlate || v.VehicleId}</span>
+                </div>
               </div>
-              <p class="text-[10px] text-slate-600 mt-1 truncate">${v.Brand || ''} ${v.Model || 'รถโรงงาน'}</p>
+              <div class="mt-1 text-[10px] text-slate-400 flex items-center justify-between">
+                <span>${v.Type || v.Model || 'รถส่วนกลาง'}</span>
+                ${v.RequireApproval ? '<span class="text-[9px] font-bold text-amber-600 bg-amber-50 px-1 rounded">🇯🇵 รออนุมัติ</span>' : '<span class="text-[9px] font-bold text-emerald-600">อนุมัติทันที</span>'}
+              </div>
             </div>
           `;
         }).join('');
@@ -3405,16 +3429,42 @@
 
       const daysGrid = document.getElementById('calDaysGrid');
       if (cal.days && cal.days.length > 0) {
-        daysGrid.innerHTML = cal.days.map(d => {
+        // หัวตารางวัน 7 วัน (อาทิตย์ - เสาร์)
+        const dayHeaders = ['อา.', 'จ.', 'อ.', 'พ.', 'พฤ.', 'ศ.', 'ส.'];
+        const headerHtml = dayHeaders.map((dh, hIdx) => {
+          const hColor = (hIdx === 0) ? 'text-red-500 font-bold' : (hIdx === 6 ? 'text-blue-500 font-bold' : 'text-slate-500 font-semibold');
+          return '<div class="py-1 ' + hColor + ' text-[10px] bg-slate-100/80 rounded-md border border-slate-200">' + dh + '</div>';
+        }).join('');
+
+        // คำนวณช่องว่างต้นเดือน (Day of Week ของวันที่ 1: 0=อาทิตย์ ... 6=เสาร์)
+        const firstDayOfWeek = parseInt(cal.days[0].dayOfWeek, 10);
+        let blankCellsHtml = '';
+        for (let b = 0; b < firstDayOfWeek; b++) {
+          blankCellsHtml += '<div class="p-1 rounded border border-transparent bg-slate-50/20 opacity-30 h-10"></div>';
+        }
+
+        const daysHtml = cal.days.map(d => {
           const isWork = d.isWorkDay;
-          const bgClass = isWork ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-red-50 text-red-600 border-red-200 font-bold';
+          const isSunday = d.dayOfWeek === 0;
+          const isSaturday = d.dayOfWeek === 6;
+          let bgClass = isWork ? 'bg-emerald-50 text-emerald-800 border-emerald-200 hover:border-emerald-400' : 'bg-red-50 text-red-600 border-red-200 font-bold hover:border-red-400';
+          if (!isWork && isSunday) bgClass = 'bg-red-50 text-red-600 border-red-200 font-bold';
+          if (isWork && isSaturday) bgClass = 'bg-blue-50 text-blue-700 border-blue-200 font-bold';
+
+          const tagLabel = isWork ? (isSaturday ? 'ทำงาน' : 'ปกติ') : (d.dayType === 'HOLIDAY' ? 'วันหยุด' : 'หยุด');
+
           return `
-            <div class="p-1 rounded border ${bgClass} flex flex-col justify-between h-9">
-              <span class="text-[9px] opacity-70">${d.dayOfWeek || ''}</span>
-              <span class="font-bold">${d.day}</span>
+            <div class="p-1 rounded-lg border ${bgClass} flex flex-col justify-between h-10 transition shadow-2xs">
+              <div class="flex items-center justify-between">
+                <span class="font-bold text-xs leading-none">${d.day}</span>
+                <span class="text-[8px] opacity-75 font-normal">${tagLabel}</span>
+              </div>
+              <div class="text-[8px] truncate leading-tight opacity-80" title="${d.title || ''}">${d.title ? d.title.replace('วันหยุดประจำสัปดาห์ (วันอาทิตย์)', 'หยุดอาทิตย์').replace('วันเสาร์หยุดประจำงวด', 'หยุดเสาร์').replace('วันทำงานปกติ', '') : ''}</div>
             </div>
           `;
         }).join('');
+
+        daysGrid.innerHTML = headerHtml + blankCellsHtml + daysHtml;
       } else {
         daysGrid.innerHTML = '<p class="col-span-7 text-slate-400 py-2">ไม่มีข้อมูลปฏิทิน</p>';
       }
