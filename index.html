@@ -583,16 +583,19 @@
           </button>
         </div>
 
-        <!-- Approvals Sub-Tabs (Leave vs OT vs MNW) -->
-        <div class="flex border-b border-slate-200 mb-3">
-          <button onclick="switchApprovalTab('leaves')" id="tabAppLeave" class="flex-1 py-2 text-xs font-bold text-emerald-700 border-b-2 border-emerald-600 text-center">
+        <!-- Approvals Sub-Tabs (Leave vs OT vs MNW vs Vehicle) -->
+        <div class="flex border-b border-slate-200 mb-3 overflow-x-auto">
+          <button onclick="switchApprovalTab('leaves')" id="tabAppLeave" class="flex-1 py-2 text-xs font-bold text-emerald-700 border-b-2 border-emerald-600 text-center whitespace-nowrap px-1">
             ลางาน (<span id="appLeaveCount">0</span>)
           </button>
-          <button onclick="switchApprovalTab('ot')" id="tabAppOT" class="flex-1 py-2 text-xs font-medium text-slate-500 border-b-2 border-transparent text-center">
+          <button onclick="switchApprovalTab('ot')" id="tabAppOT" class="flex-1 py-2 text-xs font-medium text-slate-500 border-b-2 border-transparent text-center whitespace-nowrap px-1">
             โอที (<span id="appOtCount">0</span>)
           </button>
-          <button onclick="switchApprovalTab('mnw')" id="tabAppMnw" class="flex-1 py-2 text-xs font-medium text-slate-500 border-b-2 border-transparent text-center">
+          <button onclick="switchApprovalTab('mnw')" id="tabAppMnw" class="flex-1 py-2 text-xs font-medium text-slate-500 border-b-2 border-transparent text-center whitespace-nowrap px-1">
             แจ้งซ่อม (<span id="appMnwCount">0</span>)
+          </button>
+          <button onclick="switchApprovalTab('vehicle')" id="tabAppVehicle" class="flex-1 py-2 text-xs font-medium text-slate-500 border-b-2 border-transparent text-center whitespace-nowrap px-1">
+            รถยนต์ (<span id="appVehicleCount">0</span>)
           </button>
         </div>
 
@@ -609,6 +612,11 @@
         <!-- MNW Pending List -->
         <div id="appMnwContainer" class="hidden space-y-3">
           <p class="text-xs text-slate-400 text-center py-4">ไม่มีรายการแจ้งซ่อมรออนุมัติ</p>
+        </div>
+
+        <!-- Vehicle Pending List -->
+        <div id="appVehicleContainer" class="hidden space-y-3">
+          <p class="text-xs text-slate-400 text-center py-4">ไม่มีรายการจองรถรออนุมัติ</p>
         </div>
       </div>
     </section>
@@ -3191,7 +3199,7 @@
           empId: state.currentUser.employeeCode
         });
         if (res && res.success) {
-          const totalCount = (res.leaves ? res.leaves.length : 0) + (res.ot ? res.ot.length : 0) + (res.mnw ? res.mnw.length : 0);
+          const totalCount = (res.leaves ? res.leaves.length : 0) + (res.ot ? res.ot.length : 0) + (res.mnw ? res.mnw.length : 0) + (res.vehicles ? res.vehicles.length : 0);
           document.getElementById('pendingBadgeCount').innerText = totalCount;
         }
       } catch (e) {}
@@ -3315,6 +3323,39 @@
               mnwCont.innerHTML = '<p class="text-xs text-slate-400 text-center py-4">ไม่มีรายการแจ้งซ่อมรออนุมัติ 🎉</p>';
             }
           }
+
+          // Render Vehicles
+          const vehCont = document.getElementById('appVehicleContainer');
+          if (vehCont) {
+            const vList = res.vehicles || [];
+            if (document.getElementById('appVehicleCount')) document.getElementById('appVehicleCount').innerText = vList.length;
+            if (vList.length > 0) {
+              vehCont.innerHTML = vList.map(v => `
+                <div id="card-app-${v.docNo}" class="p-3.5 bg-white rounded-xl border border-slate-200 shadow-sm text-xs space-y-2">
+                  <div class="flex justify-between items-center">
+                    <span class="font-bold text-slate-800 text-sm">${v.fullName} (${v.department})</span>
+                    <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-800">จองรถผู้บริหาร</span>
+                  </div>
+                  <div class="space-y-1">
+                    <p class="font-semibold text-slate-800 text-xs">🚗 ${v.vehicleName}</p>
+                    <p class="text-slate-600 text-[11px]">📍 จุดหมาย: <b>${v.destination || '-'}</b></p>
+                    <p class="text-slate-500 text-[10px]">🕒 เวลา: <b>${v.startDateTime ? v.startDateTime.replace('T', ' ') : '-'}</b> ถึง <b>${v.endDateTime ? v.endDateTime.replace('T', ' ') : '-'}</b></p>
+                    <p class="text-slate-500 text-[10px]">วัตถุประสงค์: ${v.purpose || '-'}</p>
+                  </div>
+                  <div class="flex space-x-2 pt-2 border-t border-slate-100">
+                    <button onclick="handleApproveAction('${v.docNo}', 'APPROVE')" class="flex-1 py-1.5 bg-emerald-600 text-white rounded-lg font-bold text-xs shadow-sm hover:bg-emerald-700">
+                      ✅ อนุมัติ
+                    </button>
+                    <button onclick="handleApproveAction('${v.docNo}', 'REJECT')" class="flex-1 py-1.5 bg-slate-100 text-red-600 border border-red-200 rounded-lg font-bold text-xs hover:bg-red-50">
+                      ❌ ปฏิเสธ
+                    </button>
+                  </div>
+                </div>
+              `).join('');
+            } else {
+              vehCont.innerHTML = '<p class="text-xs text-slate-400 text-center py-4">ไม่มีรายการจองรถรออนุมัติ 🎉</p>';
+            }
+          }
         }
       } catch (err) {
         leavesCont.innerHTML = '<p class="text-xs text-red-500 text-center py-4">โหลดข้อมูลล้มเหลว</p>';
@@ -3367,20 +3408,24 @@
       const leavesCont = document.getElementById('appLeavesContainer');
       const otCont = document.getElementById('appOtContainer');
       const mnwCont = document.getElementById('appMnwContainer');
+      const vehCont = document.getElementById('appVehicleContainer');
       const tabLeave = document.getElementById('tabAppLeave');
       const tabOT = document.getElementById('tabAppOT');
       const tabMnw = document.getElementById('tabAppMnw');
+      const tabVehicle = document.getElementById('tabAppVehicle');
 
-      const activeClass = 'flex-1 py-2 text-xs font-bold text-emerald-700 border-b-2 border-emerald-600 text-center';
-      const inactiveClass = 'flex-1 py-2 text-xs font-medium text-slate-500 border-b-2 border-transparent text-center';
+      const activeClass = 'flex-1 py-2 text-xs font-bold text-emerald-700 border-b-2 border-emerald-600 text-center whitespace-nowrap px-1';
+      const inactiveClass = 'flex-1 py-2 text-xs font-medium text-slate-500 border-b-2 border-transparent text-center whitespace-nowrap px-1';
 
       if (leavesCont) leavesCont.classList.toggle('hidden', tab !== 'leaves');
       if (otCont) otCont.classList.toggle('hidden', tab !== 'ot');
       if (mnwCont) mnwCont.classList.toggle('hidden', tab !== 'mnw');
+      if (vehCont) vehCont.classList.toggle('hidden', tab !== 'vehicle');
 
       if (tabLeave) tabLeave.className = (tab === 'leaves') ? activeClass : inactiveClass;
       if (tabOT) tabOT.className = (tab === 'ot') ? activeClass : inactiveClass;
       if (tabMnw) tabMnw.className = (tab === 'mnw') ? activeClass : inactiveClass;
+      if (tabVehicle) tabVehicle.className = (tab === 'vehicle') ? activeClass : inactiveClass;
     }
 
     // ==========================================
