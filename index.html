@@ -1043,6 +1043,57 @@
           <input type="text" id="roomNotes" placeholder="เช่น ขอโปรเจกเตอร์, ไวท์บอร์ด" class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-xs bg-white focus:outline-none">
         </div>
 
+        <!-- บริการรับรองลูกค้า (HR Support) -->
+        <div class="p-3.5 rounded-2xl border border-amber-200 bg-amber-50/60 space-y-2.5">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center space-x-2">
+              <span class="text-base">🤝</span>
+              <div>
+                <span class="text-xs font-bold text-slate-800">แจ้ง HR รับรองลูกค้า/แขก</span>
+                <p class="text-[10px] text-slate-500">ติ๊กเมื่อมีแขกภายนอกมาเยือน</p>
+              </div>
+            </div>
+            <label class="relative inline-flex items-center cursor-pointer">
+              <input type="checkbox" id="mobileRequireHR" class="sr-only peer" onchange="toggleMobileHRSection(this.checked)">
+              <div class="w-10 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-amber-600"></div>
+            </label>
+          </div>
+
+          <div id="mobileHRDetails" class="hidden pt-2 border-t border-amber-200/80 space-y-2.5">
+            <p class="text-[11px] text-amber-800 font-medium leading-tight">สิ่งที่ต้องการให้ฝ่ายบุคคล (HR) ช่วยจัดเตรียม:</p>
+
+            <div class="grid grid-cols-2 gap-1.5 text-xs">
+              <label class="flex items-center space-x-2 p-2 rounded-xl border border-amber-200 bg-white cursor-pointer active:scale-98 transition">
+                <input type="checkbox" name="mobileHRService" value="อาหารกลางวันสำหรับลูกค้า" class="rounded text-amber-600 focus:ring-amber-500">
+                <span class="text-[11px] font-medium text-slate-700 leading-tight">🍱 อาหารกลางวันลูกค้า</span>
+              </label>
+              <label class="flex items-center space-x-2 p-2 rounded-xl border border-amber-200 bg-white cursor-pointer active:scale-98 transition">
+                <input type="checkbox" name="mobileHRService" value="ผ้าเย็นรับรองลูกค้า" class="rounded text-amber-600 focus:ring-amber-500">
+                <span class="text-[11px] font-medium text-slate-700 leading-tight">🧊 ผ้าเย็นรับรอง</span>
+              </label>
+              <label class="flex items-center space-x-2 p-2 rounded-xl border border-amber-200 bg-white cursor-pointer active:scale-98 transition">
+                <input type="checkbox" name="mobileHRService" value="คนขับรถรับประทานอาหารข้างนอก" class="rounded text-amber-600 focus:ring-amber-500">
+                <span class="text-[11px] font-medium text-slate-700 leading-tight">🚐 คนขับรถไปทานข้าว</span>
+              </label>
+              <label class="flex items-center space-x-2 p-2 rounded-xl border border-amber-200 bg-white cursor-pointer active:scale-98 transition">
+                <input type="checkbox" name="mobileHRService" value="ชุดไมค์หูฟังพาลูกค้าลงไลน์" class="rounded text-amber-600 focus:ring-amber-500">
+                <span class="text-[11px] font-medium text-slate-700 leading-tight">🎧 ไมค์หูฟังทัวร์ไลน์</span>
+              </label>
+            </div>
+
+            <div class="grid grid-cols-3 gap-2 pt-1">
+              <div class="col-span-1">
+                <label class="block text-[10px] font-bold text-slate-600 mb-1">จำนวนแขก</label>
+                <input type="number" id="mobileHRGuestCount" min="1" max="50" placeholder="ท่าน" class="w-full px-2 py-1.5 rounded-xl border border-amber-200 bg-white text-xs text-center font-bold text-slate-800 focus:outline-none focus:ring-1 focus:ring-amber-500">
+              </div>
+              <div class="col-span-2">
+                <label class="block text-[10px] font-bold text-slate-600 mb-1">คำขอพิเศษถึง HR</label>
+                <input type="text" id="mobileHRNotes" placeholder="เช่น ฮาลาล, ไม่ทานเนื้อ, ร้านอาหาร" class="w-full px-2.5 py-1.5 rounded-xl border border-amber-200 bg-white text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-amber-500">
+              </div>
+            </div>
+          </div>
+        </div>
+
         <button type="submit" id="btnSubmitRoom" class="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-sm shadow-md transition-all flex items-center justify-center space-x-2 mt-2">
           <span>ยืนยันการจองห้องประชุม</span>
         </button>
@@ -1989,6 +2040,14 @@
       });
     }
 
+    function toggleMobileHRSection(show) {
+      const el = document.getElementById('mobileHRDetails');
+      if (el) {
+        if (show) el.classList.remove('hidden');
+        else el.classList.add('hidden');
+      }
+    }
+
     async function submitMobileRoom(e) {
       e.preventDefault();
       const roomId = document.getElementById('selectedRoomId').value;
@@ -2017,6 +2076,16 @@
         return;
       }
 
+      const reqHR = document.getElementById('mobileRequireHR') ? document.getElementById('mobileRequireHR').checked : false;
+      const hrServices = [];
+      if (reqHR) {
+        document.querySelectorAll('input[name="mobileHRService"]:checked').forEach(cb => {
+          hrServices.push(cb.value);
+        });
+      }
+      const guestCount = reqHR && document.getElementById('mobileHRGuestCount') ? Number(document.getElementById('mobileHRGuestCount').value) || 0 : 0;
+      const hrNotes = reqHR && document.getElementById('mobileHRNotes') ? document.getElementById('mobileHRNotes').value.trim() : '';
+
       btn.disabled = true;
       btn.innerText = 'กำลังตรวจสอบและบันทึกการจอง...';
 
@@ -2031,13 +2100,20 @@
           startDateTime: startDateTime,
           endDateTime: endDateTime,
           attendeeCount: count,
-          notes: notes
+          notes: notes,
+          requireHRService: reqHR,
+          hrServices: hrServices,
+          guestCount: guestCount,
+          hrNotes: hrNotes
         });
 
         if (res && (res.success || res.status === 'success')) {
-          showToast('จองห้องประชุมสำเร็จเรียบร้อย!');
+          showToast(reqHR ? 'จองห้องสำเร็จ และแจ้งประสานงาน HR เรียบร้อย!' : 'จองห้องประชุมสำเร็จเรียบร้อย!');
           document.getElementById('roomMeetingTitle').value = '';
           document.getElementById('roomNotes').value = '';
+          const chkHR = document.getElementById('mobileRequireHR');
+          if (chkHR) chkHR.checked = false;
+          toggleMobileHRSection(false);
           loadMobileRoomBookings();
         } else {
           showToast(res.error || res.message || 'การจองล้มเหลว หรือมีเวลาซ้อนทับ', 'error');
@@ -2063,6 +2139,7 @@
         container.innerHTML = list.slice(0, 5).map(b => {
           const st = String(b.Status || 'APPROVED').toUpperCase();
           const badgeClass = st === 'APPROVED' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-100 text-slate-600 border-slate-200';
+          const hasHR = String(b.RequireHRService).toUpperCase() === 'TRUE' || b.RequireHRService === true;
           return `
             <div class="p-2.5 rounded-xl border border-slate-200 bg-white space-y-1">
               <div class="flex items-center justify-between">
@@ -2071,6 +2148,13 @@
               </div>
               <p class="text-[11px] text-slate-600">ห้อง: <b class="text-slate-700">${b.RoomName || b.RoomId}</b> | ผู้จอง: ${b.EmployeeName || b.EmployeeId}</p>
               <p class="text-[10px] text-slate-400">🕒 ${b.StartDateTime ? b.StartDateTime.replace('T', ' ') : '-'} ถึง ${b.EndDateTime ? b.EndDateTime.replace('T', ' ') : '-'}</p>
+              ${hasHR ? `
+                <div class="pt-0.5">
+                  <span class="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-md bg-amber-50 text-amber-800 border border-amber-200 font-semibold">
+                    🤝 รับรองแขก: ${b.HRServices || 'บริการ HR'} ${b.GuestCount ? `(${b.GuestCount} ท่าน)` : ''}
+                  </span>
+                </div>
+              ` : ''}
             </div>
           `;
         }).join('');
