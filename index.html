@@ -1429,6 +1429,35 @@
 
         <!-- Form -->
         <form id="mobileKaizenForm" onsubmit="handleMobileKaizenSubmit(event)" class="space-y-3.5 text-xs">
+          <!-- Proposal Type: Individual vs Group -->
+          <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
+            <span class="text-[11px] font-bold text-slate-700 block">ประเภทข้อเสนอ Kaizen:</span>
+            <div class="flex items-center gap-4">
+              <label class="flex items-center gap-1.5 cursor-pointer text-xs font-semibold text-slate-700">
+                <input type="radio" name="mobKzType" value="INDIVIDUAL" checked onchange="toggleMobileKaizenGroup(false)" class="text-emerald-600">
+                <span>👤 บุคคล (ทำเดี่ยว 1.0 เรื่อง)</span>
+              </label>
+              <label class="flex items-center gap-1.5 cursor-pointer text-xs font-semibold text-slate-700">
+                <input type="radio" name="mobKzType" value="GROUP" onchange="toggleMobileKaizenGroup(true)" class="text-emerald-600">
+                <span>👥 กลุ่ม (หารผลงานตามสมาชิก)</span>
+              </label>
+            </div>
+
+            <!-- Group Team Members Box -->
+            <div id="mobKzTeamBox" class="hidden pt-2 border-t border-slate-200 space-y-2">
+              <span class="text-[10px] text-slate-500 block">ระบุรหัสพนักงานเพื่อนร่วมทีม (ผู้ยื่นหลักเป็น Leader อัตโนมัติ):</span>
+              <div class="flex gap-1.5">
+                <input type="text" id="mobKzMemberInput" placeholder="รหัสพนักงาน เช่น 2206453" class="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 text-xs bg-white">
+                <button type="button" onclick="addMobileKaizenMember()" class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex-shrink-0">
+                  + เพิ่ม
+                </button>
+              </div>
+              <div id="mobKzMemberList" class="space-y-1">
+                <!-- Dynamic Members -->
+              </div>
+            </div>
+          </div>
+
           <!-- Subject & Area -->
           <div>
             <label class="block text-xs font-semibold text-slate-700 mb-1">เรื่องที่ปรับปรุง (Subject) <span class="text-red-500">*</span></label>
@@ -1498,7 +1527,107 @@
           <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-2.5">
             <div class="font-bold text-slate-800 text-[11px] flex items-center justify-between">
               <span>ต้นทุนและประโยชน์ที่ได้รับ (Cost & Benefits)</span>
-              <span class="text-[9px] text-slate-400">ระบุตัวเลขจริง</span>
+              <button type="button" onclick="toggleMobileKaizenCalc()" id="mobKzCalcToggleBtn" class="px-2 py-0.5 rounded-lg bg-emerald-100 hover:bg-emerald-200 text-emerald-800 font-bold text-[10px] transition flex items-center gap-1">
+                <span>✨ เปิดตัวช่วยคำนวณ</span>
+              </button>
+            </div>
+
+            <!-- Mobile Interactive Calculator Panel (Collapsible) -->
+            <div id="mobKzCalcPanel" class="hidden p-2.5 bg-white rounded-xl border-2 border-emerald-300 space-y-2.5">
+              <div class="text-[10px] font-bold text-emerald-800 border-b border-emerald-100 pb-1 flex items-center justify-between">
+                <span>🧮 ตัวช่วยคำนวณอัตโนมัติ (Calculator)</span>
+                <span class="text-[9px] text-slate-400">คำนวณและกรอกที่มาอัตโนมัติ</span>
+              </div>
+
+              <!-- ปริมาณงาน & เงินลงทุน -->
+              <div class="grid grid-cols-3 gap-1.5 bg-slate-50 p-2 rounded-lg border border-slate-200 text-[10px]">
+                <div>
+                  <label class="block font-bold text-slate-600 mb-0.5">ปริมาณงาน</label>
+                  <input type="number" id="mobKzCalcQty" min="1" value="1000" oninput="runMobileKaizenCalc()" class="w-full px-1.5 py-1 rounded border border-slate-300 text-xs bg-white text-right font-bold">
+                  <select id="mobKzCalcQtyUnit" onchange="runMobileKaizenCalc()" class="w-full mt-1 px-1 py-0.5 rounded border border-slate-300 text-[9px] bg-white">
+                    <option value="MONTH">ชิ้น/ด.</option>
+                    <option value="YEAR">ชิ้น/ปี</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="block font-bold text-slate-600 mb-0.5">เงินลงทุน (บ.)</label>
+                  <input type="number" id="mobKzCalcInvest" min="0" value="0" placeholder="0" oninput="runMobileKaizenCalc()" class="w-full px-1.5 py-1 rounded border border-slate-300 text-xs bg-white text-right">
+                </div>
+                <div>
+                  <label class="block font-bold text-slate-600 mb-0.5">อายุงาน (ด.)</label>
+                  <input type="number" id="mobKzCalcLifespan" min="1" value="36" oninput="runMobileKaizenCalc()" class="w-full px-1.5 py-1 rounded border border-slate-300 text-xs bg-white text-right">
+                </div>
+              </div>
+
+              <!-- หมวดคำนวณย่อย -->
+              <div class="space-y-1.5 text-[10px]">
+                <!-- 1. 5ส / Safety -->
+                <label class="flex items-center gap-1.5 p-1.5 bg-slate-50 rounded-lg border border-slate-200 cursor-pointer">
+                  <input type="checkbox" id="mobKzCalcCheckSafety" onchange="runMobileKaizenCalc()" class="rounded text-emerald-600">
+                  <span class="font-semibold text-slate-700">🛡️ 5ส / ความปลอดภัย (การันตี ฿75)</span>
+                </label>
+
+                <!-- 2. Gross Profit -->
+                <div class="p-1.5 bg-slate-50 rounded-lg border border-slate-200 space-y-1">
+                  <label class="flex items-center gap-1.5 cursor-pointer font-semibold text-slate-700">
+                    <input type="checkbox" id="mobKzCalcCheckGross" onchange="runMobileKaizenCalc()" class="rounded text-emerald-600">
+                    <span>💰 Gross Profit (ประหยัดค่าวัสดุ/ชิ้น)</span>
+                  </label>
+                  <div id="mobKzCalcGrossBox" class="hidden grid grid-cols-2 gap-1.5 pt-1">
+                    <div>
+                      <span class="text-[9px] text-slate-500">ก่อน (บ./ชิ้น):</span>
+                      <input type="number" id="mobKzCalcGrossBefore" step="0.01" min="0" value="0" oninput="runMobileKaizenCalc()" class="w-full px-1.5 py-0.5 rounded border border-slate-300 text-xs bg-white text-right">
+                    </div>
+                    <div>
+                      <span class="text-[9px] text-slate-500">หลัง (บ./ชิ้น):</span>
+                      <input type="number" id="mobKzCalcGrossAfter" step="0.01" min="0" value="0" oninput="runMobileKaizenCalc()" class="w-full px-1.5 py-0.5 rounded border border-slate-300 text-xs bg-white text-right">
+                    </div>
+                  </div>
+                </div>
+
+                <!-- 3. Productivity -->
+                <div class="p-1.5 bg-slate-50 rounded-lg border border-slate-200 space-y-1">
+                  <label class="flex items-center gap-1.5 cursor-pointer font-semibold text-slate-700">
+                    <input type="checkbox" id="mobKzCalcCheckProd" onchange="runMobileKaizenCalc()" class="rounded text-emerald-600">
+                    <span>⏱️ Productivity (ลดเวลา, ค่าแรง ฿210/ชม.)</span>
+                  </label>
+                  <div id="mobKzCalcProdBox" class="hidden grid grid-cols-2 gap-1.5 pt-1">
+                    <div>
+                      <span class="text-[9px] text-slate-500">เวลาก่อน (วิ/ชิ้น):</span>
+                      <input type="number" id="mobKzCalcProdBefore" min="0" value="0" oninput="runMobileKaizenCalc()" class="w-full px-1.5 py-0.5 rounded border border-slate-300 text-xs bg-white text-right">
+                    </div>
+                    <div>
+                      <span class="text-[9px] text-slate-500">เวลาหลัง (วิ/ชิ้น):</span>
+                      <input type="number" id="mobKzCalcProdAfter" min="0" value="0" oninput="runMobileKaizenCalc()" class="w-full px-1.5 py-0.5 rounded border border-slate-300 text-xs bg-white text-right">
+                    </div>
+                  </div>
+                </div>
+
+                <!-- 4. ลดก้าวเดิน -->
+                <div class="p-1.5 bg-slate-50 rounded-lg border border-slate-200 space-y-1">
+                  <label class="flex items-center gap-1.5 cursor-pointer font-semibold text-slate-700">
+                    <input type="checkbox" id="mobKzCalcCheckSteps" onchange="runMobileKaizenCalc()" class="rounded text-emerald-600">
+                    <span>🚶 ลดก้าวเดิน (ก้าวละ ฿0.05)</span>
+                  </label>
+                  <div id="mobKzCalcStepsBox" class="hidden grid grid-cols-2 gap-1.5 pt-1">
+                    <div>
+                      <span class="text-[9px] text-slate-500">ก้าวที่ลดได้/วัน:</span>
+                      <input type="number" id="mobKzCalcStepsVal" min="0" value="0" oninput="runMobileKaizenCalc()" class="w-full px-1.5 py-0.5 rounded border border-slate-300 text-xs bg-white text-right">
+                    </div>
+                    <div>
+                      <span class="text-[9px] text-slate-500">วันทำงาน/ด.:</span>
+                      <input type="number" id="mobKzCalcDaysPerMonth" min="1" max="31" value="26" oninput="runMobileKaizenCalc()" class="w-full px-1.5 py-0.5 rounded border border-slate-300 text-xs bg-white text-right">
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- ปุ่มใช้ผลลัพธ์คำนวณ -->
+              <div class="flex justify-end pt-1">
+                <button type="button" onclick="applyMobileKaizenCalcValues()" class="w-full py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] shadow-sm">
+                  ✓ นำผลลัพธ์ใส่ฟอร์มและบันทึกที่มาตัวเลข
+                </button>
+              </div>
             </div>
             <div class="grid grid-cols-2 gap-2">
               <div>
@@ -1849,8 +1978,8 @@
         loadPendingApprovalsCount();
       }
 
-      // Check MNW Department Section
-      const isMnw = user.isMnw || (user.department && user.department.toUpperCase() === 'MNW') || user.isSupervisor;
+      // Check MNW Department Section (เฉพาะเจ้าหน้าที่ฝ่ายซ่อมบำรุง MNW เท่านั้น)
+      const isMnw = user.isMnw || (user.department && String(user.department).toUpperCase() === 'MNW');
       if (isMnw) {
         const secMnw = document.getElementById('sectionMnwWorkbench');
         if (secMnw) secMnw.classList.remove('hidden');
@@ -4043,14 +4172,227 @@
     // ==========================================
     let mobileKaizenBeforePhotos = []; // Array of Base64 strings (max 4)
     let mobileKaizenAfterPhotos = [];  // Array of Base64 strings (max 4)
+    let currentMobileKaizenTeam = [];
+
+    function toggleMobileKaizenGroup(isGroup) {
+      const box = document.getElementById('mobKzTeamBox');
+      if (box) {
+        box.classList.toggle('hidden', !isGroup);
+      }
+    }
+    window.toggleMobileKaizenGroup = toggleMobileKaizenGroup;
+
+    function addMobileKaizenMember() {
+      const input = document.getElementById('mobKzMemberInput');
+      if (!input) return;
+      const code = String(input.value || '').trim().toUpperCase();
+      if (!code) {
+        showToast('กรุณาระบุรหัสพนักงาน', 'warning');
+        return;
+      }
+      if (currentMobileKaizenTeam.length >= 10) {
+        showToast('ระบุสมาชิกได้สูงสุด 10 คน', 'warning');
+        return;
+      }
+      if (currentMobileKaizenTeam.some(m => (m.code || '').toUpperCase() === code)) {
+        showToast('รหัสพนักงานนี้มีอยู่ในรายชื่อแล้ว', 'warning');
+        return;
+      }
+      currentMobileKaizenTeam.push({ code: code, name: code });
+      input.value = '';
+      renderMobileKaizenMembers();
+    }
+    window.addMobileKaizenMember = addMobileKaizenMember;
+
+    function removeMobileKaizenMember(idx) {
+      currentMobileKaizenTeam.splice(idx, 1);
+      renderMobileKaizenMembers();
+    }
+    window.removeMobileKaizenMember = removeMobileKaizenMember;
+
+    function renderMobileKaizenMembers() {
+      const container = document.getElementById('mobKzMemberList');
+      if (!container) return;
+      if (currentMobileKaizenTeam.length === 0) {
+        container.innerHTML = '<span class="text-[10px] text-slate-400 italic">ยังไม่มีสมาชิกร่วม (ถ้าไม่เพิ่มจะนับผู้ยื่นคนเดียว)</span>';
+        return;
+      }
+      container.innerHTML = currentMobileKaizenTeam.map((m, idx) => `
+        <div class="flex items-center justify-between p-1.5 bg-white rounded-lg border border-slate-200 text-xs">
+          <span class="font-mono font-bold text-slate-700">${idx + 1}. ${m.code || m.name}</span>
+          <button type="button" onclick="removeMobileKaizenMember(${idx})" class="text-rose-500 hover:text-rose-700 px-1 font-bold text-sm leading-none">&times;</button>
+        </div>
+      `).join('');
+    }
+    window.renderMobileKaizenMembers = renderMobileKaizenMembers;
+
+    function toggleMobileKaizenCalc() {
+      const panel = document.getElementById('mobKzCalcPanel');
+      const btn = document.getElementById('mobKzCalcToggleBtn');
+      if (!panel) return;
+      const isHidden = panel.classList.contains('hidden');
+      panel.classList.toggle('hidden', !isHidden);
+      if (btn) {
+        btn.innerHTML = isHidden ? '<span>✖ ปิดตัวช่วยคำนวณ</span>' : '<span>✨ เปิดตัวช่วยคำนวณ</span>';
+      }
+      if (isHidden) {
+        runMobileKaizenCalc();
+      }
+    }
+    window.toggleMobileKaizenCalc = toggleMobileKaizenCalc;
+
+    function runMobileKaizenCalc() {
+      const checkSafety = document.getElementById('mobKzCalcCheckSafety')?.checked || false;
+      const checkGross = document.getElementById('mobKzCalcCheckGross')?.checked || false;
+      const checkProd = document.getElementById('mobKzCalcCheckProd')?.checked || false;
+      const checkSteps = document.getElementById('mobKzCalcCheckSteps')?.checked || false;
+
+      const grossBox = document.getElementById('mobKzCalcGrossBox');
+      const prodBox = document.getElementById('mobKzCalcProdBox');
+      const stepsBox = document.getElementById('mobKzCalcStepsBox');
+
+      if (grossBox) grossBox.classList.toggle('hidden', !checkGross);
+      if (prodBox) prodBox.classList.toggle('hidden', !checkProd);
+      if (stepsBox) stepsBox.classList.toggle('hidden', !checkSteps);
+
+      let qtyVal = parseFloat(document.getElementById('mobKzCalcQty')?.value) || 0;
+      const qtyUnit = document.getElementById('mobKzCalcQtyUnit')?.value || 'MONTH';
+      const monthlyQty = qtyUnit === 'YEAR' ? (qtyVal / 12) : qtyVal;
+
+      const investCost = parseFloat(document.getElementById('mobKzCalcInvest')?.value) || 0;
+
+      // 1. Gross Profit
+      let grossSavingsMonthly = 0;
+      if (checkGross) {
+        const costBefore = parseFloat(document.getElementById('mobKzCalcGrossBefore')?.value) || 0;
+        const costAfter = parseFloat(document.getElementById('mobKzCalcGrossAfter')?.value) || 0;
+        const unitDiff = Math.max(0, costBefore - costAfter);
+        grossSavingsMonthly = unitDiff * monthlyQty;
+      }
+
+      // 2. Productivity (210 THB/hr)
+      let prodSavingsMonthly = 0;
+      if (checkProd) {
+        const secBefore = parseFloat(document.getElementById('mobKzCalcProdBefore')?.value) || 0;
+        const secAfter = parseFloat(document.getElementById('mobKzCalcProdAfter')?.value) || 0;
+        const secDiff = Math.max(0, secBefore - secAfter);
+        prodSavingsMonthly = (secDiff / 3600) * 210 * monthlyQty;
+      }
+
+      // 3. ลดก้าวเดิน (0.05 THB/step)
+      let stepsSavingsMonthly = 0;
+      if (checkSteps) {
+        const stepsPerDay = parseFloat(document.getElementById('mobKzCalcStepsVal')?.value) || 0;
+        const daysPerMonth = parseFloat(document.getElementById('mobKzCalcDaysPerMonth')?.value) || 26;
+        stepsSavingsMonthly = stepsPerDay * daysPerMonth * 0.05;
+      }
+
+      // Sync into main form inputs
+      const grossEl = document.getElementById('mobKzGross');
+      const prodEl = document.getElementById('mobKzProd');
+      const stepEl = document.getElementById('mobKzSteps');
+      const investEl = document.getElementById('mobKzInvest');
+      const safetyEl = document.getElementById('mobKzSafety');
+
+      if (grossEl) grossEl.value = Math.round(grossSavingsMonthly);
+      if (prodEl) prodEl.value = Math.round(prodSavingsMonthly);
+      if (stepEl) stepEl.value = Math.round(stepsSavingsMonthly);
+      if (investEl) investEl.value = Math.round(investCost);
+      if (safetyEl) safetyEl.checked = checkSafety;
+
+      calcMobileKaizenSavings();
+    }
+    window.runMobileKaizenCalc = runMobileKaizenCalc;
+
+    function applyMobileKaizenCalcValues() {
+      runMobileKaizenCalc();
+
+      const checkSafety = document.getElementById('mobKzCalcCheckSafety')?.checked || false;
+      const checkGross = document.getElementById('mobKzCalcCheckGross')?.checked || false;
+      const checkProd = document.getElementById('mobKzCalcCheckProd')?.checked || false;
+      const checkSteps = document.getElementById('mobKzCalcCheckSteps')?.checked || false;
+
+      let qtyVal = parseFloat(document.getElementById('mobKzCalcQty')?.value) || 0;
+      const qtyUnit = document.getElementById('mobKzCalcQtyUnit')?.value || 'MONTH';
+      const monthlyQty = qtyUnit === 'YEAR' ? (qtyVal / 12) : qtyVal;
+      const unitLabel = qtyUnit === 'YEAR' ? `${qtyVal.toLocaleString()} ชิ้น/ปี (เฉลี่ย ${Math.round(monthlyQty).toLocaleString()} ชิ้น/ด.)` : `${qtyVal.toLocaleString()} ชิ้น/เดือน`;
+
+      const investCost = parseFloat(document.getElementById('mobKzCalcInvest')?.value) || 0;
+      const lifespan = parseFloat(document.getElementById('mobKzCalcLifespan')?.value) || 36;
+      const monthlyInvestDeprec = lifespan > 0 ? (investCost / lifespan) : 0;
+
+      const lines = [];
+      lines.push(`\n[รายละเอียดการคำนวณผลประโยชน์ / ที่มาตัวเลข]`);
+      lines.push(`• ปริมาณการผลิต: ${unitLabel}`);
+      if (investCost > 0) {
+        lines.push(`• เงินลงทุน: ฿${investCost.toLocaleString()} (ตัดค่าเสื่อม ${lifespan} ด. = ฿${Math.round(monthlyInvestDeprec).toLocaleString()}/ด.)`);
+      }
+
+      if (checkGross) {
+        const costBefore = parseFloat(document.getElementById('mobKzCalcGrossBefore')?.value) || 0;
+        const costAfter = parseFloat(document.getElementById('mobKzCalcGrossAfter')?.value) || 0;
+        const diff = Math.max(0, costBefore - costAfter);
+        const totalG = Math.round(diff * monthlyQty);
+        lines.push(`• Gross Profit: (ก่อน ฿${costBefore} - หลัง ฿${costAfter}) = ลดได้ ฿${diff.toFixed(2)}/ชิ้น × ปริมาณงาน = ฿${totalG.toLocaleString()}/ด.`);
+      }
+
+      if (checkProd) {
+        const secBefore = parseFloat(document.getElementById('mobKzCalcProdBefore')?.value) || 0;
+        const secAfter = parseFloat(document.getElementById('mobKzCalcProdAfter')?.value) || 0;
+        const secDiff = Math.max(0, secBefore - secAfter);
+        const totalP = Math.round((secDiff / 3600) * 210 * monthlyQty);
+        lines.push(`• Productivity: (ก่อน ${secBefore}s - หลัง ${secAfter}s) = ลดได้ ${secDiff}s (ค่าแรง ฿210/ชม.) × ปริมาณงาน = ฿${totalP.toLocaleString()}/ด.`);
+      }
+
+      if (checkSteps) {
+        const stepsPerDay = parseFloat(document.getElementById('mobKzCalcStepsVal')?.value) || 0;
+        const days = parseFloat(document.getElementById('mobKzCalcDaysPerMonth')?.value) || 26;
+        const totalS = Math.round(stepsPerDay * days * 0.05);
+        lines.push(`• ลดก้าวเดิน: ลดได้ ${stepsPerDay.toLocaleString()} ก้าว/วัน × ${days} วัน × ฿0.05 = ฿${totalS.toLocaleString()}/ด.`);
+      }
+
+      if (checkSafety) {
+        lines.push(`• ด้าน 5ส / ความปลอดภัย: สอดคล้องเกณฑ์ประเมินความปลอดภัย (การันตีรางวัล ฿75)`);
+      }
+
+      const dispSavings = document.getElementById('mobKzTotalSavingsText')?.innerText || '';
+      const dispAward = document.getElementById('mobKzAwardText')?.innerText || '';
+      lines.push(`• สรุปผลประโยชน์สุทธิ: ${dispSavings} (เงินรางวัลคำนวณได้: ${dispAward})`);
+
+      const calcSummaryText = lines.join('\n');
+
+      const effectEl = document.getElementById('mobKzEffect');
+      if (effectEl) {
+        let currentText = effectEl.value.trim();
+        const marker = '[รายละเอียดการคำนวณผลประโยชน์ / ที่มาตัวเลข]';
+        if (currentText.includes(marker)) {
+          currentText = currentText.split(marker)[0].trim();
+        }
+        effectEl.value = currentText ? `${currentText}\n${calcSummaryText}` : calcSummaryText.trim();
+      }
+
+      toggleMobileKaizenCalc();
+      showToast('นำผลลัพธ์และรายละเอียดที่มาตัวเลขลงช่องผลที่ได้รับแล้ว', 'success');
+    }
+    window.applyMobileKaizenCalcValues = applyMobileKaizenCalcValues;
 
     function initMobileKaizenForm() {
       const form = document.getElementById('mobileKaizenForm');
       if (form) form.reset();
       mobileKaizenBeforePhotos = [];
       mobileKaizenAfterPhotos = [];
+      currentMobileKaizenTeam = [];
       renderMobileKaizenPhotoPreviews('before');
       renderMobileKaizenPhotoPreviews('after');
+      renderMobileKaizenMembers();
+      const teamBox = document.getElementById('mobKzTeamBox');
+      if (teamBox) teamBox.classList.add('hidden');
+      const indRadio = document.querySelector('input[name="mobKzType"][value="INDIVIDUAL"]');
+      if (indRadio) indRadio.checked = true;
+      const calcPanel = document.getElementById('mobKzCalcPanel');
+      if (calcPanel) calcPanel.classList.add('hidden');
+      const calcBtn = document.getElementById('mobKzCalcToggleBtn');
+      if (calcBtn) calcBtn.innerHTML = '<span>✨ เปิดตัวช่วยคำนวณ</span>';
       calcMobileKaizenSavings();
     }
 
@@ -4206,6 +4548,10 @@
         return;
       }
 
+      const isGroup = document.querySelector('input[name="mobKzType"][value="GROUP"]')?.checked || false;
+      const areaVal = document.getElementById('mobKzArea').value.trim();
+      const effectVal = document.getElementById('mobKzEffect').value.trim();
+
       const btn = document.getElementById('btnSubmitMobileKaizen');
       btn.disabled = true;
       btn.innerHTML = '<span>⏳ กำลังบันทึกข้อเสนอ Kaizen...</span>';
@@ -4216,11 +4562,17 @@
           requesterId: state.currentUser.employeeCode || state.currentUser.employeeId,
           requesterName: state.currentUser.fullName || state.currentUser.name,
           department: state.currentUser.department || 'PD-M',
+          position: state.currentUser.position || '',
+          proposalType: isGroup ? 'GROUP' : 'INDIVIDUAL',
+          teamMembers: currentMobileKaizenTeam,
+          teamMembersJson: JSON.stringify(currentMobileKaizenTeam),
           subject: document.getElementById('mobKzSubject').value.trim(),
-          areaOrMachine: document.getElementById('mobKzArea').value.trim(),
+          kaizenArea: areaVal,
+          areaOrMachine: areaVal,
           beforeWhat: document.getElementById('mobKzBeforeWhat').value.trim(),
           afterHow: document.getElementById('mobKzAfterHow').value.trim(),
-          effectResult: document.getElementById('mobKzEffect').value.trim(),
+          effectDescription: effectVal,
+          effectResult: effectVal,
           grossProfitSavings: parseFloat(document.getElementById('mobKzGross')?.value) || 0,
           productivitySavings: parseFloat(document.getElementById('mobKzProd')?.value) || 0,
           stepSavings: parseFloat(document.getElementById('mobKzSteps')?.value) || 0,
