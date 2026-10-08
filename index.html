@@ -1023,18 +1023,18 @@
         </div>
 
         <!-- Quota / Eligibility Status Card -->
-        <div id="mobAdvQuotaCard" class="p-4 rounded-2xl bg-gradient-to-br from-indigo-700 to-blue-800 text-white shadow-md">
+        <div id="mobAdvQuotaCard" class="p-4 rounded-2xl bg-gradient-to-br from-indigo-700 to-blue-800 text-white shadow-md relative overflow-hidden">
           <div class="flex items-center justify-between text-xs opacity-90 mb-1">
             <span>สิทธิ์การเบิกเงินเดือนล่วงหน้า</span>
-            <span id="mobAdvCycleMonth" class="bg-white/20 px-2 py-0.5 rounded-full text-[10px]">ประจำเดือน -</span>
+            <span id="mobAdvCycleMonth" class="bg-white/20 px-2 py-0.5 rounded-full text-[10px]">กำลังตรวจสอบ...</span>
           </div>
           <p class="text-[11px] opacity-80 mt-1">วงเงินที่สามารถเบิกได้สูงสุด (60% Max Cap)</p>
-          <div class="text-2xl font-extrabold tracking-tight mt-0.5">
-            ฿<span id="mobAdvMaxQuota">0.00</span>
+          <div class="text-2xl font-extrabold tracking-tight mt-0.5 flex items-baseline gap-1">
+            <span>฿</span><span id="mobAdvMaxQuota" class="animate-pulse">...</span>
           </div>
           <div class="mt-2 pt-2 border-t border-white/20 grid grid-cols-2 gap-2 text-[11px] opacity-90">
-            <span>ฐานเงินเดือน: ฿<span id="mobAdvBaseSalary">0.00</span></span>
-            <span>วันทำงานคำนวณ: <span id="mobAdvWorkDays">0</span> วัน</span>
+            <span>ฐานเงินเดือน: ฿<span id="mobAdvBaseSalary">...</span></span>
+            <span>วันทำงานคำนวณ: <span id="mobAdvWorkDays">...</span> วัน</span>
           </div>
         </div>
 
@@ -4803,11 +4803,19 @@
 
     async function loadMobileAdvanceSalary() {
       if (!state.currentUser) return;
-      const empId = state.currentUser.employeeCode;
+      const empId = state.currentUser.employeeCode || state.currentUser.employeeId || state.currentUser.code || '';
       const blockedBox = document.getElementById('mobAdvBlockedBox');
       const blockedReason = document.getElementById('mobAdvBlockedReason');
       const formBox = document.getElementById('formMobileAdvanceSalary');
       const submitBtn = document.getElementById('mobAdvSubmitBtn');
+
+      // Set initial loading state in UI
+      const maxEl = document.getElementById('mobAdvMaxQuota');
+      const baseEl = document.getElementById('mobAdvBaseSalary');
+      const daysEl = document.getElementById('mobAdvWorkDays');
+      const monthEl = document.getElementById('mobAdvCycleMonth');
+
+      if (maxEl) maxEl.classList.add('animate-pulse');
 
       try {
         const res = await jsonpRequest({
@@ -4815,20 +4823,18 @@
           empId: empId
         });
 
-        if (res && res.status === 'success' && res.data) {
+        if (res && (res.status === 'success' || res.success) && res.data) {
           cachedAdvanceQuota = res.data;
           const q = res.data;
 
-          const monthEl = document.getElementById('mobAdvCycleMonth');
           if (monthEl) monthEl.innerText = 'ประจำเดือน ' + (q.currentMonth || '-');
 
-          const maxEl = document.getElementById('mobAdvMaxQuota');
-          if (maxEl) maxEl.innerText = parseFloat(q.maxEligibleAmount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+          if (maxEl) {
+            maxEl.classList.remove('animate-pulse');
+            maxEl.innerText = parseFloat(q.maxEligibleAmount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+          }
 
-          const baseEl = document.getElementById('mobAdvBaseSalary');
           if (baseEl) baseEl.innerText = parseFloat(q.baseSalary || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-
-          const daysEl = document.getElementById('mobAdvWorkDays');
           if (daysEl) daysEl.innerText = q.actualWorkDays || 0;
 
           const amtInput = document.getElementById('mobAdvAmount');
@@ -4852,12 +4858,26 @@
             if (formBox) formBox.classList.add('opacity-50', 'pointer-events-none');
             if (submitBtn) {
               submitBtn.disabled = true;
-              submitBtn.innerHTML = '<span>🔒 ไม่อยู่ในช่วงเวลายื่น หรือใช้สิทธิ์แล้ว</span>';
+              submitBtn.innerHTML = '<span>🔒 ' + (q.reasonBlocked || 'ไม่อยู่ในช่วงเวลายื่น หรือใช้สิทธิ์แล้ว') + '</span>';
             }
+          }
+        } else {
+          if (maxEl) {
+            maxEl.classList.remove('animate-pulse');
+            maxEl.innerText = '0.00';
+          }
+          if (blockedBox) {
+            blockedBox.classList.remove('hidden');
+            blockedReason.innerText = (res && res.message) || (res && res.error) || 'ไม่พบสิทธิ์หรือเกิดข้อผิดพลาดในการโหลดข้อมูล';
           }
         }
       } catch (err) {
         console.warn('loadMobileAdvanceSalary quota error:', err);
+        if (maxEl) {
+          maxEl.classList.remove('animate-pulse');
+          maxEl.innerText = '0.00';
+        }
+        showToast('โหลดข้อมูลสิทธิ์ไม่สำเร็จ: ' + err.message, 'error');
       }
 
       await loadMobileAdvanceSalaryHistory();
@@ -4865,6 +4885,7 @@
 
     async function loadMobileAdvanceSalaryHistory() {
       if (!state.currentUser) return;
+      const empId = state.currentUser.employeeCode || state.currentUser.employeeId || state.currentUser.code || '';
       const listContainer = document.getElementById('mobAdvHistoryList');
       if (!listContainer) return;
 
@@ -4873,7 +4894,7 @@
       try {
         const res = await jsonpRequest({
           action: 'getAdvanceSalaryHistory',
-          empId: state.currentUser.employeeCode
+          empId: empId
         });
 
         const items = (res && res.data) ? res.data : [];
@@ -4993,9 +5014,10 @@
       submitBtn.innerHTML = '<span>⏳ กำลังส่งคำขอ...</span>';
 
       try {
+        const empCode = state.currentUser.employeeCode || state.currentUser.employeeId || state.currentUser.code || '';
         const payload = {
           action: 'submitAdvanceSalary',
-          employeeCode: state.currentUser.employeeCode,
+          employeeCode: empCode,
           requestedAmount: amount,
           reason: reason,
           agreedToDeduct: true
