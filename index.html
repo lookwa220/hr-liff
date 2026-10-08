@@ -430,6 +430,29 @@
             <textarea id="leaveReason" rows="2" required placeholder="ระบุเหตุผลความจำเป็น เช่น ไปพบแพทย์, ธุระครอบครัว..." class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500"></textarea>
           </div>
 
+          <!-- Attachment Section (ก่อนลา: แนบเอกสารหลักฐานเบื้องต้น) -->
+          <div class="p-3 bg-slate-50/80 rounded-xl border border-slate-200 text-xs space-y-2">
+            <div class="flex items-center justify-between">
+              <label class="font-semibold text-slate-700 flex items-center gap-1.5">
+                <span>📎</span>
+                <span>เอกสารหลักฐานแนบ (ถ้ามี / แนบก่อนลา)</span>
+              </label>
+              <span class="text-[10px] text-slate-400">รูปถ่าย หรือ PDF</span>
+            </div>
+            <p class="text-[11px] text-slate-500 leading-relaxed">
+              * เช่น ใบรับรองแพทย์, เอกสารราชการ, หมายเรียก หรือบัตรนัด (หากยังไม่มี สามารถมาแนบเพิ่มเติมหลังลาได้ในเมนูประวัติการลา)
+            </p>
+            <input type="file" id="leaveAttachmentInput" accept="image/*,application/pdf" capture="environment" onchange="previewLeaveFormAttachment(event)" class="block w-full text-xs text-slate-500 file:mr-2.5 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-emerald-100 file:text-emerald-800 hover:file:bg-emerald-200 cursor-pointer">
+            <div id="leaveFormAttachmentPreviewBox" class="hidden mt-2 p-2 bg-white rounded-lg border border-slate-200 flex items-center gap-2">
+              <img id="leaveFormAttachmentPreviewImg" class="w-12 h-12 object-cover rounded-md border border-slate-200">
+              <div class="flex-1 min-w-0">
+                <p id="leaveFormAttachmentFileName" class="text-xs font-semibold text-slate-700 truncate"></p>
+                <p class="text-[10px] text-emerald-600 font-medium">พร้อมอัปโหลดพร้อมคำขอลา</p>
+              </div>
+              <button type="button" onclick="clearLeaveFormAttachment()" class="text-slate-400 hover:text-red-500 p-1 text-sm font-bold">✖</button>
+            </div>
+          </div>
+
           <button type="submit" id="btnSubmitLeave" class="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-sm shadow-md transition-all flex items-center justify-center space-x-2">
             <span>ส่งคำขอลางาน</span>
           </button>
@@ -629,13 +652,13 @@
       </div>
     </section>
 
-    <!-- Medical Certificate Upload Modal -->
+    <!-- Leave Attachment Upload Modal (แนบเอกสารก่อน/หลังลา สำหรับทุกประเภทการลา) -->
     <div id="modalMedicalCert" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
       <div class="glass-card bg-white rounded-2xl shadow-xl max-w-sm w-full p-5 space-y-4 animate-fadeIn">
         <div class="flex items-center justify-between pb-2 border-b border-slate-200">
           <div class="flex items-center space-x-2">
-            <span class="text-xl">📷</span>
-            <h3 class="font-bold text-slate-800 text-sm">แนบใบรับรองแพทย์</h3>
+            <span class="text-xl">📎</span>
+            <h3 id="modalLeaveAttachmentTitle" class="font-bold text-slate-800 text-sm">แนบเอกสารหลักฐานการลา</h3>
           </div>
           <button onclick="closeMedicalCertModal()" class="text-slate-400 hover:text-slate-600 p-1 text-lg">✖</button>
         </div>
@@ -644,7 +667,7 @@
           <p id="medCertDocNoDisplay" class="font-bold text-slate-800 font-mono text-sm">-</p>
         </div>
         <div>
-          <label class="block text-xs font-semibold text-slate-700 mb-1.5">เลือกภาพถ่ายใบรับรองแพทย์ <span class="text-red-500">*</span></label>
+          <label class="block text-xs font-semibold text-slate-700 mb-1.5">เลือกภาพถ่ายหรือไฟล์เอกสาร <span class="text-red-500">*</span></label>
           <input type="file" id="medCertFileInput" accept="image/*,application/pdf" capture="environment" onchange="previewMedCertFile(event)" class="block w-full text-xs text-slate-500 file:mr-3 file:py-2 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100 cursor-pointer">
           <div id="medCertPreviewBox" class="hidden mt-2.5 text-center">
             <img id="medCertPreviewImg" class="max-h-40 mx-auto rounded-lg border border-slate-200 object-contain shadow-xs">
@@ -653,12 +676,41 @@
         </div>
         <div>
           <label class="block text-xs font-semibold text-slate-700 mb-1">หมายเหตุเพิ่มเติม (ถ้ามี)</label>
-          <input type="text" id="medCertRemarks" placeholder="เช่น รพ.บางปะกอก 3, พักฟื้น 1 วัน" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
+          <input type="text" id="medCertRemarks" placeholder="เช่น ใบรับรองแพทย์, หมายเรียก, หนังสือราชการ" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
         </div>
         <div class="flex space-x-2 pt-2 border-t border-slate-100">
           <button type="button" onclick="closeMedicalCertModal()" class="flex-1 py-2.5 rounded-xl text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 transition">ยกเลิก</button>
           <button type="button" id="btnUploadMedCert" onclick="submitMedicalCertUpload()" class="flex-1 py-2.5 rounded-xl text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 shadow-sm transition flex items-center justify-center space-x-1">
             <span>อัปโหลดเอกสาร</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal เปิดดูเอกสารหลักฐานการลาก่อนอนุมัติ (Mobile Leave Doc Viewer) -->
+    <div id="modalLeaveDocViewer" class="hidden fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4">
+      <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-4 space-y-3 animate-fadeIn text-left max-h-[90vh] flex flex-col">
+        <div class="flex items-center justify-between pb-2 border-b border-slate-200">
+          <div class="flex items-center space-x-2">
+            <span class="text-xl">📄</span>
+            <div>
+              <h3 class="font-bold text-slate-800 text-xs">เอกสารหลักฐานการลา</h3>
+              <p id="viewerLeaveDocNo" class="text-[10px] text-slate-500 font-mono">-</p>
+            </div>
+          </div>
+          <button onclick="closeLeaveDocViewer()" class="text-slate-400 hover:text-slate-600 p-1 text-lg">✖</button>
+        </div>
+        
+        <div id="viewerLeaveContentArea" class="flex-1 overflow-y-auto space-y-2 py-1 text-center">
+          <!-- Dynamic image or file link -->
+        </div>
+
+        <div class="pt-2 border-t border-slate-100 flex items-center justify-between gap-2">
+          <a id="viewerLeaveDownloadBtn" href="#" target="_blank" rel="noopener noreferrer" class="flex-1 py-2 rounded-xl text-xs font-bold text-center bg-slate-100 hover:bg-slate-200 text-slate-700 transition">
+            เปิดดูขนาดเต็ม ↗
+          </a>
+          <button type="button" onclick="closeLeaveDocViewer()" class="px-4 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white transition">
+            ปิด
           </button>
         </div>
       </div>
@@ -3281,6 +3333,64 @@
       document.getElementById('lblTotalDays').innerText = +(hours / 8).toFixed(2);
     }
 
+    // Form Attachment State (สำหรับก่อนลา)
+    let currentLeaveFormAttachmentBase64 = '';
+    let currentLeaveFormAttachmentMimeType = '';
+    let currentLeaveFormAttachmentFileName = '';
+
+    function previewLeaveFormAttachment(event) {
+      const file = event.target.files && event.target.files[0];
+      if (!file) return;
+
+      currentLeaveFormAttachmentMimeType = file.type || 'image/jpeg';
+      currentLeaveFormAttachmentFileName = file.name;
+      document.getElementById('leaveFormAttachmentFileName').innerText = file.name;
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const rawDataUrl = e.target.result;
+        if (file.type.startsWith('image/')) {
+          const img = new Image();
+          img.onload = function() {
+            const canvas = document.createElement('canvas');
+            const maxDim = 1200;
+            let width = img.width;
+            let height = img.height;
+            if (width > maxDim || height > maxDim) {
+              if (width > height) {
+                height = Math.round((height * maxDim) / width);
+                width = maxDim;
+              } else {
+                width = Math.round((width * maxDim) / height);
+                height = maxDim;
+              }
+            }
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+            currentLeaveFormAttachmentBase64 = canvas.toDataURL('image/jpeg', 0.8);
+            document.getElementById('leaveFormAttachmentPreviewImg').src = currentLeaveFormAttachmentBase64;
+            document.getElementById('leaveFormAttachmentPreviewBox').classList.remove('hidden');
+          };
+          img.src = rawDataUrl;
+        } else {
+          currentLeaveFormAttachmentBase64 = rawDataUrl;
+          document.getElementById('leaveFormAttachmentPreviewImg').src = 'https://via.placeholder.com/150?text=PDF';
+          document.getElementById('leaveFormAttachmentPreviewBox').classList.remove('hidden');
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function clearLeaveFormAttachment() {
+      currentLeaveFormAttachmentBase64 = '';
+      currentLeaveFormAttachmentMimeType = '';
+      currentLeaveFormAttachmentFileName = '';
+      document.getElementById('leaveAttachmentInput').value = '';
+      document.getElementById('leaveFormAttachmentPreviewBox').classList.add('hidden');
+    }
+
     async function submitLeave(e) {
       e.preventDefault();
       const btn = document.getElementById('btnSubmitLeave');
@@ -3296,17 +3406,28 @@
         endDate: document.getElementById('leaveEndDate').value,
         endTime: document.getElementById('leaveEndTime').value,
         totalHours: document.getElementById('lblTotalHours').innerText,
-        reason: document.getElementById('leaveReason').value.trim()
+        reason: document.getElementById('leaveReason').value.trim(),
+        base64Content: currentLeaveFormAttachmentBase64,
+        mimeType: currentLeaveFormAttachmentMimeType,
+        fileName: currentLeaveFormAttachmentFileName
       };
 
       btn.disabled = true;
       btn.innerHTML = '<span class="inline-block animate-spin mr-2">⏳</span> กำลังส่งคำขอ...';
 
       try {
-        const res = await jsonpRequest(payload);
+        let res;
+        // หากมีแนบรูป ให้ใช้ POST ตรงไปที่ Apps Script เพื่อรองรับข้อมูลขนาดใหญ่
+        if (currentLeaveFormAttachmentBase64) {
+          res = await postApiRequest(payload);
+        } else {
+          res = await jsonpRequest(payload);
+        }
+
         if (res && res.success) {
           showToast(res.message || 'ส่งคำขอลางานสำเร็จแล้ว');
           document.getElementById('formLeave').reset();
+          clearLeaveFormAttachment();
           closeCurrentView();
           openView('quota');
         } else {
@@ -3336,24 +3457,30 @@
             if (item.status === 'APPROVED') statusBadge = '<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-emerald-100 text-emerald-800">อนุมัติแล้ว</span>';
             else if (item.status === 'REJECTED') statusBadge = '<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-red-100 text-red-800">ปฏิเสธ</span>';
 
+            const hasAttach = !!(item.attachmentUrl && item.attachmentUrl.trim());
             let certSection = '';
-            if (item.attachmentUrl) {
+            if (hasAttach) {
               certSection = `
                 <div class="mt-2 pt-1.5 border-t border-slate-100 flex items-center justify-between">
                   <span class="text-[11px] text-emerald-700 font-semibold flex items-center gap-1">
-                    <span>📎</span><span>แนบใบรับรองแพทย์แล้ว</span>
+                    <span>📎</span><span>มีเอกสารแนบแล้ว</span>
                   </span>
-                  <a href="${item.attachmentUrl}" target="_blank" rel="noopener noreferrer" class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 transition">
-                    ดูเอกสาร
-                  </a>
+                  <div class="flex items-center gap-1.5">
+                    <button type="button" onclick="openLeaveDocViewer('${item.docNo}', '${item.attachmentUrl}')" class="px-2 py-1 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 transition">
+                      ดูเอกสาร
+                    </button>
+                    <button type="button" onclick="openMedicalCertModal('${item.docNo}', '${item.leaveType}')" class="px-2 py-1 rounded text-[10px] font-bold bg-slate-50 text-slate-600 border border-slate-200 hover:bg-slate-100 transition" title="แนบเอกสารเพิ่มหลังลา">
+                      + แนบเพิ่ม
+                    </button>
+                  </div>
                 </div>
               `;
-            } else if (item.leaveType === 'ลาป่วย' || item.leaveType.includes('ป่วย')) {
+            } else {
               certSection = `
                 <div class="mt-2 pt-1.5 border-t border-slate-100 flex items-center justify-between">
-                  <span class="text-[11px] text-slate-500">ใบรับรองแพทย์:</span>
-                  <button type="button" onclick="openMedicalCertModal('${item.docNo}')" class="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 flex items-center gap-1 transition">
-                    <span>📷</span><span>แนบใบรับรองแพทย์</span>
+                  <span class="text-[11px] text-slate-500">เอกสารหลักฐาน:</span>
+                  <button type="button" onclick="openMedicalCertModal('${item.docNo}', '${item.leaveType}')" class="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 flex items-center gap-1 transition">
+                    <span>📎</span><span>แนบหลักฐาน (ก่อน/หลังลา)</span>
                   </button>
                 </div>
               `;
@@ -3385,18 +3512,23 @@
     }
 
     // ==========================================
-    // Medical Certificate Upload Logic
+    // Leave Attachment Upload & Document Viewer Logic
     // ==========================================
     let currentMedCertDocNo = '';
+    let currentMedCertLeaveType = '';
     let currentMedCertBase64 = '';
     let currentMedCertMimeType = '';
     let currentMedCertFileName = '';
 
-    function openMedicalCertModal(docNo) {
+    function openMedicalCertModal(docNo, leaveType = 'การลา') {
       currentMedCertDocNo = docNo;
+      currentMedCertLeaveType = leaveType;
       currentMedCertBase64 = '';
       currentMedCertMimeType = '';
       currentMedCertFileName = '';
+
+      const titleEl = document.getElementById('modalLeaveAttachmentTitle');
+      if (titleEl) titleEl.innerText = `แนบเอกสารหลักฐาน (${leaveType})`;
 
       document.getElementById('medCertDocNoDisplay').innerText = docNo;
       document.getElementById('medCertFileInput').value = '';
@@ -3408,6 +3540,7 @@
     function closeMedicalCertModal() {
       document.getElementById('modalMedicalCert').classList.add('hidden');
       currentMedCertDocNo = '';
+      currentMedCertLeaveType = '';
       currentMedCertBase64 = '';
     }
 
@@ -3464,7 +3597,7 @@
         return;
       }
       if (!currentMedCertBase64) {
-        showToast('กรุณาเลือกไฟล์หรือถ่ายภาพใบรับรองแพทย์ก่อน', 'error');
+        showToast('กรุณาเลือกไฟล์หรือถ่ายภาพเอกสารหลักฐานก่อน', 'error');
         return;
       }
 
@@ -3473,11 +3606,12 @@
       btn.innerHTML = '<span class="inline-block animate-spin mr-1">⏳</span> กำลังอัปโหลด...';
 
       const payload = {
-        action: 'uploadMedicalCert',
+        action: 'uploadLeaveAttachment',
         docNo: currentMedCertDocNo,
+        docType: currentMedCertLeaveType || 'เอกสารหลักฐาน',
         base64Content: currentMedCertBase64,
         mimeType: currentMedCertMimeType || 'image/jpeg',
-        fileName: currentMedCertFileName || `MedCert_${currentMedCertDocNo}.jpg`,
+        fileName: currentMedCertFileName || `LeaveDoc_${currentMedCertDocNo}.jpg`,
         remarks: document.getElementById('medCertRemarks').value.trim()
       };
 
@@ -3485,7 +3619,7 @@
         const res = await postApiRequest(payload);
 
         if (res && res.success) {
-          showToast(res.message || 'แนบใบรับรองแพทย์เรียบร้อยแล้ว');
+          showToast(res.message || 'แนบเอกสารหลักฐานเรียบร้อยแล้ว');
           closeMedicalCertModal();
           loadLeaveHistory();
         } else {
@@ -3497,6 +3631,50 @@
         btn.disabled = false;
         btn.innerHTML = '<span>อัปโหลดเอกสาร</span>';
       }
+    }
+
+    // Modal เปิดดูเอกสารหลักฐานการลาก่อนอนุมัติ
+    function openLeaveDocViewer(docNo, attachmentUrl) {
+      if (!attachmentUrl) {
+        showToast('ไม่พบเอกสารแนบ', 'error');
+        return;
+      }
+      document.getElementById('viewerLeaveDocNo').innerText = docNo;
+      const contentArea = document.getElementById('viewerLeaveContentArea');
+      const downloadBtn = document.getElementById('viewerLeaveDownloadBtn');
+
+      const urls = String(attachmentUrl).split('\n').map(u => u.trim()).filter(Boolean);
+      const primaryUrl = urls[0];
+
+      downloadBtn.href = primaryUrl;
+
+      // Preview content
+      contentArea.innerHTML = urls.map((u, idx) => {
+        const isImg = u.startsWith('data:image/') || u.match(/\.(jpeg|jpg|gif|png|webp)($|\?)/i);
+        if (isImg) {
+          return `
+            <div class="p-1 bg-slate-50 rounded-xl border border-slate-200">
+              <img src="${u}" class="max-h-72 mx-auto rounded-lg object-contain shadow-xs" alt="หลักฐานการลา #${idx+1}">
+            </div>
+          `;
+        } else {
+          return `
+            <div class="p-4 bg-slate-50 rounded-xl border border-slate-200 flex flex-col items-center justify-center gap-2">
+              <span class="text-3xl">📄</span>
+              <span class="text-xs font-semibold text-slate-700">เอกสารหลักฐานการลา #${idx+1}</span>
+              <a href="${u}" target="_blank" rel="noopener noreferrer" class="px-3 py-1.5 rounded-lg bg-sky-600 text-white text-xs font-bold hover:bg-sky-700 transition">
+                คลิกเพื่อเปิดดูไฟล์ใน Drive / แท็บใหม่
+              </a>
+            </div>
+          `;
+        }
+      }).join('');
+
+      document.getElementById('modalLeaveDocViewer').classList.remove('hidden');
+    }
+
+    function closeLeaveDocViewer() {
+      document.getElementById('modalLeaveDocViewer').classList.add('hidden');
     }
 
     // ==========================================
@@ -3634,7 +3812,9 @@
 
           // Render leaves
           if (res.leaves.length > 0) {
-            leavesCont.innerHTML = res.leaves.map(l => `
+            leavesCont.innerHTML = res.leaves.map(l => {
+              const hasAttachment = !!(l.attachmentUrl && l.attachmentUrl.trim());
+              return `
               <div id="card-app-${l.docNo}" class="p-3.5 bg-white rounded-xl border border-slate-200 shadow-sm text-xs space-y-2">
                 <div class="flex justify-between items-center">
                   <span class="font-bold text-slate-800 text-sm">${l.fullName} (${l.department})</span>
@@ -3644,6 +3824,21 @@
                   📅 ${formatCleanDate(l.startDate)} ${formatCleanTime(l.startTime)} ถึง ${formatCleanDate(l.endDate)} ${formatCleanTime(l.endTime)} (${l.totalHours} ชม. ${formatCleanShift(l.shift)})
                 </p>
                 <p class="text-slate-500 text-[11px]">เหตุผล: ${l.reason || '-'}</p>
+                ${hasAttachment ? `
+                  <div class="p-2 bg-sky-50/70 border border-sky-200/80 rounded-lg flex items-center justify-between">
+                    <span class="text-[11px] text-sky-800 font-semibold flex items-center gap-1">
+                      <span>📎</span>
+                      <span>มีเอกสารหลักฐานแนบ</span>
+                    </span>
+                    <button type="button" onclick="openLeaveDocViewer('${l.docNo}', '${l.attachmentUrl}')" class="px-2.5 py-1 rounded-md text-[10px] font-bold bg-white text-sky-700 border border-sky-300 shadow-2xs hover:bg-sky-50 transition">
+                      🔍 เปิดดูเอกสารก่อนอนุมัติ
+                    </button>
+                  </div>
+                ` : `
+                  <div class="text-[10px] text-slate-400 italic">
+                    ℹ️ ยังไม่มีเอกสารแนบก่อนลา (อาจแนบเพิ่มเติมหลังปฏิบัติงาน)
+                  </div>
+                `}
                 <div class="flex space-x-2 pt-2 border-t border-slate-100">
                   <button onclick="handleApproveAction('${l.docNo}', 'APPROVE')" class="flex-1 py-1.5 bg-emerald-600 text-white rounded-lg font-bold text-xs shadow-sm hover:bg-emerald-700">
                     ✅ อนุมัติ
@@ -3653,7 +3848,8 @@
                   </button>
                 </div>
               </div>
-            `).join('');
+            `;
+            }).join('');
           } else {
             leavesCont.innerHTML = '<p class="text-xs text-slate-400 text-center py-4">ไม่มีรายการลารออนุมัติ 🎉</p>';
           }
