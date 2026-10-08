@@ -843,7 +843,7 @@
             <span class="text-xl">👤</span>
             <div>
               <h2 class="text-base font-bold text-slate-800">ข้อมูลส่วนบุคคล (Personal Records)</h2>
-              <p class="text-[10px] text-slate-500">สลิปเงินเดือน, ปฏิทินกะ และบันทึกเวลาทำงาน</p>
+              <p class="text-[10px] text-slate-500">สลิปเงินเดือน, ปฏิทินกะ, บันทึกเวลา และเบิกเงินล่วงหน้า</p>
             </div>
           </div>
           <button type="button" onclick="closeCurrentView()" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition active:scale-95 shadow-2xs">
@@ -852,12 +852,15 @@
         </div>
 
         <!-- Segmented Tab Navigation -->
-        <div class="grid grid-cols-2 p-1 bg-slate-100 rounded-xl text-xs font-semibold">
-          <button type="button" onclick="switchPersonalTab('shiftAtt')" id="btnTabPersonalShiftAtt" class="py-2 rounded-lg bg-white text-purple-700 shadow-sm transition font-bold">
-            🕒 กะ & ปฏิทินวันทำงาน
+        <div class="grid grid-cols-3 p-1 bg-slate-100 rounded-xl text-xs font-semibold gap-1">
+          <button type="button" onclick="switchPersonalTab('shiftAtt')" id="btnTabPersonalShiftAtt" class="py-2 rounded-lg bg-white text-purple-700 shadow-sm transition font-bold text-center">
+            🕒 กะ/ปฏิทิน
           </button>
-          <button type="button" onclick="switchPersonalTab('payslip')" id="btnTabPersonalPayslip" class="py-2 rounded-lg text-slate-600 hover:bg-white transition font-medium">
+          <button type="button" onclick="switchPersonalTab('payslip')" id="btnTabPersonalPayslip" class="py-2 rounded-lg text-slate-600 hover:bg-white transition font-medium text-center">
             💵 สลิปเงินเดือน
+          </button>
+          <button type="button" onclick="switchPersonalTab('advance')" id="btnTabPersonalAdvance" class="py-2 rounded-lg text-slate-600 hover:bg-white transition font-medium text-center">
+            💰 เบิกเงินล่วงหน้า
           </button>
         </div>
       </div>
@@ -951,6 +954,10 @@
               <span>หักลาไม่รับค่าจ้าง / ขาดงาน</span>
               <span class="font-medium">฿<span id="slipUnpaidDeduct">0.00</span></span>
             </div>
+            <div id="slipAdvDeductRow" class="hidden flex justify-between text-red-600 font-medium">
+              <span>หักเบิกเงินเดือนล่วงหน้า</span>
+              <span>-฿<span id="slipAdvDeduct">0.00</span></span>
+            </div>
           </div>
 
           <!-- Work Summary -->
@@ -995,6 +1002,103 @@
           </div>
           <div id="shiftRecentScansList" class="space-y-2 text-xs">
             <!-- Dynamic Scan Logs -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab Content 3: Advance Salary Container -->
+      <div id="panelPersonalAdvance" class="hidden space-y-4">
+        <!-- Info Banner -->
+        <div class="p-3.5 rounded-xl bg-blue-50 border border-blue-200 text-blue-900 text-xs">
+          <div class="flex items-center gap-2 font-bold mb-1">
+            <span>ℹ️</span>
+            <span>เกณฑ์การเบิกเงินเดือนล่วงหน้า (Advance Salary)</span>
+          </div>
+          <ul class="text-[11px] text-blue-800 list-disc list-inside space-y-0.5 opacity-90">
+            <li>ยื่นคำขอได้วันที่ <b>1 - 20</b> ของทุกเดือน (1 ครั้ง/คน/เดือน)</li>
+            <li>เบิกได้สูงสุดไม่เกิน <b>60%</b> ของเงินเดือนตามสัดส่วนวันทำงานจริง</li>
+            <li>ข้อมูลการขอเบิกจะถูกส่งตรงถึง <b>ฝ่ายบุคคล (HR)</b> โดยรักษาความเป็นส่วนตัว</li>
+            <li>ยอดเงินที่ได้รับการอนุมัติจะถูก <b>หักชำระในรอบเงินเดือนของเดือนนั้นๆ</b> โดยอัตโนมัติ</li>
+          </ul>
+        </div>
+
+        <!-- Quota / Eligibility Status Card -->
+        <div id="mobAdvQuotaCard" class="p-4 rounded-2xl bg-gradient-to-br from-indigo-700 to-blue-800 text-white shadow-md">
+          <div class="flex items-center justify-between text-xs opacity-90 mb-1">
+            <span>สิทธิ์การเบิกเงินเดือนล่วงหน้า</span>
+            <span id="mobAdvCycleMonth" class="bg-white/20 px-2 py-0.5 rounded-full text-[10px]">ประจำเดือน -</span>
+          </div>
+          <p class="text-[11px] opacity-80 mt-1">วงเงินที่สามารถเบิกได้สูงสุด (60% Max Cap)</p>
+          <div class="text-2xl font-extrabold tracking-tight mt-0.5">
+            ฿<span id="mobAdvMaxQuota">0.00</span>
+          </div>
+          <div class="mt-2 pt-2 border-t border-white/20 grid grid-cols-2 gap-2 text-[11px] opacity-90">
+            <span>ฐานเงินเดือน: ฿<span id="mobAdvBaseSalary">0.00</span></span>
+            <span>วันทำงานคำนวณ: <span id="mobAdvWorkDays">0</span> วัน</span>
+          </div>
+        </div>
+
+        <!-- Blocked / Alert Message (when canSubmit is false) -->
+        <div id="mobAdvBlockedBox" class="hidden p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-xs flex items-start gap-2">
+          <span class="text-base shrink-0">⚠️</span>
+          <div>
+            <div class="font-bold mb-0.5">ไม่สามารถยื่นคำขอใหม่ได้ในขณะนี้</div>
+            <div id="mobAdvBlockedReason" class="text-[11px] text-amber-700"></div>
+          </div>
+        </div>
+
+        <!-- Request Form -->
+        <form id="formMobileAdvanceSalary" onsubmit="submitMobileAdvanceSalary(event)" class="glass-card rounded-2xl p-4 border border-slate-200 shadow-sm space-y-3">
+          <h3 class="text-xs font-bold text-slate-800 flex items-center gap-1.5 pb-2 border-b border-slate-100">
+            <span>📝</span>
+            <span>แบบฟอร์มขอเบิกเงินเดือนล่วงหน้า</span>
+          </h3>
+
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">
+              ยอดเงินที่ต้องการเบิก (บาท) <span class="text-red-500">*</span>
+            </label>
+            <div class="relative">
+              <span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs">฿</span>
+              <input type="number" id="mobAdvAmount" required min="500" step="100" placeholder="ระบุจำนวนเงินที่ต้องการ" class="w-full pl-8 pr-3.5 py-2.5 rounded-xl border border-slate-300 text-xs font-bold text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+            <p class="text-[10px] text-slate-500 mt-1">
+              * ต้องไม่เกินยอดสิทธิ์สูงสุด และขั้นต่ำ 500 บาท
+            </p>
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">
+              เหตุผลความจำเป็นในการเบิก <span class="text-red-500">*</span>
+            </label>
+            <textarea id="mobAdvReason" required rows="2" placeholder="ระบุเหตุผล เช่น ค่ารักษาพยาบาลฉุกเฉิน, ค่าใช้จ่ายจำเป็นเร่งด่วน" class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+          </div>
+
+          <label class="flex items-start gap-2 p-2.5 bg-slate-50 rounded-xl border border-slate-200 cursor-pointer">
+            <input type="checkbox" id="mobAdvAgreed" required class="mt-0.5 rounded text-blue-600 focus:ring-blue-500">
+            <span class="text-[11px] text-slate-700 font-medium leading-relaxed">
+              ข้าพเจ้ารับทราบและยินยอมให้บริษัทหักเงินตามจำนวนที่ได้รับการอนุมัติเบิก ออกจากเงินเดือนรอบประจำเดือนนี้โดยอัตโนมัติ
+            </span>
+          </label>
+
+          <button type="submit" id="mobAdvSubmitBtn" class="w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs transition active:scale-95 shadow-md flex items-center justify-center gap-1.5">
+            <span>🚀 ส่งคำขอถึงฝ่ายบุคคล (HR)</span>
+          </button>
+        </form>
+
+        <!-- Advance Salary History -->
+        <div class="glass-card rounded-2xl p-4 border border-slate-200 shadow-sm space-y-2.5">
+          <div class="flex items-center justify-between pb-2 border-b border-slate-100">
+            <h4 class="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+              <span>📋</span>
+              <span>ประวัติการเบิกเงินเดือนล่วงหน้า</span>
+            </h4>
+            <button type="button" onclick="loadMobileAdvanceSalaryHistory()" class="text-[10px] font-semibold text-blue-600 hover:underline">
+              🔄 รีเฟรช
+            </button>
+          </div>
+          <div id="mobAdvHistoryList" class="space-y-2">
+            <div class="text-center text-xs text-slate-400 py-3">กำลังโหลดประวัติ...</div>
           </div>
         </div>
       </div>
@@ -2172,10 +2276,10 @@
         const vp = document.getElementById('viewPersonal');
         if (vp) vp.classList.remove('hidden');
         switchPersonalTab('payslip');
-      } else if (viewName === 'shiftAtt') {
+      } else if (viewName === 'advance' || viewName === 'advanceSalary') {
         const vp = document.getElementById('viewPersonal');
         if (vp) vp.classList.remove('hidden');
-        switchPersonalTab('shiftAtt');
+        switchPersonalTab('advance');
       } else if (viewName === 'roomBooking') {
         const vr = document.getElementById('viewRoomBooking');
         if (vr) vr.classList.remove('hidden');
@@ -2263,20 +2367,30 @@
     function switchPersonalTab(tabName) {
       const btnPay = document.getElementById('btnTabPersonalPayslip');
       const btnShift = document.getElementById('btnTabPersonalShiftAtt');
+      const btnAdv = document.getElementById('btnTabPersonalAdvance');
       const panelPay = document.getElementById('panelPersonalPayslip');
       const panelShift = document.getElementById('panelPersonalShiftAtt');
+      const panelAdv = document.getElementById('panelPersonalAdvance');
+
+      if (btnPay) btnPay.className = 'py-2 rounded-lg text-slate-600 hover:bg-white transition font-medium text-center';
+      if (btnShift) btnShift.className = 'py-2 rounded-lg text-slate-600 hover:bg-white transition font-medium text-center';
+      if (btnAdv) btnAdv.className = 'py-2 rounded-lg text-slate-600 hover:bg-white transition font-medium text-center';
+
+      if (panelPay) panelPay.classList.add('hidden');
+      if (panelShift) panelShift.classList.add('hidden');
+      if (panelAdv) panelAdv.classList.add('hidden');
 
       if (tabName === 'payslip') {
-        if (btnPay) btnPay.className = 'py-2 rounded-lg bg-white text-emerald-700 shadow-sm transition font-bold';
-        if (btnShift) btnShift.className = 'py-2 rounded-lg text-slate-600 hover:bg-white transition font-medium';
+        if (btnPay) btnPay.className = 'py-2 rounded-lg bg-white text-emerald-700 shadow-sm transition font-bold text-center';
         if (panelPay) panelPay.classList.remove('hidden');
-        if (panelShift) panelShift.classList.add('hidden');
         loadPaySlip();
+      } else if (tabName === 'advance') {
+        if (btnAdv) btnAdv.className = 'py-2 rounded-lg bg-white text-blue-700 shadow-sm transition font-bold text-center';
+        if (panelAdv) panelAdv.classList.remove('hidden');
+        loadMobileAdvanceSalary();
       } else {
-        if (btnShift) btnShift.className = 'py-2 rounded-lg bg-white text-purple-700 shadow-sm transition font-bold';
-        if (btnPay) btnPay.className = 'py-2 rounded-lg text-slate-600 hover:bg-white transition font-medium';
+        if (btnShift) btnShift.className = 'py-2 rounded-lg bg-white text-purple-700 shadow-sm transition font-bold text-center';
         if (panelShift) panelShift.classList.remove('hidden');
-        if (panelPay) panelPay.classList.add('hidden');
         loadShiftAndAttendance();
       }
     }
@@ -3797,6 +3911,18 @@
       document.getElementById('slipTaxDeduct').innerText = parseFloat(s.TaxDeduct || 0).toLocaleString('en-US', { minimumFractionDigits: 2 });
       document.getElementById('slipUnpaidDeduct').innerText = parseFloat(s.UnpaidLeaveDeduct || 0).toLocaleString('en-US', { minimumFractionDigits: 2 });
 
+      const advDeduct = parseFloat(s.AdvanceSalaryDeduct || s.advanceSalaryDeduct || 0);
+      const advRow = document.getElementById('slipAdvDeductRow');
+      const advAmt = document.getElementById('slipAdvDeduct');
+      if (advRow && advAmt) {
+        if (advDeduct > 0) {
+          advRow.classList.remove('hidden');
+          advAmt.innerText = advDeduct.toLocaleString('en-US', { minimumFractionDigits: 2 });
+        } else {
+          advRow.classList.add('hidden');
+        }
+      }
+
       document.getElementById('slipWorkDays').innerText = s.ActualWorkDays || 0;
       document.getElementById('slipWorkHours').innerText = s.TotalWorkHours || 0;
 
@@ -4668,6 +4794,230 @@
         return '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700">พักชั่วคราว</span>';
       }
       return '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-sky-100 text-sky-700">กำลังพิจารณา</span>';
+    }
+
+    // ==========================================
+    // 7. Mobile Advance Salary (เบิกเงินเดือนล่วงหน้า)
+    // ==========================================
+    let cachedAdvanceQuota = null;
+
+    async function loadMobileAdvanceSalary() {
+      if (!state.currentUser) return;
+      const empId = state.currentUser.employeeCode;
+      const blockedBox = document.getElementById('mobAdvBlockedBox');
+      const blockedReason = document.getElementById('mobAdvBlockedReason');
+      const formBox = document.getElementById('formMobileAdvanceSalary');
+      const submitBtn = document.getElementById('mobAdvSubmitBtn');
+
+      try {
+        const res = await jsonpRequest({
+          action: 'getAdvanceSalaryQuota',
+          empId: empId
+        });
+
+        if (res && res.status === 'success' && res.data) {
+          cachedAdvanceQuota = res.data;
+          const q = res.data;
+
+          const monthEl = document.getElementById('mobAdvCycleMonth');
+          if (monthEl) monthEl.innerText = 'ประจำเดือน ' + (q.currentMonth || '-');
+
+          const maxEl = document.getElementById('mobAdvMaxQuota');
+          if (maxEl) maxEl.innerText = parseFloat(q.maxEligibleAmount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+          const baseEl = document.getElementById('mobAdvBaseSalary');
+          if (baseEl) baseEl.innerText = parseFloat(q.baseSalary || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+          const daysEl = document.getElementById('mobAdvWorkDays');
+          if (daysEl) daysEl.innerText = q.actualWorkDays || 0;
+
+          const amtInput = document.getElementById('mobAdvAmount');
+          if (amtInput) {
+            amtInput.max = q.maxEligibleAmount || 0;
+            amtInput.placeholder = `สูงสุด ฿${(q.maxEligibleAmount || 0).toLocaleString('en-US')}`;
+          }
+
+          if (q.canSubmit) {
+            if (blockedBox) blockedBox.classList.add('hidden');
+            if (formBox) formBox.classList.remove('opacity-50', 'pointer-events-none');
+            if (submitBtn) {
+              submitBtn.disabled = false;
+              submitBtn.innerHTML = '<span>🚀 ส่งคำขอถึงฝ่ายบุคคล (HR)</span>';
+            }
+          } else {
+            if (blockedBox) {
+              blockedBox.classList.remove('hidden');
+              blockedReason.innerText = q.reasonBlocked || 'ไม่สามารถยื่นคำขอในรอบนี้ได้';
+            }
+            if (formBox) formBox.classList.add('opacity-50', 'pointer-events-none');
+            if (submitBtn) {
+              submitBtn.disabled = true;
+              submitBtn.innerHTML = '<span>🔒 ไม่อยู่ในช่วงเวลายื่น หรือใช้สิทธิ์แล้ว</span>';
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('loadMobileAdvanceSalary quota error:', err);
+      }
+
+      await loadMobileAdvanceSalaryHistory();
+    }
+
+    async function loadMobileAdvanceSalaryHistory() {
+      if (!state.currentUser) return;
+      const listContainer = document.getElementById('mobAdvHistoryList');
+      if (!listContainer) return;
+
+      listContainer.innerHTML = '<div class="text-center text-xs text-slate-400 py-3">กำลังโหลดประวัติ...</div>';
+
+      try {
+        const res = await jsonpRequest({
+          action: 'getAdvanceSalaryHistory',
+          empId: state.currentUser.employeeCode
+        });
+
+        const items = (res && res.data) ? res.data : [];
+        if (items.length === 0) {
+          listContainer.innerHTML = `
+            <div class="p-4 text-center text-xs text-slate-400 bg-slate-50 rounded-xl border border-slate-100">
+              ไม่มีประวัติการขอเบิกเงินเดือนล่วงหน้า
+            </div>
+          `;
+          return;
+        }
+
+        listContainer.innerHTML = items.map(item => {
+          let statusBadge = '';
+          switch (item.Status) {
+            case 'PENDING_HR':
+              statusBadge = '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800">⏳ รอ HR ตรวจสอบ</span>';
+              break;
+            case 'HR_APPROVED':
+              statusBadge = '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-800">✓ HR อนุมัติแล้ว</span>';
+              break;
+            case 'BATCH_LOCKED':
+              statusBadge = '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 text-purple-800">📦 รอบัญชีจ่ายเงิน</span>';
+              break;
+            case 'PAID':
+              statusBadge = '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">💵 โอนเงินสำเร็จ</span>';
+              break;
+            case 'REJECTED':
+              statusBadge = '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-800">❌ ไม่อนุมัติ</span>';
+              break;
+            default:
+              statusBadge = `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-700">${item.Status || '-'}</span>`;
+          }
+
+          const reqAmt = parseFloat(item.RequestedAmount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 });
+          const appAmt = item.ApprovedAmount ? parseFloat(item.ApprovedAmount).toLocaleString('en-US', { minimumFractionDigits: 2 }) : null;
+
+          return `
+            <div class="p-3 bg-white rounded-xl border border-slate-200/80 shadow-2xs space-y-1.5 text-xs text-left">
+              <div class="flex items-center justify-between">
+                <span class="font-bold text-slate-800">${item.RequestId || '-'}</span>
+                ${statusBadge}
+              </div>
+              <div class="flex items-center justify-between text-slate-600">
+                <span>วันที่ขอ: ${formatCleanDate(item.RequestDate || item.CreatedAt)}</span>
+                <span class="font-bold text-slate-800">ขอเบิก: ฿${reqAmt}</span>
+              </div>
+              ${appAmt && item.Status !== 'REJECTED' ? `
+                <div class="flex items-center justify-between text-[11px] text-blue-700 bg-blue-50/70 px-2 py-1 rounded-lg">
+                  <span>ยอดอนุมัติ:</span>
+                  <span class="font-bold">฿${appAmt}</span>
+                </div>
+              ` : ''}
+              ${item.PayDate && item.Status === 'PAID' ? `
+                <div class="text-[10px] text-emerald-700 font-medium">
+                  โอนวันที่: ${formatCleanDate(item.PayDate)} ${item.PaymentRef ? `(อ้างอิง: ${item.PaymentRef})` : ''}
+                </div>
+              ` : ''}
+              ${item.RejectReason ? `
+                <div class="text-[10px] text-red-600 bg-red-50 p-1.5 rounded">
+                  เหตุผล: ${item.RejectReason}
+                </div>
+              ` : ''}
+              <div class="text-[10px] text-slate-500 truncate">
+                เหตุผล: ${item.Reason || '-'}
+              </div>
+            </div>
+          `;
+        }).join('');
+
+      } catch (err) {
+        listContainer.innerHTML = '<div class="p-3 text-center text-xs text-red-500">โหลดข้อมูลไม่สำเร็จ</div>';
+      }
+    }
+
+    async function submitMobileAdvanceSalary(event) {
+      event.preventDefault();
+      if (!state.currentUser) {
+        showToast('ไม่พบข้อมูลพนักงาน กรุณาลงชื่อเข้าใช้ใหม่', 'error');
+        return;
+      }
+
+      const amtInput = document.getElementById('mobAdvAmount');
+      const reasonInput = document.getElementById('mobAdvReason');
+      const agreedInput = document.getElementById('mobAdvAgreed');
+      const submitBtn = document.getElementById('mobAdvSubmitBtn');
+
+      const amount = parseFloat(amtInput.value || 0);
+      const reason = (reasonInput.value || '').trim();
+
+      if (amount <= 0) {
+        showToast('กรุณาระบุจำนวนเงินที่ต้องการเบิก', 'error');
+        return;
+      }
+
+      if (cachedAdvanceQuota && amount > cachedAdvanceQuota.maxEligibleAmount) {
+        showToast(`จำนวนเงินเกินสิทธิ์สูงสุด (฿${cachedAdvanceQuota.maxEligibleAmount.toLocaleString()})`, 'error');
+        return;
+      }
+
+      if (!reason) {
+        showToast('กรุณาระบุเหตุผลความจำเป็น', 'error');
+        return;
+      }
+
+      if (!agreedInput.checked) {
+        showToast('กรุณายินยอมเงื่อนไขการหักเงินจากเงินเดือน', 'error');
+        return;
+      }
+
+      if (!confirm(`ยืนยันการยื่นขอเบิกเงินเดือนล่วงหน้า ฿${amount.toLocaleString()} หรือไม่?\n(ยอดนี้จะถูกหักชำระในรอบเงินเดือนของเดือนนี้)`)) {
+        return;
+      }
+
+      submitBtn.disabled = true;
+      const originalBtnText = submitBtn.innerHTML;
+      submitBtn.innerHTML = '<span>⏳ กำลังส่งคำขอ...</span>';
+
+      try {
+        const payload = {
+          action: 'submitAdvanceSalary',
+          employeeCode: state.currentUser.employeeCode,
+          requestedAmount: amount,
+          reason: reason,
+          agreedToDeduct: true
+        };
+
+        const res = await postApiRequest(payload);
+        if (res && res.status === 'success') {
+          showToast('ยื่นขอเบิกเงินเดือนล่วงหน้าสำเร็จแล้ว ข้อมูลถูกส่งถึง HR', 'success');
+          amtInput.value = '';
+          reasonInput.value = '';
+          agreedInput.checked = false;
+          await loadMobileAdvanceSalary();
+        } else {
+          showToast((res && res.message) ? res.message : 'เกิดข้อผิดพลาดในการยื่นคำขอ', 'error');
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = originalBtnText;
+        }
+      } catch (err) {
+        showToast('เกิดข้อผิดพลาดในการส่งข้อมูล: ' + err.message, 'error');
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = originalBtnText;
+      }
     }
 
     // ==========================================
