@@ -2134,9 +2134,13 @@
         loadPendingApprovalsCount();
       }
 
-      // Check MNW Department Section (เฉพาะเจ้าหน้าที่ฝ่ายซ่อมบำรุง MNW เท่านั้น)
-      const isMnw = user.isMnw || (user.department && String(user.department).toUpperCase() === 'MNW');
-      if (isMnw) {
+      // Check MNW Department Section (เฉพาะสมาชิกแผนก MNW และ Super Admin เท่านั้น - ปราศจากฮาร์ดโค้ด)
+      const userDeptClean = String(user.department || '').trim().toUpperCase().replace(/[^A-Z]/g, '');
+      const isMnwMember = userDeptClean === 'MNW' || String(user.department || '').toUpperCase().includes('MAINTENANCE') || user.isMnwMember;
+      const isSuperAdmin = user.role === 'SUPER_ADMIN' || user.isSuperAdmin;
+      const canViewMnw = isMnwMember || isSuperAdmin;
+
+      if (canViewMnw) {
         const secMnw = document.getElementById('sectionMnwWorkbench');
         if (secMnw) secMnw.classList.remove('hidden');
       }
