@@ -1647,16 +1647,16 @@
         <!-- Counter Badges -->
         <div class="grid grid-cols-3 gap-2 mb-3 text-center text-[11px]">
           <div class="p-2 bg-slate-50 rounded-xl border border-slate-100">
-            <div class="text-slate-400 text-[10px]">รอเริ่ม</div>
+            <div class="text-slate-400 text-[10px]">รอเริ่มงาน</div>
             <div id="mobRoutinePendingCount" class="font-bold text-slate-700 text-sm">0</div>
           </div>
           <div class="p-2 bg-amber-50 rounded-xl border border-amber-100">
             <div class="text-amber-600 text-[10px]">กำลังทำ</div>
             <div id="mobRoutineProgressCount" class="font-bold text-amber-800 text-sm">0</div>
           </div>
-          <div class="p-2 bg-emerald-50 rounded-xl border border-emerald-100">
-            <div class="text-emerald-600 text-[10px]">เสร็จสิ้น</div>
-            <div id="mobRoutineCompletedCount" class="font-bold text-emerald-800 text-sm">0</div>
+          <div class="p-2 bg-purple-50 rounded-xl border border-purple-100">
+            <div class="text-purple-600 text-[10px]">ต้องทำทั้งหมด</div>
+            <div id="mobRoutineTotalActiveCount" class="font-bold text-purple-800 text-sm">0</div>
           </div>
         </div>
 
@@ -3590,31 +3590,42 @@
       };
 
       const myEmpId = state.currentUser ? (state.currentUser.employeeId || state.currentUser.employeeCode || '') : '';
-      const allActive = (mobileMnwRoutineTasks || []).filter(t => String(t.IsActive).toUpperCase() !== 'FALSE');
+      // On Mobile: Only show tasks that are active (PENDING or IN_PROGRESS), strictly hide COMPLETED tasks
+      const activeTasks = (mobileMnwRoutineTasks || []).filter(t => String(t.IsActive).toUpperCase() !== 'FALSE' && t.Status !== 'COMPLETED');
 
       // Update counters
-      const pendingCount = allActive.filter(t => !t.Status || t.Status === 'PENDING').length;
-      const progressCount = allActive.filter(t => t.Status === 'IN_PROGRESS').length;
-      const completedCount = allActive.filter(t => t.Status === 'COMPLETED').length;
+      const pendingCount = activeTasks.filter(t => !t.Status || t.Status === 'PENDING').length;
+      const progressCount = activeTasks.filter(t => t.Status === 'IN_PROGRESS').length;
+      const totalActiveCount = activeTasks.length;
 
       const pCountEl = document.getElementById('mobRoutinePendingCount');
       const prCountEl = document.getElementById('mobRoutineProgressCount');
-      const cCountEl = document.getElementById('mobRoutineCompletedCount');
+      const totCountEl = document.getElementById('mobRoutineTotalActiveCount');
       if (pCountEl) pCountEl.innerText = pendingCount;
       if (prCountEl) prCountEl.innerText = progressCount;
-      if (cCountEl) cCountEl.innerText = completedCount;
+      if (totCountEl) totCountEl.innerText = totalActiveCount;
 
-      let list = allActive;
+      let list = activeTasks;
       if (currentMobileRoutineFilter === 'MINE') {
-        list = allActive.filter(t => (t.AssignedEmpId === myEmpId) || (t.ActiveWorkerId === myEmpId));
+        list = activeTasks.filter(t => (t.AssignedEmpId === myEmpId) || (t.ActiveWorkerId === myEmpId));
       } else if (currentMobileRoutineFilter === 'ROUTINE') {
-        list = allActive.filter(t => (t.Type || 'ROUTINE') === 'ROUTINE');
+        list = activeTasks.filter(t => (t.Type || 'ROUTINE') === 'ROUTINE');
       } else if (currentMobileRoutineFilter === 'EXTRA') {
-        list = allActive.filter(t => t.Type === 'EXTRA');
+        list = activeTasks.filter(t => t.Type === 'EXTRA');
       }
 
       if (list.length === 0) {
-        container.innerHTML = '<p class="text-xs text-slate-400 text-center py-6">ไม่มีรายการงานในหมวดนี้</p>';
+        if (totalActiveCount === 0) {
+          container.innerHTML = `
+            <div class="p-6 text-center bg-white rounded-2xl border border-slate-200 shadow-2xs space-y-2">
+              <span class="text-3xl">🎉</span>
+              <h4 class="font-bold text-slate-800 text-sm">ยอดเยี่ยมมาก!</h4>
+              <p class="text-xs text-slate-500 leading-relaxed">ขณะนี้ไม่มีรายการงานที่ต้องทำในรอบนี้ (งานทุกรายการได้รับการปฏิบัติเสร็จสิ้นเรียบร้อยแล้ว)</p>
+            </div>
+          `;
+        } else {
+          container.innerHTML = '<p class="text-xs text-slate-400 text-center py-6">ไม่มีรายการงานที่ต้องทำในหมวดนี้</p>';
+        }
         return;
       }
 
