@@ -2115,6 +2115,12 @@
             </div>
           </div>
 
+          <!-- Instant Photo Auto-Scan OCR Button (Mobile) -->
+          <button type="button" id="mobBtnScanCardFrontOcr" onclick="triggerMobileCardAutoScan()" class="hidden w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white font-bold text-xs shadow-md transition active:scale-95 flex items-center justify-center gap-2">
+            <span class="text-sm">⚡</span>
+            <span id="mobBtnScanCardFrontOcrText">สแกนอ่านข้อมูลจากรูปภาพอัตโนมัติ (AI OCR)</span>
+          </button>
+
           <!-- Mandatory: Name & Company -->
           <div>
             <label class="block text-xs font-bold text-slate-700 mb-0.5">ชื่อผู้ติดต่อ <span class="text-rose-500">*</span></label>
@@ -6396,6 +6402,8 @@
             const previewBox = document.getElementById('mobBcFrontPreviewBox');
             if (previewEl) previewEl.src = base64;
             if (previewBox) previewBox.classList.remove('hidden');
+            const scanBtn = document.getElementById('mobBtnScanCardFrontOcr');
+            if (scanBtn) scanBtn.classList.remove('hidden');
           } else {
             currentMobileBcBackBase64 = base64;
             const previewEl = document.getElementById('mobBcBackPreview');
@@ -6414,10 +6422,235 @@
         currentMobileBcFrontBase64 = '';
         const previewBox = document.getElementById('mobBcFrontPreviewBox');
         if (previewBox) previewBox.classList.add('hidden');
+        const scanBtn = document.getElementById('mobBtnScanCardFrontOcr');
+        if (scanBtn) scanBtn.classList.add('hidden');
       } else {
         currentMobileBcBackBase64 = '';
         const previewBox = document.getElementById('mobBcBackPreviewBox');
         if (previewBox) previewBox.classList.add('hidden');
+      }
+    }
+
+    // Dynamic loader for Tesseract.js (Client-side free OCR on Mobile)
+    let _mobTesseractLoaderPromise = null;
+    function loadMobileTesseractJs() {
+      if (window.Tesseract) return Promise.resolve(window.Tesseract);
+      if (_mobTesseractLoaderPromise) return _mobTesseractLoaderPromise;
+
+      _mobTesseractLoaderPromise = new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
+        script.async = true;
+        script.onload = () => {
+          if (window.Tesseract) resolve(window.Tesseract);
+          else reject(new Error('Tesseract script loaded but window.Tesseract not found'));
+        };
+        script.onerror = () => {
+          _mobTesseractLoaderPromise = null;
+          reject(new Error('ไม่สามารถโหลดระบบอ่านตัวอักษรได้ กรุณาตรวจสอบสัญญาณอินเทอร์เน็ต'));
+        };
+        document.head.appendChild(script);
+      });
+      return _mobTesseractLoaderPromise;
+    }
+
+    // Client-side text parser for 3 languages (Thai / English / Japanese)
+    function parseMobileBcText(rawText) {
+      const text = String(rawText || '').trim();
+      if (!text) {
+        return { companyName: '', contactName: '', position: '', phones: [], emails: [], lineId: '', website: '', address: '', suggestedTags: [] };
+      }
+
+      const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+
+      // 1. Phone Numbers (Thai mobile 08x, 09x, 06x, landline 02, 03x, or international +66 / +81)
+      const phoneRegex = /(?:\+?66|0)[-.\s]?\d{1,2}[-.\s]?\d{3,4}[-.\s]?\d{3,4}/g;
+      const rawPhones = text.match(phoneRegex) || [];
+      const phones = [...new Set(rawPhones.map(p => p.trim().replace(/\s+/g, '-')))];
+
+      // 2. Email addresses
+      const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/gi;
+      const rawEmails = text.match(emailRegex) || [];
+      const emails = [...new Set(rawEmails.map(e => e.toLowerCase()))];
+
+      // 3. Website
+      const urlRegex = /(?:https?:\/\/|www\.)[^\s,;\"'<>]+/gi;
+      const rawWebs = text.match(urlRegex) || [];
+      const website = rawWebs.length > 0 ? rawWebs[0] : '';
+
+      // 4. LINE ID
+      const lineMatch = text.match(/(?:LINE(?:\s*ID)?|Line)\s*[:]?\s*([@a-zA-Z0-9._-]+)/i);
+      const lineId = lineMatch ? lineMatch[1] : '';
+
+      // 5. Position (Thai, English, Japanese)
+      const positionKeywords = [
+        'Managing Director', 'General Manager', 'Director', 'President', 'Vice President', 'CEO', 'COO', 'CTO',
+        'Manager', 'Supervisor', 'Engineer', 'Specialist', 'Consultant', 'Officer', 'Leader',
+        'กรรมการผู้จัดการ', 'ผู้จัดการทั่วไป', 'ผู้จัดการฝ่าย', 'ผู้จัดการ', 'หัวหน้างาน', 'หัวหน้าฝ่าย', 'วิศวกร', 'เจ้าหน้าที่',
+        '代表取締役社長', '代表取締役', '取締役', '工場長', '支店長', '部長', '次長', '課長', '係長', '主任', 'リーダー', 'マネージャー', '担当'
+      ];
+      let position = '';
+      for (const l of lines) {
+        for (const kw of positionKeywords) {
+          if (l.toLowerCase().includes(kw.toLowerCase())) {
+            position = l;
+            break;
+          }
+        }
+        if (position) break;
+      }
+
+      // 6. Company Name
+      const companyKeywords = ['co., ltd', 'co.,ltd', 'limited', 'inc.', 'corp.', 'บริษัท', 'บจก.', 'หจก.', '株式会社', '有限会社', '合同会社'];
+      const companyLines = [];
+      for (const l of lines) {
+        for (const kw of companyKeywords) {
+          if (l.toLowerCase().includes(kw)) {
+            companyLines.push(l);
+            break;
+          }
+        }
+      }
+      const companyName = companyLines.join(' / ');
+
+      // 7. Address
+      const addressKeywords = ['estate', 'industrial', 'road', 'rd.', 'นิคม', 'ถนน', 'ถ.', 'ตำบล', 'ต.', 'อำเภอ', 'อ.', 'จังหวัด', 'จ.', 'อาคาร', 'bangpa-in', 'ayutthaya', 'rayong', 'chonburi', 'bangkok', '〒'];
+      const addressLines = [];
+      for (const l of lines) {
+        if (companyLines.includes(l) || l === position || l.includes('@') || phoneRegex.test(l) || urlRegex.test(l)) continue;
+        for (const kw of addressKeywords) {
+          if (l.toLowerCase().includes(kw)) {
+            addressLines.push(l);
+            break;
+          }
+        }
+      }
+      const address = addressLines.join(' ');
+
+      // 8. Contact Name
+      let contactName = '';
+      for (const l of lines) {
+        if (companyLines.includes(l) || addressLines.includes(l) || l === position) continue;
+        if (l.includes('@') || phoneRegex.test(l) || urlRegex.test(l) || /line/i.test(l) || /tel/i.test(l) || /fax/i.test(l)) continue;
+        if (l.length >= 3 && l.length <= 40) {
+          contactName = l;
+          break;
+        }
+      }
+
+      // 9. Smart Suggested Tags
+      const suggestedTags = [];
+      if (/japan|ญี่ปุ่น|co\.,\s*ltd|株式会社|有限会社|tokyo|osaka|nagoya/i.test(text)) suggestedTags.push('คู่ค้าญี่ปุ่น');
+      if (/mold|die|แม่พิมพ์/i.test(text)) suggestedTags.push('ผู้ผลิตแม่พิมพ์');
+      if (/cnc|machining|กลึง|มิลลิ่ง/i.test(text)) suggestedTags.push('งานกลึงCNC');
+      if (/plastic|injection|ฉีดพลาสติก/i.test(text)) suggestedTags.push('งานฉีดพลาสติก');
+      if (/logistics|transport|ขนส่ง|โลจิสติกส์/i.test(text)) suggestedTags.push('ขนส่งโลจิสติกส์');
+      if (/packaging|กล่อง|บรรจุภัณฑ์/i.test(text)) suggestedTags.push('บรรจุภัณฑ์');
+      if (/steel|metal|iron|เหล็ก|โลหะ/i.test(text)) suggestedTags.push('เหล็กและโลหะ');
+      if (/tooling|cutting|เครื่องมือช่าง/i.test(text)) suggestedTags.push('ทูลลิ่ง');
+      if (/chemical|oil|หล่อลื่น|เคมี/i.test(text)) suggestedTags.push('เคมีภัณฑ์');
+      if (/bangpa-in|บางปะอิน/i.test(text)) suggestedTags.push('นิคมบางปะอิน');
+      if (/amata|อมตะ/i.test(text)) suggestedTags.push('นิคมอมตะ');
+
+      return { companyName, contactName, position, phones, emails, lineId, website, address, suggestedTags };
+    }
+
+    // ⚡ Instant Photo Auto-Scan OCR (Mobile LIFF)
+    async function triggerMobileCardAutoScan() {
+      const imageSrc = currentMobileBcFrontBase64;
+      if (!imageSrc) {
+        showToast('กรุณาถ่ายรูปหรือเลือกรูปหน้าบัตรก่อนกดสแกน', 'warning');
+        return;
+      }
+
+      const btn = document.getElementById('mobBtnScanCardFrontOcr');
+      const btnText = document.getElementById('mobBtnScanCardFrontOcrText');
+      const origHtml = btnText ? btnText.innerHTML : '';
+
+      try {
+        if (btn) btn.disabled = true;
+        if (btnText) btnText.innerHTML = '⚡ กำลังโหลด AI อ่านข้อความ...';
+
+        const Tesseract = await loadMobileTesseractJs();
+        if (btnText) btnText.innerHTML = '⚡ กำลังสแกนตัวอักษร (0%)...';
+
+        let result;
+        try {
+          result = await Tesseract.recognize(
+            imageSrc,
+            'tha+eng+jpn',
+            {
+              logger: m => {
+                if (m.status === 'recognizing text' && btnText) {
+                  const p = Math.round((m.progress || 0) * 100);
+                  btnText.innerHTML = `⚡ กำลังสแกนตัวอักษร (${p}%)...`;
+                } else if (m.status === 'loading language traineddata' && btnText) {
+                  const p = m.progress ? Math.round(m.progress * 100) : 0;
+                  btnText.innerHTML = `⚡ โหลดฐานข้อมูลภาษา (${p}%)...`;
+                }
+              }
+            }
+          );
+        } catch (langErr) {
+          console.warn('Scan with tha+eng+jpn failed, falling back to tha+eng:', langErr);
+          if (btnText) btnText.innerHTML = '⚡ กำลังสแกนตัวอักษร (สำรอง)...';
+          result = await Tesseract.recognize(
+            imageSrc,
+            'tha+eng',
+            {
+              logger: m => {
+                if (m.status === 'recognizing text' && btnText) {
+                  const p = Math.round((m.progress || 0) * 100);
+                  btnText.innerHTML = `⚡ กำลังสแกนตัวอักษร (${p}%)...`;
+                }
+              }
+            }
+          );
+        }
+
+        const rawText = (result && result.data && result.data.text) || '';
+        if (!rawText.trim()) {
+          showToast('ไม่พบข้อความบนรูปภาพ กรุณาถ่ายภาพให้ชัดเจนยิ่งขึ้น', 'warning');
+          return;
+        }
+
+        // Parse and auto-fill mobile fields
+        const parsed = parseMobileBcText(rawText);
+
+        if (parsed.companyName && !document.getElementById('mobBcFormCompanyName').value) {
+          document.getElementById('mobBcFormCompanyName').value = parsed.companyName;
+        }
+        if (parsed.contactName && !document.getElementById('mobBcFormContactName').value) {
+          document.getElementById('mobBcFormContactName').value = parsed.contactName;
+        }
+        if (parsed.position && !document.getElementById('mobBcFormPosition').value) {
+          document.getElementById('mobBcFormPosition').value = parsed.position;
+        }
+        if (parsed.phones && parsed.phones.length > 0 && !document.getElementById('mobBcFormPhone').value) {
+          document.getElementById('mobBcFormPhone').value = parsed.phones.join(', ');
+        }
+        if (parsed.emails && parsed.emails.length > 0 && !document.getElementById('mobBcFormEmail').value) {
+          document.getElementById('mobBcFormEmail').value = parsed.emails.join(', ');
+        }
+        if (parsed.website && !document.getElementById('mobBcFormWebsite').value) {
+          document.getElementById('mobBcFormWebsite').value = parsed.website;
+        } else if (parsed.lineId && !document.getElementById('mobBcFormWebsite').value) {
+          document.getElementById('mobBcFormWebsite').value = 'Line: ' + parsed.lineId;
+        }
+        if (parsed.address && !document.getElementById('mobBcFormAddress').value) {
+          document.getElementById('mobBcFormAddress').value = parsed.address;
+        }
+        if (parsed.suggestedTags && Array.isArray(parsed.suggestedTags)) {
+          parsed.suggestedTags.forEach(t => addMobileBcFormTag(t));
+        }
+
+        showToast('⚡ สแกนสำเร็จและเติมข้อมูลลงฟิลด์เรียบร้อยแล้ว!', 'success');
+      } catch (err) {
+        console.error('triggerMobileCardAutoScan error:', err);
+        showToast('เกิดข้อผิดพลาดในการสแกนรูปภาพ: ' + (err.message || err), 'error');
+      } finally {
+        if (btn) btn.disabled = false;
+        if (btnText) btnText.innerHTML = origHtml || 'สแกนอ่านข้อมูลจากรูปภาพอัตโนมัติ (AI OCR)';
       }
     }
 
