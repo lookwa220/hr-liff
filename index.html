@@ -287,6 +287,20 @@
             </div>
             <span class="text-slate-400 text-base">➔</span>
           </button>
+
+          <!-- ตารางงานประจำ & เสริม (MNW Routine Work Board) -->
+          <button id="btnMnwRoutineCard" onclick="openView('mnwRoutine')" class="glass-card p-4 rounded-2xl border border-purple-300 bg-purple-50/50 text-left hover:shadow-md transition-all flex items-center justify-between">
+            <div class="flex items-center space-x-3.5">
+              <div class="w-11 h-11 rounded-xl bg-purple-600 text-white flex items-center justify-center text-2xl shadow-sm flex-shrink-0">
+                📋
+              </div>
+              <div>
+                <h3 class="text-sm font-bold text-slate-800">ตารางงาน Routine Work</h3>
+                <p class="text-[11px] text-slate-600 mt-0.5">บันทึกเวลาเริ่ม-จบ & รายงานผลงานประจำ/เสริม</p>
+              </div>
+            </div>
+            <span class="text-slate-400 text-base">➔</span>
+          </button>
         </div>
       </section>
 
@@ -306,8 +320,8 @@
           </div>
           <span id="announcementBadge" class="text-[10px] text-emerald-700 font-semibold bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">ประกาศล่าสุด</span>
         </div>
-        <div id="announcementsContainer" class="space-y-2.5 text-xs text-slate-600">
-          <div class="p-2.5 rounded-xl bg-slate-50 border border-slate-200 leading-relaxed text-[11px]">
+        <div id="announcementsContainer" class="flex gap-2.5 overflow-x-auto no-scrollbar snap-x pb-1 text-xs text-slate-600">
+          <div class="p-2.5 rounded-xl bg-slate-50 border border-slate-200 leading-relaxed text-[11px] w-full">
             • ยื่นคำขอลางานล่วงหน้าอย่างน้อย 1 วัน (ยกเว้นกรณีลาป่วยฉุกเฉิน)<br>
             • ระบบคิดช่วงเวลาทีละ 15 นาที เพื่อความถูกต้องในการคำนวณเบี้ยขยันและค่าจ้าง<br>
             • ตรวจสอบผลการอนุมัติได้ที่เมนู <b>"วันลาคงเหลือ"</b> ระบบจะปรับสถานะให้ทันทีเมื่อหัวหน้างานอนุมัติ
@@ -651,6 +665,45 @@
         </div>
       </div>
     </section>
+
+    <!-- Mobile Announcement Detail Modal -->
+    <div id="modalMobileAnnouncement" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+      <div class="glass-card bg-white rounded-2xl shadow-xl max-w-sm w-full p-5 space-y-3 animate-fadeIn max-h-[85vh] flex flex-col">
+        <div class="flex items-center justify-between pb-2 border-b border-slate-200 flex-shrink-0">
+          <div class="flex items-center space-x-2">
+            <span class="text-xl">📢</span>
+            <h3 class="font-bold text-slate-800 text-sm">ประกาศข่าวสารโรงงาน</h3>
+          </div>
+          <button onclick="closeMobileAnnouncementModal()" class="text-slate-400 hover:text-slate-600 p-1 text-base">✖</button>
+        </div>
+        <div class="overflow-y-auto flex-1 space-y-3 pr-0.5">
+          <div class="flex items-center gap-1.5 flex-wrap">
+            <span id="mobAnnCategory" class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200">ทั่วไป</span>
+            <span id="mobAnnPriority" class="hidden px-2 py-0.5 rounded text-[10px] font-bold"></span>
+          </div>
+          <h4 id="mobAnnTitle" class="font-bold text-slate-800 text-sm leading-snug"></h4>
+          <div class="p-2.5 bg-slate-50 rounded-xl border border-slate-200 text-[11px] text-slate-500 flex justify-between">
+            <span>ผู้ประกาศ: <b id="mobAnnAuthor" class="text-slate-700"></b></span>
+            <span id="mobAnnDate"></span>
+          </div>
+          <p id="mobAnnContent" class="text-xs text-slate-700 leading-relaxed whitespace-pre-line"></p>
+          <div id="mobAnnAttachmentBox" class="hidden pt-2 border-t border-slate-100 space-y-2">
+            <!-- Inline Image Display for Mobile -->
+            <div id="mobAnnImgWrapper" class="hidden rounded-xl overflow-hidden border border-slate-200 bg-slate-50 flex items-center justify-center max-h-56">
+              <img id="mobAnnAttachmentImg" src="" alt="ภาพประกอบประกาศ" class="w-full max-h-56 object-contain" onclick="window.open(this.src, '_blank')">
+            </div>
+            <a id="mobAnnAttachmentLink" href="#" target="_blank" class="w-full py-2 px-3 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-xs">
+              <span id="mobAnnAttachmentText">📎 เปิดดูเอกสาร/รูปภาพฉบับเต็ม</span>
+            </a>
+          </div>
+        </div>
+        <div class="pt-2 border-t border-slate-100 flex-shrink-0">
+          <button onclick="closeMobileAnnouncementModal()" class="w-full py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs">
+            ปิด
+          </button>
+        </div>
+      </div>
+    </div>
 
     <!-- Leave Attachment Upload Modal (แนบเอกสารก่อน/หลังลา สำหรับทุกประเภทการลา) -->
     <div id="modalMedicalCert" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
@@ -1565,6 +1618,109 @@
     </div>
 
     <!-- ======================================================== -->
+    <!-- VIEW: ตารางงาน Routine Work (MNW Routine Work Board) -->
+    <!-- ======================================================== -->
+    <section id="viewMnwRoutine" class="hidden space-y-4 animate-fadeIn">
+      <div class="glass-card rounded-2xl p-4 shadow-sm border border-slate-200">
+        <!-- Header -->
+        <div class="flex items-center justify-between pb-2 mb-3 border-b border-slate-200">
+          <div class="flex items-center space-x-2">
+            <span class="text-xl">📋</span>
+            <div>
+              <h2 class="text-base font-bold text-slate-800">ตารางงาน Routine Work</h2>
+              <p class="text-[10px] text-slate-400">งานประจำ & เสริม ฝ่ายซ่อมบำรุง (MNW)</p>
+            </div>
+          </div>
+          <button type="button" onclick="closeCurrentView()" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition active:scale-95 shadow-2xs">
+            <span>‹ กลับหน้าหลัก</span>
+          </button>
+        </div>
+
+        <!-- Filter Bar -->
+        <div class="flex items-center space-x-1.5 p-1 bg-slate-100 rounded-xl mb-3 text-xs font-semibold overflow-x-auto no-scrollbar">
+          <button type="button" onclick="filterMobileMnwRoutine('ALL')" id="mobFilterRoutineAll" class="mob-routine-filter-btn flex-1 py-1.5 px-2.5 rounded-lg text-center bg-white text-purple-700 shadow-xs whitespace-nowrap">ทั้งหมด</button>
+          <button type="button" onclick="filterMobileMnwRoutine('MINE')" id="mobFilterRoutineMine" class="mob-routine-filter-btn flex-1 py-1.5 px-2.5 rounded-lg text-center text-slate-500 hover:text-slate-800 whitespace-nowrap">งานของฉัน</button>
+          <button type="button" onclick="filterMobileMnwRoutine('ROUTINE')" id="mobFilterRoutineRoutine" class="mob-routine-filter-btn flex-1 py-1.5 px-2.5 rounded-lg text-center text-slate-500 hover:text-slate-800 whitespace-nowrap">งานประจำ</button>
+          <button type="button" onclick="filterMobileMnwRoutine('EXTRA')" id="mobFilterRoutineExtra" class="mob-routine-filter-btn flex-1 py-1.5 px-2.5 rounded-lg text-center text-slate-500 hover:text-slate-800 whitespace-nowrap">งานเสริม</button>
+        </div>
+
+        <!-- Counter Badges -->
+        <div class="grid grid-cols-3 gap-2 mb-3 text-center text-[11px]">
+          <div class="p-2 bg-slate-50 rounded-xl border border-slate-100">
+            <div class="text-slate-400 text-[10px]">รอเริ่ม</div>
+            <div id="mobRoutinePendingCount" class="font-bold text-slate-700 text-sm">0</div>
+          </div>
+          <div class="p-2 bg-amber-50 rounded-xl border border-amber-100">
+            <div class="text-amber-600 text-[10px]">กำลังทำ</div>
+            <div id="mobRoutineProgressCount" class="font-bold text-amber-800 text-sm">0</div>
+          </div>
+          <div class="p-2 bg-emerald-50 rounded-xl border border-emerald-100">
+            <div class="text-emerald-600 text-[10px]">เสร็จสิ้น</div>
+            <div id="mobRoutineCompletedCount" class="font-bold text-emerald-800 text-sm">0</div>
+          </div>
+        </div>
+
+        <!-- Task List Container -->
+        <div id="mobileMnwRoutineContainer" class="space-y-3">
+          <p class="text-xs text-slate-400 text-center py-6">กำลังโหลดข้อมูลตารางงาน...</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Modal: บันทึกเสร็จสิ้นงาน Routine (Finish Routine Task Modal) -->
+    <div id="modalFinishMnwRoutine" class="hidden fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-4">
+      <div class="bg-white rounded-2xl max-w-sm w-full p-5 shadow-2xl border border-slate-200 space-y-4 animate-fadeIn text-left">
+        <!-- Modal Header -->
+        <div class="flex items-center justify-between pb-2 border-b border-slate-100">
+          <div class="flex items-center space-x-2">
+            <span class="text-lg">✅</span>
+            <div>
+              <h3 class="text-sm font-bold text-slate-800">บันทึกเสร็จสิ้นงาน</h3>
+              <p id="finishRoutineTaskTitle" class="text-[11px] text-purple-600 font-medium truncate max-w-[200px]">-</p>
+            </div>
+          </div>
+          <button type="button" onclick="closeFinishMobileRoutineModal()" class="text-slate-400 hover:text-slate-600 p-1 rounded-lg">✕</button>
+        </div>
+
+        <input type="hidden" id="finishRoutineTaskId" value="">
+
+        <!-- Mandatory Notes -->
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1">
+            รายละเอียดผลการปฏิบัติงาน <span class="text-red-500">*</span>
+          </label>
+          <textarea id="finishRoutineNotes" rows="3" required
+            placeholder="ระบุสิ่งที่ทำ ผลการตรวจเช็ค หรือข้อสังเกต (จำเป็นต้องกรอกอย่างน้อย 1 บรรทัด)"
+            class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-purple-500"></textarea>
+          <p class="text-[10px] text-slate-400 mt-0.5">ระบุการดำเนินการให้ชัดเจนเพื่อให้หัวหน้างานรับทราบ</p>
+        </div>
+
+        <!-- Optional Photo Upload -->
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">แนบรูปถ่ายประกอบ (ถ้ามี)</label>
+          <input type="file" id="finishRoutinePhotoInput" accept="image/*" capture="environment" onchange="handleFinishRoutinePhotoSelect(event)" class="hidden">
+          <button type="button" onclick="document.getElementById('finishRoutinePhotoInput').click()" class="w-full py-2 px-3 border border-dashed border-slate-300 hover:border-purple-400 rounded-xl text-xs text-slate-600 bg-slate-50 flex items-center justify-center gap-1.5">
+            <span>📷 ถ่ายรูปหรือเลือกรูปภาพ</span>
+          </button>
+          <!-- Photo Preview Container -->
+          <div id="finishRoutinePhotoPreviewBox" class="hidden mt-2 relative rounded-xl overflow-hidden border border-slate-200">
+            <img id="finishRoutinePhotoPreview" src="" class="w-full h-36 object-cover" alt="Preview">
+            <button type="button" onclick="clearFinishRoutinePhoto()" class="absolute top-1.5 right-1.5 bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold shadow-md">✕</button>
+          </div>
+        </div>
+
+        <!-- Modal Actions -->
+        <div class="flex space-x-2 pt-2 border-t border-slate-100">
+          <button type="button" onclick="closeFinishMobileRoutineModal()" class="flex-1 py-2.5 rounded-xl text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200">ยกเลิก</button>
+          <button type="button" id="btnSubmitFinishRoutine" onclick="submitFinishMobileRoutine()" class="flex-1 py-2.5 rounded-xl text-xs font-bold text-white bg-purple-600 hover:bg-purple-700 shadow-sm flex items-center justify-center">
+            <span>ยืนยันจบงาน</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+
+    <!-- ======================================================== -->
     <!-- VIEW: นำเสนอ Kaizen (Kaizen Proposal Form & My History) -->
     <!-- ======================================================== -->
     <section id="viewKaizen" class="hidden space-y-4 animate-fadeIn">
@@ -2262,13 +2418,17 @@
       }
     }
 
+    let mobileAnnouncementsCache = [];
+
     function renderAnnouncements(announcements) {
       const container = document.getElementById('announcementsContainer');
       if (!container) return;
 
+      mobileAnnouncementsCache = Array.isArray(announcements) ? announcements : [];
+
       if (!announcements || announcements.length === 0) {
         container.innerHTML = `
-          <div class="p-2.5 rounded-xl bg-slate-50 border border-slate-200 leading-relaxed text-[11px]">
+          <div class="p-2.5 rounded-xl bg-slate-50 border border-slate-200 leading-relaxed text-[11px] w-full">
             • ยื่นคำขอลางานล่วงหน้าอย่างน้อย 1 วัน (ยกเว้นกรณีลาป่วยฉุกเฉิน)<br>
             • ระบบคิดช่วงเวลาทีละ 15 นาที เพื่อความถูกต้องในการคำนวณเบี้ยขยันและค่าจ้าง<br>
             • ตรวจสอบผลการอนุมัติได้ที่เมนู <b>"วันลาคงเหลือ"</b> ระบบจะปรับสถานะให้ทันทีเมื่อหัวหน้างานอนุมัติ
@@ -2277,20 +2437,91 @@
         return;
       }
 
-      container.innerHTML = announcements.map(a => {
+      const isSingle = announcements.length === 1;
+      container.innerHTML = announcements.map((a, idx) => {
         const isUrgent = a.priority === 'HIGH' || a.priority === 'URGENT';
         const badgeColor = isUrgent ? 'bg-red-100 text-red-700 border-red-200' : 'bg-emerald-100 text-emerald-800 border-emerald-200';
+        const cardWidth = isSingle ? 'w-full' : 'min-w-[85%] max-w-[90%] snap-center';
         return `
-          <div class="p-3 bg-white rounded-xl border border-slate-200 shadow-xs space-y-1">
-            <div class="flex items-center justify-between">
+          <div onclick="openMobileAnnouncementDetail(${idx})" class="${cardWidth} p-3 bg-white rounded-xl border border-slate-200 hover:border-amber-300 shadow-xs space-y-1.5 cursor-pointer active:scale-98 transition flex-shrink-0">
+            <div class="flex items-center justify-between gap-1">
               <span class="font-bold text-slate-800 text-xs truncate max-w-[70%]">${a.title}</span>
-              <span class="px-2 py-0.5 rounded text-[10px] font-bold border ${badgeColor}">${a.category || 'ทั่วไป'}</span>
+              <span class="px-2 py-0.5 rounded text-[10px] font-bold border ${badgeColor} flex-shrink-0">${a.category || 'ทั่วไป'}</span>
             </div>
-            <p class="text-slate-600 text-[11px] leading-relaxed">${a.content}</p>
-            <p class="text-[10px] text-slate-400 pt-1 border-t border-slate-100">ผู้ประกาศ: ${a.author || 'ฝ่ายบริหาร'} ${a.timestamp ? '• ' + a.timestamp : ''}</p>
+            <p class="text-slate-600 text-[11px] leading-relaxed line-clamp-2">${a.content}</p>
+            <div class="flex items-center justify-between text-[10px] text-slate-400 pt-1 border-t border-slate-100">
+              <span class="truncate">ผู้ประกาศ: ${a.author || 'ฝ่ายบริหาร'}</span>
+              <span class="text-amber-600 font-semibold flex-shrink-0">อ่านต่อ &raquo;</span>
+            </div>
           </div>
         `;
       }).join('');
+    }
+
+    function openMobileAnnouncementDetail(idx) {
+      const a = mobileAnnouncementsCache[idx];
+      if (!a) return;
+
+      const modal = document.getElementById('modalMobileAnnouncement');
+      if (!modal) return;
+
+      document.getElementById('mobAnnTitle').innerText = a.title || '';
+      document.getElementById('mobAnnCategory').innerText = a.category || 'ทั่วไป';
+      document.getElementById('mobAnnAuthor').innerText = a.author || 'ฝ่ายบริหาร';
+      const dateDisplay = a.startDate ? (a.endDate ? `${a.startDate} ถึง ${a.endDate}` : `ตั้งแต่ ${a.startDate}`) : (a.timestamp ? String(a.timestamp).slice(0, 10) : '');
+      document.getElementById('mobAnnDate').innerText = dateDisplay;
+      document.getElementById('mobAnnContent').innerText = a.content || '';
+
+      const prioEl = document.getElementById('mobAnnPriority');
+      if (prioEl) {
+        if (a.priority === 'URGENT') {
+          prioEl.innerText = 'ด่วนมาก';
+          prioEl.className = 'px-2 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-700 border border-red-200 animate-pulse';
+          prioEl.classList.remove('hidden');
+        } else if (a.priority === 'HIGH') {
+          prioEl.innerText = 'สำคัญ';
+          prioEl.className = 'px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200';
+          prioEl.classList.remove('hidden');
+        } else {
+          prioEl.classList.add('hidden');
+        }
+      }
+
+      const attBox = document.getElementById('mobAnnAttachmentBox');
+      const attLink = document.getElementById('mobAnnAttachmentLink');
+      const attImgWrapper = document.getElementById('mobAnnImgWrapper');
+      const attImg = document.getElementById('mobAnnAttachmentImg');
+      const attText = document.getElementById('mobAnnAttachmentText');
+
+      if (attBox && attLink) {
+        if (a.attachmentUrl) {
+          attBox.classList.remove('hidden');
+          attLink.href = a.attachmentUrl;
+
+          const isImg = a.attachmentUrl.match(/\.(jpeg|jpg|gif|png|webp)($|\?)/i) || a.attachmentUrl.includes('export=view') || a.attachmentUrl.includes('drive.google.com') || a.attachmentUrl.startsWith('data:image/');
+          if (isImg && attImg && attImgWrapper) {
+            let displayUrl = a.attachmentUrl;
+            const m = a.attachmentUrl.match(/id=([a-zA-Z0-9_-]+)/) || a.attachmentUrl.match(/\/d\/([a-zA-Z0-9_-]+)/);
+            if (m && m[1]) displayUrl = `https://drive.google.com/thumbnail?id=${m[1]}&sz=w800`;
+            attImg.src = displayUrl;
+            attImgWrapper.classList.remove('hidden');
+            if (attText) attText.innerText = '📎 เปิดดูรูปภาพขนาดเต็ม';
+          } else {
+            if (attImgWrapper) attImgWrapper.classList.add('hidden');
+            if (attText) attText.innerText = '📎 เปิดอ่านเอกสารแนบ';
+          }
+        } else {
+          attBox.classList.add('hidden');
+          if (attImgWrapper) attImgWrapper.classList.add('hidden');
+        }
+      }
+
+      modal.classList.remove('hidden');
+    }
+
+    function closeMobileAnnouncementModal() {
+      const modal = document.getElementById('modalMobileAnnouncement');
+      if (modal) modal.classList.add('hidden');
     }
 
     // ==========================================
@@ -2305,7 +2536,7 @@
         'viewLeave', 'viewQuota', 'viewOT', 'viewApprovals',
         'viewPaySlip', 'viewShiftAtt', 'viewSwap', 'viewSafety',
         'viewPersonal', 'viewRoomBooking', 'viewVehicleBooking',
-        'viewMnwRequest', 'viewMnwWorkbench', 'viewKaizen'
+        'viewMnwRequest', 'viewMnwWorkbench', 'viewMnwRoutine', 'viewKaizen'
       ];
       allViewIds.forEach(id => {
         const el = document.getElementById(id);
@@ -2375,6 +2606,10 @@
         if (vkz) vkz.classList.remove('hidden');
         initMobileKaizenForm();
         loadMobileKaizenHistory();
+      } else if (viewName === 'mnwRoutine') {
+        const vr = document.getElementById('viewMnwRoutine');
+        if (vr) vr.classList.remove('hidden');
+        loadMobileMnwRoutine();
       }
       state.currentView = viewName;
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -2389,7 +2624,7 @@
         'viewLeave', 'viewQuota', 'viewOT', 'viewApprovals',
         'viewPaySlip', 'viewShiftAtt', 'viewSwap', 'viewSafety',
         'viewPersonal', 'viewRoomBooking', 'viewVehicleBooking',
-        'viewMnwRequest', 'viewMnwWorkbench', 'viewKaizen'
+        'viewMnwRequest', 'viewMnwWorkbench', 'viewMnwRoutine', 'viewKaizen'
       ];
       allViewIds.forEach(id => {
         const el = document.getElementById(id);
@@ -3286,6 +3521,355 @@
     function closeMnwImagePreview() {
       document.getElementById('modalMnwImagePreview').classList.add('hidden');
     }
+
+    // ==========================================
+    // MNW ROUTINE WORK (LINE LIFF MOBILE LOGIC)
+    // ==========================================
+    let mobileMnwRoutineTasks = [];
+    let currentMobileRoutineFilter = 'ALL';
+    let currentFinishRoutinePhotoBase64 = '';
+    let currentFinishRoutinePhotoFileName = '';
+
+    async function loadMobileMnwRoutine(forceReload = false) {
+      const container = document.getElementById('mobileMnwRoutineContainer');
+      if (container && mobileMnwRoutineTasks.length === 0) {
+        container.innerHTML = '<p class="text-xs text-slate-400 text-center py-6">กำลังโหลดข้อมูลตารางงาน...</p>';
+      }
+
+      try {
+        const res = await jsonpRequest({ action: 'getMobileMnwRoutineTasks' });
+        if (res && (res.status === 'success' || res.success)) {
+          mobileMnwRoutineTasks = res.tasks || [];
+          renderMobileMnwRoutineList();
+        } else {
+          showToast(res ? (res.message || res.error) : 'โหลดข้อมูลตารางงานล้มเหลว', 'error');
+        }
+      } catch (err) {
+        console.error('Error loading mobile MNW routine tasks:', err);
+        // Fallback to postApiRequest if jsonp fails
+        try {
+          const res = await postApiRequest({ action: 'getMobileMnwRoutineTasks' });
+          if (res && (res.status === 'success' || res.success)) {
+            mobileMnwRoutineTasks = res.tasks || [];
+            renderMobileMnwRoutineList();
+            return;
+          }
+        } catch (e2) {}
+        if (container) {
+          container.innerHTML = '<p class="text-xs text-red-500 text-center py-6">เกิดข้อผิดพลาดในการโหลดข้อมูล: ' + err.message + '</p>';
+        }
+      }
+    }
+
+    function filterMobileMnwRoutine(filterType) {
+      currentMobileRoutineFilter = filterType;
+      document.querySelectorAll('.mob-routine-filter-btn').forEach(btn => {
+        btn.className = 'mob-routine-filter-btn flex-1 py-1.5 px-2.5 rounded-lg text-center text-slate-500 hover:text-slate-800 whitespace-nowrap';
+      });
+      const idMap = {
+        ALL: 'mobFilterRoutineAll',
+        MINE: 'mobFilterRoutineMine',
+        ROUTINE: 'mobFilterRoutineRoutine',
+        EXTRA: 'mobFilterRoutineExtra'
+      };
+      const activeBtn = document.getElementById(idMap[filterType]);
+      if (activeBtn) {
+        activeBtn.className = 'mob-routine-filter-btn flex-1 py-1.5 px-2.5 rounded-lg text-center bg-white text-purple-700 shadow-xs whitespace-nowrap';
+      }
+      renderMobileMnwRoutineList();
+    }
+
+    function renderMobileMnwRoutineList() {
+      const container = document.getElementById('mobileMnwRoutineContainer');
+      if (!container) return;
+
+      const esc = function(str) {
+        return String(str || '').replace(/[&<>"']/g, function(m) {
+          return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m];
+        });
+      };
+
+      const myEmpId = state.currentUser ? (state.currentUser.employeeId || state.currentUser.employeeCode || '') : '';
+      const allActive = (mobileMnwRoutineTasks || []).filter(t => String(t.IsActive).toUpperCase() !== 'FALSE');
+
+      // Update counters
+      const pendingCount = allActive.filter(t => !t.Status || t.Status === 'PENDING').length;
+      const progressCount = allActive.filter(t => t.Status === 'IN_PROGRESS').length;
+      const completedCount = allActive.filter(t => t.Status === 'COMPLETED').length;
+
+      const pCountEl = document.getElementById('mobRoutinePendingCount');
+      const prCountEl = document.getElementById('mobRoutineProgressCount');
+      const cCountEl = document.getElementById('mobRoutineCompletedCount');
+      if (pCountEl) pCountEl.innerText = pendingCount;
+      if (prCountEl) prCountEl.innerText = progressCount;
+      if (cCountEl) cCountEl.innerText = completedCount;
+
+      let list = allActive;
+      if (currentMobileRoutineFilter === 'MINE') {
+        list = allActive.filter(t => (t.AssignedEmpId === myEmpId) || (t.ActiveWorkerId === myEmpId));
+      } else if (currentMobileRoutineFilter === 'ROUTINE') {
+        list = allActive.filter(t => (t.Type || 'ROUTINE') === 'ROUTINE');
+      } else if (currentMobileRoutineFilter === 'EXTRA') {
+        list = allActive.filter(t => t.Type === 'EXTRA');
+      }
+
+      if (list.length === 0) {
+        container.innerHTML = '<p class="text-xs text-slate-400 text-center py-6">ไม่มีรายการงานในหมวดนี้</p>';
+        return;
+      }
+
+      container.innerHTML = list.map(t => {
+        const isRoutine = (t.Type || 'ROUTINE') === 'ROUTINE';
+        const typeBadge = isRoutine
+          ? '<span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-purple-100 text-purple-800">งานประจำ</span>'
+          : '<span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-100 text-amber-800">งานเสริม</span>';
+
+        const isMine = myEmpId && (t.AssignedEmpId === myEmpId);
+        const assignedBadge = t.AssignedEmpName
+          ? `<span class="text-[11px] text-slate-600">👤 ผู้รับผิดชอบ: <strong class="${isMine ? 'text-purple-700' : 'text-slate-800'}">${esc(t.AssignedEmpName)}</strong>${isMine ? ' (คุณ)' : ''}</span>`
+          : '<span class="text-[11px] text-slate-400 italic">👤 ใครก็ได้ในทีม MNW</span>';
+
+        let statusSection = '';
+        let actionButtons = '';
+
+        if (!t.Status || t.Status === 'PENDING') {
+          statusSection = '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600">รอเริ่มงาน</span>';
+          actionButtons = `
+            <button type="button" onclick="startMobileRoutineTask('${t.TaskId}')"
+              class="w-full py-2 px-3 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold transition shadow-xs flex items-center justify-center gap-1.5 active:scale-95">
+              <span>⏱️ เริ่มงาน</span>
+            </button>
+          `;
+        } else if (t.Status === 'IN_PROGRESS') {
+          statusSection = '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 animate-pulse">กำลังทำ</span>';
+          actionButtons = `
+            <div class="space-y-2">
+              <div class="p-2 bg-amber-50 rounded-xl border border-amber-200 text-[11px] text-amber-900 leading-tight">
+                <div class="font-bold flex items-center gap-1">
+                  <span>👷 ช่าง: ${esc(t.ActiveWorkerName || t.ActiveWorkerId || '')}</span>
+                </div>
+                <div class="text-[10px] text-amber-700 mt-0.5">เริ่มเมื่อ: ${esc(t.StartedAt || '')}</div>
+              </div>
+              <div class="flex items-center gap-2">
+                <button type="button" onclick="cancelMobileRoutineTask('${t.TaskId}')"
+                  class="flex-1 py-2 px-3 rounded-xl border border-slate-300 text-slate-600 hover:bg-slate-100 text-xs font-semibold transition active:scale-95">
+                  <span>↩️ ยกเลิก</span>
+                </button>
+                <button type="button" onclick="openFinishMobileRoutineModal('${t.TaskId}')"
+                  class="flex-1 py-2 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition shadow-xs active:scale-95 flex items-center justify-center gap-1">
+                  <span>✅ เสร็จสิ้น</span>
+                </button>
+              </div>
+            </div>
+          `;
+        } else if (t.Status === 'COMPLETED') {
+          statusSection = '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">เสร็จสิ้น</span>';
+          const photoThumb = t.FinishPhotoUrl
+            ? `<div class="mt-1 cursor-pointer" onclick="openMnwImagePreview('${t.FinishPhotoUrl}', '${esc(t.Title)}')">
+                 <img src="${t.FinishPhotoUrl}" class="w-16 h-16 object-cover rounded-lg border border-slate-200 shadow-2xs" alt="Finish Photo">
+                 <span class="text-[9px] text-purple-600 block mt-0.5">🔍 ดูรูปขยาย</span>
+               </div>`
+            : '';
+          actionButtons = `
+            <div class="p-2.5 bg-slate-50 rounded-xl border border-slate-200 text-[11px] text-slate-600 space-y-1">
+              <div><b>ผู้ปฏิบัติงาน:</b> ${esc(t.ActiveWorkerName || t.ActiveWorkerId || '')}</div>
+              <div><b>เสร็จเมื่อ:</b> ${esc(t.FinishedAt || '')} (${esc(t.DurationHours || 0)} ชม.)</div>
+              ${t.FinishNotes ? `<div class="text-slate-700"><b>ผลการตรวจ:</b> ${esc(t.FinishNotes)}</div>` : ''}
+              ${photoThumb}
+            </div>
+          `;
+        }
+
+        return `
+          <div class="p-3.5 bg-white rounded-2xl border border-slate-200 shadow-xs space-y-2.5">
+            <div class="flex items-start justify-between gap-2">
+              <div class="space-y-1 flex-1 min-w-0">
+                <div class="flex items-center gap-1.5 flex-wrap">
+                  <span class="font-mono font-bold text-purple-700 text-xs">${esc(t.TaskId)}</span>
+                  ${typeBadge}
+                </div>
+                <h3 class="text-sm font-bold text-slate-800 leading-snug">${esc(t.Title)}</h3>
+              </div>
+              <div class="flex-shrink-0">${statusSection}</div>
+            </div>
+            <div>${assignedBadge}</div>
+            <div class="pt-1">${actionButtons}</div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    async function startMobileRoutineTask(taskId) {
+      if (!state.currentUser) {
+        showToast('กรุณาเข้าสู่ระบบก่อน', 'error');
+        return;
+      }
+      const myEmpId = state.currentUser.employeeId || state.currentUser.employeeCode || '';
+      const myName = state.currentUser.fullName || myEmpId;
+
+      try {
+        const payload = {
+          action: 'startMobileMnwRoutineTask',
+          taskId: taskId,
+          workerEmpId: myEmpId,
+          workerName: myName
+        };
+        const res = await postApiRequest(payload);
+        if (res && (res.status === 'success' || res.success)) {
+          showToast(res.message || 'บันทึกเวลาเริ่มงานแล้ว', 'success');
+          loadMobileMnwRoutine(true);
+        } else {
+          showToast(res ? (res.message || res.error) : 'บันทึกเริ่มงานล้มเหลว', 'error');
+        }
+      } catch (err) {
+        console.error('Error starting routine task:', err);
+        showToast('เกิดข้อผิดพลาดในการเริ่มงาน: ' + err.message, 'error');
+      }
+    }
+
+    async function cancelMobileRoutineTask(taskId) {
+      if (!confirm('คุณต้องการยกเลิกการเริ่มงานและย้อนกลับสู่สถานะรอเริ่มงานใช่หรือไม่?')) return;
+
+      try {
+        const payload = {
+          action: 'cancelMobileMnwRoutineTask',
+          taskId: taskId
+        };
+        const res = await postApiRequest(payload);
+        if (res && (res.status === 'success' || res.success)) {
+          showToast(res.message || 'ยกเลิกการเริ่มงานแล้ว', 'success');
+          loadMobileMnwRoutine(true);
+        } else {
+          showToast(res ? (res.message || res.error) : 'ยกเลิกล้มเหลว', 'error');
+        }
+      } catch (err) {
+        console.error('Error canceling routine task:', err);
+        showToast('เกิดข้อผิดพลาดในการยกเลิก: ' + err.message, 'error');
+      }
+    }
+
+    function openFinishMobileRoutineModal(taskId) {
+      const task = (mobileMnwRoutineTasks || []).find(t => t.TaskId === taskId);
+      if (!task) return;
+
+      document.getElementById('finishRoutineTaskId').value = task.TaskId;
+      const titleEl = document.getElementById('finishRoutineTaskTitle');
+      if (titleEl) titleEl.innerText = `${task.TaskId}: ${task.Title}`;
+
+      document.getElementById('finishRoutineNotes').value = '';
+      clearFinishRoutinePhoto();
+
+      const modal = document.getElementById('modalFinishMnwRoutine');
+      if (modal) modal.classList.remove('hidden');
+    }
+
+    function closeFinishMobileRoutineModal() {
+      const modal = document.getElementById('modalFinishMnwRoutine');
+      if (modal) modal.classList.add('hidden');
+    }
+
+    function handleFinishRoutinePhotoSelect(e) {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+
+      currentFinishRoutinePhotoFileName = file.name || 'routine_photo.jpg';
+
+      const reader = new FileReader();
+      reader.onload = function(evt) {
+        const img = new Image();
+        img.onload = function() {
+          const maxDim = 1024;
+          let width = img.width;
+          let height = img.height;
+          if (width > height && width > maxDim) {
+            height = Math.round((height * maxDim) / width);
+            width = maxDim;
+          } else if (height > maxDim) {
+            width = Math.round((width * maxDim) / height);
+            height = maxDim;
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+          currentFinishRoutinePhotoBase64 = canvas.toDataURL('image/jpeg', 0.7);
+
+          const previewEl = document.getElementById('finishRoutinePhotoPreview');
+          const previewBox = document.getElementById('finishRoutinePhotoPreviewBox');
+          if (previewEl) previewEl.src = currentFinishRoutinePhotoBase64;
+          if (previewBox) previewBox.classList.remove('hidden');
+        };
+        img.src = evt.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function clearFinishRoutinePhoto() {
+      currentFinishRoutinePhotoBase64 = '';
+      currentFinishRoutinePhotoFileName = '';
+      const input = document.getElementById('finishRoutinePhotoInput');
+      if (input) input.value = '';
+      const previewBox = document.getElementById('finishRoutinePhotoPreviewBox');
+      if (previewBox) previewBox.classList.add('hidden');
+    }
+
+    async function submitFinishMobileRoutine() {
+      const taskId = document.getElementById('finishRoutineTaskId')?.value;
+      const notes = (document.getElementById('finishRoutineNotes')?.value || '').trim();
+
+      if (!taskId) {
+        showToast('ไม่พบรหัสงาน', 'error');
+        return;
+      }
+      if (!notes) {
+        showToast('กรุณากรอกรายละเอียดผลการปฏิบัติงานอย่างน้อย 1 บรรทัด', 'warning');
+        return;
+      }
+
+      const myEmpId = state.currentUser ? (state.currentUser.employeeId || state.currentUser.employeeCode || '') : '';
+      const myName = state.currentUser ? (state.currentUser.fullName || myEmpId) : '';
+
+      const btn = document.getElementById('btnSubmitFinishRoutine');
+      if (btn) {
+        btn.disabled = true;
+        btn.innerText = 'กำลังบันทึก...';
+      }
+
+      try {
+        const payload = {
+          action: 'finishMobileMnwRoutineTask',
+          taskId: taskId,
+          workerEmpId: myEmpId,
+          workerName: myName,
+          finishNotes: notes,
+          finishPhotoBase64: currentFinishRoutinePhotoBase64,
+          finishPhotoFileName: currentFinishRoutinePhotoFileName
+        };
+
+        const res = await postApiRequest(payload);
+        if (btn) {
+          btn.disabled = false;
+          btn.innerText = 'ยืนยันจบงาน';
+        }
+
+        if (res && (res.status === 'success' || res.success)) {
+          showToast(res.message || 'บันทึกเสร็จสิ้นงานเรียบร้อยแล้ว', 'success');
+          closeFinishMobileRoutineModal();
+          loadMobileMnwRoutine(true);
+        } else {
+          showToast(res ? (res.message || res.error) : 'บันทึกล้มเหลว', 'error');
+        }
+      } catch (err) {
+        if (btn) {
+          btn.disabled = false;
+          btn.innerText = 'ยืนยันจบงาน';
+        }
+        console.error('Error finishing routine task:', err);
+        showToast('เกิดข้อผิดพลาดในการบันทึกจบงาน: ' + err.message, 'error');
+      }
+    }
+
 
     // ==========================================
     // Leave Module Logic
