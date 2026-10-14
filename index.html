@@ -6555,6 +6555,130 @@
       return { companyName, contactName, position, phones, emails, lineId, website, address, suggestedTags };
     }
 
+    // ดึง API Key จาก localStorage หรือจาก Script Properties หลังบ้าน
+    async function getEffectiveMobileGeminiApiKey() {
+      let key = localStorage.getItem('MINAMIDA_GEMINI_API_KEY');
+      if (key && key.trim()) return key.trim();
+
+      const myEmpId = state.currentUser ? (state.currentUser.employeeId || state.currentUser.employeeCode || '') : '';
+      try {
+        const res = await postApiRequest({
+          action: 'getGeminiApiKey',
+          callerEmpId: myEmpId
+        });
+        if (res && res.status === 'success' && res.apiKey) {
+          key = res.apiKey.trim();
+          localStorage.setItem('MINAMIDA_GEMINI_API_KEY', key);
+          return key;
+        }
+      } catch (e) {
+        console.warn('getGeminiApiKey mobile fetch failed:', e);
+      }
+
+      const entered = prompt('ระบบสแกนนามบัตรทำงานด้วย Gemini AI (ฟรี 100%)\nกรุณาวาง API Key ที่ได้รับจาก Google AI Studio (aistudio.google.com):');
+      if (entered && entered.trim()) {
+        key = entered.trim();
+        localStorage.setItem('MINAMIDA_GEMINI_API_KEY', key);
+        postApiRequest({
+          action: 'saveGeminiApiKey',
+          apiKey: key,
+          callerEmpId: myEmpId
+        }).catch(() => {});
+        return key;
+      }
+      return null;
+    }
+
+    // เรียก Gemini REST API ตรงจากเบราว์เซอร์มือถือ (ผ่าน CORS ได้ 100% โดยไม่ต้องขอ Scope Apps Script)
+    async function callMobileGeminiApiDirectly(apiKey, base64Image) {
+      const cleanBase64 = base64Image.replace(/^data:image\/[a-zA-Z0-9.+-]+;base64,/, '').trim();
+      const mimeMatch = base64Image.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,/);
+      const mimeType = mimeMatch ? mimeMatch[1] : 'image/jpeg';
+
+      const prompt = `You are an expert OCR and data extraction AI specializing in business cards (Thai, English, Japanese).
+Analyze this business card image with high precision:
+1. Note that the image might be rotated (90 degrees, 180 degrees, sideways, or upside down) or taken at an angle. Mentally rotate and orient it properly before extracting.
+2. Extract all contact and company details strictly into the JSON format specified below.
+
+JSON Format:
+{
+  "contactName": "string",
+  "companyName": "string",
+  "position": "string",
+  "phones": ["string"],
+  "emails": ["string"],
+  "website": "string",
+  "lineId": "string",
+  "address": "string",
+  "suggestedTags": ["string"]
+}
+
+Strict Rules:
+- contactName: The person's personal name only. (CRITICAL: Do NOT put company name or company logo text here).
+- companyName: The full legal company name (e.g. Minamida (Thailand) Co., Ltd., บริษัท ... จำกัด, 株式会社...).
+- position: Job title / department (e.g. Manager Sales, Managing Director, 代表取締役, ผู้จัดการ).
+- phones: Telephone and mobile numbers only. (CRITICAL: Do NOT include Tax ID / Tax number / เลขประจำตัวผู้เสียภาษี).
+- emails: Email address(es).
+- website: Company website URL.
+- lineId: LINE ID if present (e.g. "@company" or "line_id").
+- address: Factory, office, or industrial estate address.
+- suggestedTags: 2 to 4 relevant industrial hashtags starting with # (e.g. #ลูกค้า, #ซัพพลายเออร์, #คู่ค้าญี่ปุ่น, #ชิ้นส่วน/ทูลลิ่ง, #นิคมปิ่นทอง, #นิคมบางปะอิน, #งานกลึงCNC, etc.).
+`;
+
+      const payload = {
+        contents: [
+          {
+            parts: [
+              {
+                inline_data: {
+                  mime_type: mimeType,
+                  data: cleanBase64
+                }
+              },
+              { text: prompt }
+            ]
+          }
+        ],
+        generationConfig: {
+          response_mime_type: "application/json"
+        }
+      };
+
+      const models = ['gemini-2.5-flash', 'gemini-1.5-flash', 'gemini-2.0-flash'];
+      let lastErr = null;
+
+      for (const model of models) {
+        try {
+          const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey.trim()}`;
+          const response = await fetch(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+
+          const resJson = await response.json();
+          if (response.ok) {
+            const rawText = resJson.candidates &&
+                            resJson.candidates[0] &&
+                            resJson.candidates[0].content &&
+                            resJson.candidates[0].content.parts &&
+                            resJson.candidates[0].content.parts[0] &&
+                            resJson.candidates[0].content.parts[0].text;
+            if (rawText) {
+              const cleanJson = rawText.replace(/^```json\s*/i, '').replace(/```\s*$/, '').trim();
+              return JSON.parse(cleanJson);
+            }
+          } else {
+            lastErr = resJson.error && resJson.error.message ? resJson.error.message : `HTTP ${response.status}`;
+          }
+        } catch (e) {
+          lastErr = e.message || e.toString();
+        }
+      }
+
+      throw new Error(lastErr || 'ไม่สามารถวิเคราะห์ข้อมูลจากภาพได้');
+    }
+
     // ⚡ Instant Photo Auto-Scan using Gemini 2.5 Flash (Mobile LIFF)
     async function triggerMobileCardAutoScan() {
       const imageSrc = currentMobileBcFrontBase64;
@@ -6566,57 +6690,47 @@
       const btn = document.getElementById('mobBtnScanCardFrontOcr');
       const btnText = document.getElementById('mobBtnScanCardFrontOcrText');
       const origHtml = btnText ? btnText.innerHTML : '';
-      const myEmpId = state.currentUser ? (state.currentUser.employeeId || state.currentUser.employeeCode || '') : '';
 
       try {
         if (btn) btn.disabled = true;
+        if (btnText) btnText.innerHTML = '⚡ กำลังเชื่อมต่อระบบ AI...';
+
+        const apiKey = await getEffectiveMobileGeminiApiKey();
+        if (!apiKey) {
+          showToast('กรุณาระบุ Gemini API Key เพื่อเริ่มการสแกน', 'warning');
+          return;
+        }
+
         if (btnText) btnText.innerHTML = '⚡ Gemini AI กำลังวิเคราะห์รูปภาพนามบัตร...';
 
-        const res = await postApiRequest({
-          action: 'scanBusinessCardWithGemini',
-          base64Image: imageSrc,
-          callerEmpId: myEmpId
-        });
+        const parsed = await callMobileGeminiApiDirectly(apiKey, imageSrc);
 
-        if (res && res.status === 'success' && res.data) {
-          const d = res.data;
-          if (d.companyName) document.getElementById('mobBcFormCompanyName').value = d.companyName;
-          if (d.contactName) document.getElementById('mobBcFormContactName').value = d.contactName;
-          if (d.position) document.getElementById('mobBcFormPosition').value = d.position;
-          if (d.phones && d.phones.length > 0) document.getElementById('mobBcFormPhone').value = d.phones.join(', ');
-          if (d.emails && d.emails.length > 0) document.getElementById('mobBcFormEmail').value = d.emails.join(', ');
-          if (d.website) {
-            document.getElementById('mobBcFormWebsite').value = d.website;
-          } else if (d.lineId) {
-            document.getElementById('mobBcFormWebsite').value = 'Line: ' + d.lineId;
+        if (parsed) {
+          if (parsed.companyName) document.getElementById('mobBcFormCompanyName').value = parsed.companyName;
+          if (parsed.contactName) document.getElementById('mobBcFormContactName').value = parsed.contactName;
+          if (parsed.position) document.getElementById('mobBcFormPosition').value = parsed.position;
+          if (parsed.phones && parsed.phones.length > 0) document.getElementById('mobBcFormPhone').value = parsed.phones.join(', ');
+          if (parsed.emails && parsed.emails.length > 0) document.getElementById('mobBcFormEmail').value = parsed.emails.join(', ');
+          if (parsed.website) {
+            document.getElementById('mobBcFormWebsite').value = parsed.website;
+          } else if (parsed.lineId) {
+            document.getElementById('mobBcFormWebsite').value = 'Line: ' + parsed.lineId;
           }
-          if (d.address) document.getElementById('mobBcFormAddress').value = d.address;
-          if (d.suggestedTags && Array.isArray(d.suggestedTags)) {
-            d.suggestedTags.forEach(t => addMobileBcFormTag(t));
+          if (parsed.address) document.getElementById('mobBcFormAddress').value = parsed.address;
+          if (parsed.suggestedTags && Array.isArray(parsed.suggestedTags)) {
+            parsed.suggestedTags.forEach(t => addMobileBcFormTag(t));
           }
 
           showToast('⚡ AI Gemini สแกนและกรอกข้อมูลเรียบร้อยแล้ว!', 'success');
-        } else if (res && res.code === 'MISSING_API_KEY') {
-          const enteredKey = prompt('ระบบยังไม่ได้ตั้งค่า Gemini API Key (ฟรี 100%)\nกรุณาวาง API Key ที่ได้รับจาก Google AI Studio (aistudio.google.com):');
-          if (enteredKey && enteredKey.trim()) {
-            const saveRes = await postApiRequest({
-              action: 'saveGeminiApiKey',
-              apiKey: enteredKey.trim(),
-              callerEmpId: myEmpId
-            });
-            if (saveRes && saveRes.status === 'success') {
-              showToast('บันทึก API Key สำเร็จ กำลังเริ่มสแกนใหม่...', 'success');
-              triggerMobileCardAutoScan();
-            } else {
-              showToast('บันทึก API Key ไม่สำเร็จ: ' + (saveRes ? saveRes.message : ''), 'error');
-            }
-          }
-        } else {
-          showToast('ไม่สามารถวิเคราะห์ข้อมูลได้: ' + (res ? (res.message || res.error) : 'กรุณาลองใหม่อีกครั้ง'), 'error');
         }
       } catch (err) {
         console.error('triggerMobileCardAutoScan error:', err);
-        showToast('เกิดข้อผิดพลาดในการสแกนรูปภาพ: ' + (err.message || err), 'error');
+        if (String(err.message || '').includes('API_KEY_INVALID') || String(err.message || '').includes('400')) {
+          localStorage.removeItem('MINAMIDA_GEMINI_API_KEY');
+          showToast('API Key ไม่ถูกต้อง กรุณากดสแกนอีกครั้งเพื่อระบุ Key ใหม่', 'error');
+        } else {
+          showToast('เกิดข้อผิดพลาดในการสแกนรูปภาพ: ' + (err.message || err), 'error');
+        }
       } finally {
         if (btn) btn.disabled = false;
         if (btnText) btnText.innerHTML = origHtml || '⚡ สแกนอ่านข้อมูลด้วย AI (Gemini Flash)';
