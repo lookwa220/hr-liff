@@ -6555,7 +6555,7 @@
       return { companyName, contactName, position, phones, emails, lineId, website, address, suggestedTags };
     }
 
-    // ⚡ Instant Photo Auto-Scan OCR (Mobile LIFF)
+    // ⚡ Instant Photo Auto-Scan using Gemini 2.5 Flash (Mobile LIFF)
     async function triggerMobileCardAutoScan() {
       const imageSrc = currentMobileBcFrontBase64;
       if (!imageSrc) {
@@ -6566,91 +6566,60 @@
       const btn = document.getElementById('mobBtnScanCardFrontOcr');
       const btnText = document.getElementById('mobBtnScanCardFrontOcrText');
       const origHtml = btnText ? btnText.innerHTML : '';
+      const myEmpId = state.currentUser ? (state.currentUser.employeeId || state.currentUser.employeeCode || '') : '';
 
       try {
         if (btn) btn.disabled = true;
-        if (btnText) btnText.innerHTML = '⚡ กำลังโหลด AI อ่านข้อความ...';
+        if (btnText) btnText.innerHTML = '⚡ Gemini AI กำลังวิเคราะห์รูปภาพนามบัตร...';
 
-        const Tesseract = await loadMobileTesseractJs();
-        if (btnText) btnText.innerHTML = '⚡ กำลังสแกนตัวอักษร (0%)...';
+        const res = await postApiRequest({
+          action: 'scanBusinessCardWithGemini',
+          base64Image: imageSrc,
+          callerEmpId: myEmpId
+        });
 
-        let result;
-        try {
-          result = await Tesseract.recognize(
-            imageSrc,
-            'tha+eng+jpn',
-            {
-              logger: m => {
-                if (m.status === 'recognizing text' && btnText) {
-                  const p = Math.round((m.progress || 0) * 100);
-                  btnText.innerHTML = `⚡ กำลังสแกนตัวอักษร (${p}%)...`;
-                } else if (m.status === 'loading language traineddata' && btnText) {
-                  const p = m.progress ? Math.round(m.progress * 100) : 0;
-                  btnText.innerHTML = `⚡ โหลดฐานข้อมูลภาษา (${p}%)...`;
-                }
-              }
+        if (res && res.status === 'success' && res.data) {
+          const d = res.data;
+          if (d.companyName) document.getElementById('mobBcFormCompanyName').value = d.companyName;
+          if (d.contactName) document.getElementById('mobBcFormContactName').value = d.contactName;
+          if (d.position) document.getElementById('mobBcFormPosition').value = d.position;
+          if (d.phones && d.phones.length > 0) document.getElementById('mobBcFormPhone').value = d.phones.join(', ');
+          if (d.emails && d.emails.length > 0) document.getElementById('mobBcFormEmail').value = d.emails.join(', ');
+          if (d.website) {
+            document.getElementById('mobBcFormWebsite').value = d.website;
+          } else if (d.lineId) {
+            document.getElementById('mobBcFormWebsite').value = 'Line: ' + d.lineId;
+          }
+          if (d.address) document.getElementById('mobBcFormAddress').value = d.address;
+          if (d.suggestedTags && Array.isArray(d.suggestedTags)) {
+            d.suggestedTags.forEach(t => addMobileBcFormTag(t));
+          }
+
+          showToast('⚡ AI Gemini สแกนและกรอกข้อมูลเรียบร้อยแล้ว!', 'success');
+        } else if (res && res.code === 'MISSING_API_KEY') {
+          const enteredKey = prompt('ระบบยังไม่ได้ตั้งค่า Gemini API Key (ฟรี 100%)\nกรุณาวาง API Key ที่ได้รับจาก Google AI Studio (aistudio.google.com):');
+          if (enteredKey && enteredKey.trim()) {
+            const saveRes = await postApiRequest({
+              action: 'saveGeminiApiKey',
+              apiKey: enteredKey.trim(),
+              callerEmpId: myEmpId
+            });
+            if (saveRes && saveRes.status === 'success') {
+              showToast('บันทึก API Key สำเร็จ กำลังเริ่มสแกนใหม่...', 'success');
+              triggerMobileCardAutoScan();
+            } else {
+              showToast('บันทึก API Key ไม่สำเร็จ: ' + (saveRes ? saveRes.message : ''), 'error');
             }
-          );
-        } catch (langErr) {
-          console.warn('Scan with tha+eng+jpn failed, falling back to tha+eng:', langErr);
-          if (btnText) btnText.innerHTML = '⚡ กำลังสแกนตัวอักษร (สำรอง)...';
-          result = await Tesseract.recognize(
-            imageSrc,
-            'tha+eng',
-            {
-              logger: m => {
-                if (m.status === 'recognizing text' && btnText) {
-                  const p = Math.round((m.progress || 0) * 100);
-                  btnText.innerHTML = `⚡ กำลังสแกนตัวอักษร (${p}%)...`;
-                }
-              }
-            }
-          );
+          }
+        } else {
+          showToast('ไม่สามารถวิเคราะห์ข้อมูลได้: ' + (res ? (res.message || res.error) : 'กรุณาลองใหม่อีกครั้ง'), 'error');
         }
-
-        const rawText = (result && result.data && result.data.text) || '';
-        if (!rawText.trim()) {
-          showToast('ไม่พบข้อความบนรูปภาพ กรุณาถ่ายภาพให้ชัดเจนยิ่งขึ้น', 'warning');
-          return;
-        }
-
-        // Parse and auto-fill mobile fields
-        const parsed = parseMobileBcText(rawText);
-
-        if (parsed.companyName && !document.getElementById('mobBcFormCompanyName').value) {
-          document.getElementById('mobBcFormCompanyName').value = parsed.companyName;
-        }
-        if (parsed.contactName && !document.getElementById('mobBcFormContactName').value) {
-          document.getElementById('mobBcFormContactName').value = parsed.contactName;
-        }
-        if (parsed.position && !document.getElementById('mobBcFormPosition').value) {
-          document.getElementById('mobBcFormPosition').value = parsed.position;
-        }
-        if (parsed.phones && parsed.phones.length > 0 && !document.getElementById('mobBcFormPhone').value) {
-          document.getElementById('mobBcFormPhone').value = parsed.phones.join(', ');
-        }
-        if (parsed.emails && parsed.emails.length > 0 && !document.getElementById('mobBcFormEmail').value) {
-          document.getElementById('mobBcFormEmail').value = parsed.emails.join(', ');
-        }
-        if (parsed.website && !document.getElementById('mobBcFormWebsite').value) {
-          document.getElementById('mobBcFormWebsite').value = parsed.website;
-        } else if (parsed.lineId && !document.getElementById('mobBcFormWebsite').value) {
-          document.getElementById('mobBcFormWebsite').value = 'Line: ' + parsed.lineId;
-        }
-        if (parsed.address && !document.getElementById('mobBcFormAddress').value) {
-          document.getElementById('mobBcFormAddress').value = parsed.address;
-        }
-        if (parsed.suggestedTags && Array.isArray(parsed.suggestedTags)) {
-          parsed.suggestedTags.forEach(t => addMobileBcFormTag(t));
-        }
-
-        showToast('⚡ สแกนสำเร็จและเติมข้อมูลลงฟิลด์เรียบร้อยแล้ว!', 'success');
       } catch (err) {
         console.error('triggerMobileCardAutoScan error:', err);
         showToast('เกิดข้อผิดพลาดในการสแกนรูปภาพ: ' + (err.message || err), 'error');
       } finally {
         if (btn) btn.disabled = false;
-        if (btnText) btnText.innerHTML = origHtml || 'สแกนอ่านข้อมูลจากรูปภาพอัตโนมัติ (AI OCR)';
+        if (btnText) btnText.innerHTML = origHtml || '⚡ สแกนอ่านข้อมูลด้วย AI (Gemini Flash)';
       }
     }
 
