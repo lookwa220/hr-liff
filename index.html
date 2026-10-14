@@ -6610,7 +6610,8 @@ JSON Format:
   "website": "string",
   "lineId": "string",
   "address": "string",
-  "suggestedTags": ["string"]
+  "suggestedTags": ["string"],
+  "notes": "string"
 }
 
 Strict Rules:
@@ -6622,7 +6623,8 @@ Strict Rules:
 - website: Company website URL.
 - lineId: LINE ID if present (e.g. "@company" or "line_id").
 - address: Factory, office, or industrial estate address.
-- suggestedTags: 2 to 4 relevant industrial hashtags starting with # (e.g. #ลูกค้า, #ซัพพลายเออร์, #คู่ค้าญี่ปุ่น, #ชิ้นส่วน/ทูลลิ่ง, #นิคมปิ่นทอง, #นิคมบางปะอิน, #งานกลึงCNC, etc.).
+- suggestedTags: 3 to 4 relevant industrial hashtags starting with # (e.g. #ลูกค้า, #ซัพพลายเออร์, #คู่ค้าญี่ปุ่น, #ชิ้นส่วน/ทูลลิ่ง, #นิคมปิ่นทอง, #นิคมบางปะอิน, #งานกลึงCNC, etc.).
+- notes: 1-sentence executive summary in Thai describing this business/contact (e.g. 'ผู้ติดต่อฝ่ายขาย บริษัท... ผลิตชิ้นส่วนยานยนต์ นิคมปิ่นทอง').
 `;
 
       const payload = {
@@ -6640,11 +6642,13 @@ Strict Rules:
           }
         ],
         generationConfig: {
-          response_mime_type: "application/json"
+          response_mime_type: "application/json",
+          max_output_tokens: 800,
+          temperature: 0.1
         }
       };
 
-      const models = ['gemini-2.5-flash', 'gemini-1.5-flash', 'gemini-2.0-flash'];
+      const models = ['gemini-3.5-flash-lite', 'gemini-3.1-flash-lite', 'gemini-3.8-flash', 'gemini-2.5-flash', 'gemini-2.5-flash-lite'];
       let lastErr = null;
 
       for (const model of models) {
@@ -6717,6 +6721,9 @@ Strict Rules:
             document.getElementById('mobBcFormWebsite').value = 'Line: ' + parsed.lineId;
           }
           if (parsed.address) document.getElementById('mobBcFormAddress').value = parsed.address;
+          if (parsed.notes && !document.getElementById('mobBcFormNotes').value) {
+            document.getElementById('mobBcFormNotes').value = parsed.notes;
+          }
           if (parsed.suggestedTags && Array.isArray(parsed.suggestedTags)) {
             parsed.suggestedTags.forEach(t => addMobileBcFormTag(t));
           }
