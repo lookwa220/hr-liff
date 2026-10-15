@@ -2026,7 +2026,7 @@
             <div>
               <div class="flex items-center gap-1.5">
                 <h2 class="text-base font-bold text-slate-800">คลังนามบัตรส่วนกลาง</h2>
-                <span class="text-[9px] font-mono font-bold text-violet-700 bg-violet-100 px-1.5 py-0.5 rounded">v2.6.4</span>
+                <span class="text-[9px] font-mono font-bold text-violet-700 bg-violet-100 px-1.5 py-0.5 rounded">v2.6.5</span>
               </div>
               <p class="text-[10px] text-slate-400">ค้นหาเบอร์โทร & ข้อมูลติดต่อคู่ค้า / ลูกค้า</p>
             </div>
@@ -6145,10 +6145,21 @@
      */
     function normalizeAndPrioritizePhones(rawPhones) {
       if (!rawPhones) return [];
-      const list = Array.isArray(rawPhones) ? rawPhones : String(rawPhones).split(/[,\n;/]+/);
+      let flatList = [];
+      if (Array.isArray(rawPhones)) {
+        rawPhones.forEach(item => {
+          if (typeof item === 'string') {
+            flatList.push(...item.split(/[,\n;/]+/));
+          } else if (item) {
+            flatList.push(String(item));
+          }
+        });
+      } else {
+        flatList = String(rawPhones).split(/[,\n;/]+/);
+      }
       
       const parsed = [];
-      list.forEach(p => {
+      flatList.forEach(p => {
         let s = String(p).trim();
         if (!s) return;
         
