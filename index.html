@@ -2078,7 +2078,7 @@
           <div class="flex items-center space-x-2">
             <span class="text-lg">📇</span>
             <div>
-              <h3 class="text-sm font-bold text-slate-800">เพิ่มนามบัตรใหม่</h3>
+              <h3 id="mobAddBcModalTitle" class="text-sm font-bold text-slate-800">เพิ่มนามบัตรใหม่</h3>
               <p class="text-[10px] text-slate-400">บันทึกรูปและข้อมูลติดต่อลงคลังส่วนกลาง</p>
             </div>
           </div>
@@ -6131,6 +6131,7 @@
     let currentMobileBcFrontBase64 = '';
     let currentMobileBcBackBase64 = '';
     let mobileBcFormTags = [];
+    let currentEditingMobileBcId = null;
     let currentMobileBcViewingCard = null;
 
     async function loadMobileBusinessCards() {
@@ -6327,6 +6328,12 @@
     function openAddMobileBcModal() {
       const modal = document.getElementById('modalAddMobileBc');
       if (!modal) return;
+      currentEditingMobileBcId = null;
+      const titleEl = document.getElementById('mobAddBcModalTitle');
+      if (titleEl) titleEl.innerText = 'เพิ่มนามบัตรใหม่';
+      const submitBtn = document.getElementById('mobBcSubmitBtn');
+      if (submitBtn) submitBtn.innerHTML = '<span>บันทึกนามบัตร</span>';
+
       document.getElementById('formAddMobileBc').reset();
       clearMobileBcPhoto('front');
       clearMobileBcPhoto('back');
@@ -6744,7 +6751,53 @@ Strict Rules:
             parsed.suggestedTags.forEach(t => addMobileBcFormTag(t));
           }
 
-          showToast('⚡ AI Gemini สแกนและกรอกข้อมูลเรียบร้อยแล้ว!', 'success');
+          // ตรวจสอบนามบัตรซ้ำทันทีหลัง AI สแกน (Instant Duplicate Check on Mobile)
+          const normName = (parsed.contactName || '').trim().toLowerCase();
+          const normComp = (parsed.companyName || '').trim().toLowerCase();
+          const rawPhones = Array.isArray(parsed.phones) ? parsed.phones : [];
+          const normPhones = rawPhones.map(p => String(p).replace(/\D/g, '')).filter(p => p.length >= 8);
+
+          const duplicate = mobileBusinessCards.find(c => {
+            const cName = (c.contactName || '').trim().toLowerCase();
+            const cComp = (c.companyName || '').trim().toLowerCase();
+            if (normName && cName && normName === cName) {
+              if (!normComp || !cComp || normComp === cComp) return true;
+            }
+            if (normPhones.length > 0) {
+              const cPhones = (c.phones || []).map(p => String(p).replace(/\D/g, '')).filter(p => p.length >= 8);
+              if (normPhones.some(np => cPhones.includes(np))) return true;
+            }
+            return false;
+          });
+
+          if (duplicate) {
+            currentEditingMobileBcId = duplicate.cardId;
+            const titleEl = document.getElementById('mobAddBcModalTitle');
+            if (titleEl) titleEl.innerHTML = `<span class="text-amber-600 font-bold">⚡ พบนามบัตรเดิม (${duplicate.cardId})</span>`;
+            const submitBtn = document.getElementById('mobBcSubmitBtn');
+            if (submitBtn) submitBtn.innerHTML = `<span>อัปเดตนามบัตรเดิม (${duplicate.cardId})</span>`;
+
+            // ดึงแฮชแท็กเดิมมารวมให้เรียบร้อย
+            const existingTags = Array.isArray(duplicate.tags) ? duplicate.tags : [];
+            existingTags.forEach(t => addMobileBcFormTag(t));
+
+            // ดึงโน้ตเดิมมารวม
+            if (duplicate.notes) {
+              const notesEl = document.getElementById('mobBcFormNotes');
+              if (notesEl && !notesEl.value.includes(duplicate.notes)) {
+                notesEl.value = duplicate.notes + (notesEl.value ? `\n[AI สรุป]: ${notesEl.value}` : '');
+              }
+            }
+
+            showToast(`พบนามบัตรของ "${duplicate.contactName || duplicate.companyName}" ในระบบแล้ว (${duplicate.cardId}) ระบบสลับเป็นโหมดอัปเดตและรวมแท็กให้แล้ว สามารถพิมพ์เพิ่มแท็กใหม่ได้ทันที`, 'info');
+
+            setTimeout(() => {
+              const tagInput = document.getElementById('mobBcTagInput');
+              if (tagInput) tagInput.focus();
+            }, 300);
+          } else {
+            showToast('⚡ AI Gemini สแกนและกรอกข้อมูลเรียบร้อยแล้ว!', 'success');
+          }
         }
       } catch (err) {
         console.error('triggerMobileCardAutoScan error:', err);
@@ -6788,6 +6841,7 @@ Strict Rules:
       try {
         const payload = {
           action: 'saveMobileBusinessCard',
+          cardId: currentEditingMobileBcId || null,
           callerEmpId: myEmpId,
           createdByName: myEmpName,
           contactName: contactName,
