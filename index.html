@@ -2026,7 +2026,7 @@
             <div>
               <div class="flex items-center gap-1.5">
                 <h2 class="text-base font-bold text-slate-800">คลังนามบัตรส่วนกลาง</h2>
-                <span class="text-[9px] font-mono font-bold text-violet-700 bg-violet-100 px-1.5 py-0.5 rounded">v2.6.3</span>
+                <span class="text-[9px] font-mono font-bold text-violet-700 bg-violet-100 px-1.5 py-0.5 rounded">v2.6.4</span>
               </div>
               <p class="text-[10px] text-slate-400">ค้นหาเบอร์โทร & ข้อมูลติดต่อคู่ค้า / ลูกค้า</p>
             </div>
@@ -6140,6 +6140,81 @@
     let currentEditingMobileBcId = null;
     let currentMobileBcViewingCard = null;
 
+    /**
+     * จัดลำดับและแปลงรูปแบบเบอร์โทรศัพท์ (เน้นเบอร์มือถือเป็นอันดับแรกเพื่อพร้อมโทร)
+     */
+    function normalizeAndPrioritizePhones(rawPhones) {
+      if (!rawPhones) return [];
+      const list = Array.isArray(rawPhones) ? rawPhones : String(rawPhones).split(/[,\n;/]+/);
+      
+      const parsed = [];
+      list.forEach(p => {
+        let s = String(p).trim();
+        if (!s) return;
+        
+        // แปลงรหัสประเทศ +66 เป็น 0
+        s = s.replace(/\+66\s*\(?0\)?\s*/g, '0');
+        s = s.replace(/^\+66\s*/g, '0');
+        
+        const digits = s.replace(/\D/g, '');
+        
+        // เบอร์มือถือ 10 หลัก (06, 08, 09)
+        if (digits.length === 10 && (digits.startsWith('06') || digits.startsWith('08') || digits.startsWith('09'))) {
+          const formatted = `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`;
+          parsed.push({ original: s, formatted: formatted, digits: digits, isMobile: true, priority: 1 });
+        }
+        // เบอร์มือถือ 9 หลักที่ไม่มีเลข 0 นำหน้า (เช่น 81xxxxxxx)
+        else if (digits.length === 9 && (digits.startsWith('6') || digits.startsWith('8') || digits.startsWith('9'))) {
+          const d10 = '0' + digits;
+          const formatted = `${d10.slice(0, 3)}-${d10.slice(3, 6)}-${d10.slice(6)}`;
+          parsed.push({ original: s, formatted: formatted, digits: d10, isMobile: true, priority: 1 });
+        }
+        // เบอร์สำนักงาน กทม. (02-xxx-xxxx)
+        else if (digits.length === 9 && digits.startsWith('02')) {
+          const formatted = `${digits.slice(0, 2)}-${digits.slice(2, 5)}-${digits.slice(5)}`;
+          parsed.push({ original: s, formatted: formatted, digits: digits, isMobile: false, priority: 2 });
+        }
+        // เบอร์สำนักงานต่างจังหวัด (03x, 04x, 05x, 07x)
+        else if (digits.length === 9 && digits.startsWith('0')) {
+          const formatted = `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`;
+          parsed.push({ original: s, formatted: formatted, digits: digits, isMobile: false, priority: 2 });
+        }
+        // เบอร์ กทม. ขาดเลข 0 (2-xxx-xxxx)
+        else if (digits.length === 8 && digits.startsWith('2')) {
+          const d9 = '0' + digits;
+          const formatted = `${d9.slice(0, 2)}-${d9.slice(2, 5)}-${d9.slice(5)}`;
+          parsed.push({ original: s, formatted: formatted, digits: d9, isMobile: false, priority: 2 });
+        }
+        // เบอร์อื่นๆ หรือต่างประเทศ (เช่น +81)
+        else if (digits.length >= 8) {
+          parsed.push({ original: s, formatted: s, digits: digits, isMobile: false, priority: 3 });
+        }
+      });
+
+      // เรียงลำดับ: มือถือมาก่อน (priority 1), เบอร์สำนักงานตามมา (priority 2), อื่นๆ (priority 3)
+      parsed.sort((a, b) => a.priority - b.priority);
+
+      const seen = new Set();
+      const results = [];
+      for (const item of parsed) {
+        const key = item.digits || item.formatted;
+        if (!seen.has(key)) {
+          seen.add(key);
+          results.push(item.formatted);
+        }
+      }
+      return results;
+    }
+
+    function cleanDialNumber(phoneStr) {
+      if (!phoneStr) return '';
+      const s = String(phoneStr).trim();
+      if (s.startsWith('+')) {
+        return '+' + s.slice(1).replace(/\D/g, '');
+      }
+      return s.replace(/\D/g, '');
+    }
+
     async function loadMobileBusinessCards() {
       const container = document.getElementById('mobBcListContainer');
       const countEl = document.getElementById('mobBcCount');
@@ -6233,7 +6308,10 @@
         const contactName = c.contactName || 'ไม่ระบุชื่อ';
         const compName = c.companyName || '-';
         const position = c.position || c.department || '-';
-        const firstPhone = (Array.isArray(c.phones) && c.phones.length > 0) ? c.phones[0] : (c.phone || '');
+        const rawPhones = (Array.isArray(c.phones) && c.phones.length > 0) ? c.phones : (c.phone ? [c.phone] : []);
+        const sortedPhones = normalizeAndPrioritizePhones(rawPhones);
+        const firstPhone = sortedPhones[0] || '';
+        const cleanFirstPhone = cleanDialNumber(firstPhone);
         const frontImg = c.imgFrontRef || '';
         const tags = Array.isArray(c.tags) ? c.tags : [];
         const initials = ((contactName !== 'ไม่ระบุชื่อ' ? contactName : compName).trim().slice(0, 2)).toUpperCase();
@@ -6275,7 +6353,7 @@
             <!-- Bottom Action Row: Call Button & Detail -->
             <div class="flex items-center justify-between pt-2 border-t border-slate-100 text-xs">
               ${firstPhone ? `
-                <a href="tel:${firstPhone}" onclick="event.stopPropagation()" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-700 font-bold border border-emerald-200 shadow-2xs active:scale-95 transition">
+                <a href="tel:${cleanFirstPhone}" onclick="event.stopPropagation()" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-700 font-bold border border-emerald-200 shadow-2xs active:scale-95 transition">
                   <span>📞 โทร ${firstPhone}</span>
                 </a>
               ` : `<span class="text-[10px] text-slate-400">ไม่มีเบอร์โทรศัพท์</span>`}
@@ -6647,7 +6725,11 @@ Strict Rules:
 - contactName: The person's personal name only. (CRITICAL: Do NOT put company name or company logo text here).
 - companyName: The full legal company name (e.g. Minamida (Thailand) Co., Ltd., บริษัท ... จำกัด, 株式会社...).
 - position: Job title / department (e.g. Manager Sales, Managing Director, 代表取締役, ผู้จัดการ).
-- phones: Telephone and mobile numbers only. (CRITICAL: Do NOT include Tax ID / Tax number / เลขประจำตัวผู้เสียภาษี).
+- phones: CRITICAL PHONE EXTRACTION RULE:
+  1. PRIORITIZE MOBILE PHONE: If a personal mobile phone (เบอร์มือถือ เช่น 08x, 09x, 06x) is found on the card, place the mobile phone number FIRST in the array.
+  2. OFFICE / LANDLINE FALLBACK: Only include the office/company landline (e.g. 02-xxx-xxxx, 038-xxx-xxxx) if NO mobile phone is present, or put it after mobile phones. Do NOT include fax numbers.
+  3. READY-TO-CALL FORMAT: Convert international country codes (+66) to standard ready-to-call local format (e.g. convert '+66 81 234 5678' or '+66(0)81-234-5678' into '081-234-5678', and '+66 2 123 4567' into '02-123-4567'). For international cards outside Thailand (e.g. Japan +81), keep in '+81-xx-xxx-xxxx'.
+  4. CRITICAL: Do NOT include Tax ID / Tax number / เลขประจำตัวผู้เสียภาษี.
 - emails: Email address(es).
 - website: Company website URL.
 - lineId: LINE ID if present (e.g. "@company" or "line_id").
@@ -6742,7 +6824,10 @@ Strict Rules:
           if (parsed.companyName) document.getElementById('mobBcFormCompanyName').value = parsed.companyName;
           if (parsed.contactName) document.getElementById('mobBcFormContactName').value = parsed.contactName;
           if (parsed.position) document.getElementById('mobBcFormPosition').value = parsed.position;
-          if (parsed.phones && parsed.phones.length > 0) document.getElementById('mobBcFormPhone').value = parsed.phones.join(', ');
+          if (parsed.phones && parsed.phones.length > 0) {
+            const sortedPhones = normalizeAndPrioritizePhones(parsed.phones);
+            document.getElementById('mobBcFormPhone').value = sortedPhones.join(', ');
+          }
           if (parsed.emails && parsed.emails.length > 0) document.getElementById('mobBcFormEmail').value = parsed.emails.join(', ');
           if (parsed.website) {
             document.getElementById('mobBcFormWebsite').value = parsed.website;
@@ -7108,12 +7193,14 @@ Strict Rules:
       // Actions (Call & Email)
       if (actionRowEl) {
         let actHtml = '';
-        const phones = Array.isArray(card.phones) ? card.phones : (card.phone ? [card.phone] : []);
+        const rawModalPhones = Array.isArray(card.phones) ? card.phones : (card.phone ? [card.phone] : []);
+        const phones = normalizeAndPrioritizePhones(rawModalPhones);
         const emails = Array.isArray(card.emails) ? card.emails : (card.email ? [card.email] : []);
 
         if (phones.length > 0) {
+          const dialNum = cleanDialNumber(phones[0]);
           actHtml += `
-            <a href="tel:${phones[0]}" class="flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-emerald-600 text-white font-bold text-xs shadow-xs active:scale-95 transition">
+            <a href="tel:${dialNum}" class="flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-emerald-600 text-white font-bold text-xs shadow-xs active:scale-95 transition">
               <span>📞 โทร ${phones[0]}</span>
             </a>
           `;
