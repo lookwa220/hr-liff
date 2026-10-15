@@ -3,6 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
   <title>Minamida Mobile Portal | ระบบพนักงานโรงงาน</title>
 
   <!-- Google Fonts: Prompt -->
@@ -2021,7 +2024,10 @@
           <div class="flex items-center space-x-2">
             <span class="text-xl">📇</span>
             <div>
-              <h2 class="text-base font-bold text-slate-800">คลังนามบัตรส่วนกลาง</h2>
+              <div class="flex items-center gap-1.5">
+                <h2 class="text-base font-bold text-slate-800">คลังนามบัตรส่วนกลาง</h2>
+                <span class="text-[9px] font-mono font-bold text-violet-700 bg-violet-100 px-1.5 py-0.5 rounded">v2.6.3</span>
+              </div>
               <p class="text-[10px] text-slate-400">ค้นหาเบอร์โทร & ข้อมูลติดต่อคู่ค้า / ลูกค้า</p>
             </div>
           </div>
@@ -6243,7 +6249,7 @@
               <!-- Thumbnail or Initials Avatar -->
               ${frontImg ? `
                 <div class="w-12 h-12 rounded-xl overflow-hidden bg-slate-100 border border-slate-200 flex-shrink-0 flex items-center justify-center relative">
-                  <img src="${frontImg}" loading="lazy" class="w-full h-full object-cover" onerror="this.onerror=null; this.parentElement.innerHTML='<div class=\\'w-full h-full bg-violet-600 text-white font-bold text-xs flex items-center justify-center\\'>${initials}</div>'">
+                  <img src="${frontImg.replace('sz=w1200', 'sz=w200')}" loading="lazy" class="w-full h-full object-cover" onerror="this.onerror=null; this.parentElement.innerHTML='<div class=\\'w-full h-full bg-violet-600 text-white font-bold text-xs flex items-center justify-center\\'>${initials}</div>'">
                   ${c.hasBackImage ? `<span class="absolute bottom-0.5 right-0.5 px-1 py-0.2 bg-black/60 text-[8px] text-white rounded font-bold">2 หน้า</span>` : ''}
                 </div>
               ` : `
@@ -6752,20 +6758,51 @@ Strict Rules:
           }
 
           // ตรวจสอบนามบัตรซ้ำทันทีหลัง AI สแกน (Instant Duplicate Check on Mobile)
+          if (!mobileBusinessCards || mobileBusinessCards.length === 0) {
+            try {
+              const myEmpId = state.currentUser ? (state.currentUser.employeeId || state.currentUser.employeeCode || '') : '';
+              const fetchRes = await postApiRequest({
+                action: 'getMobileBusinessCards',
+                empId: myEmpId,
+                query: '',
+                tags: []
+              });
+              if (fetchRes && fetchRes.status === 'success' && Array.isArray(fetchRes.cards)) {
+                mobileBusinessCards = fetchRes.cards;
+              }
+            } catch (fetchErr) {
+              console.warn('Pre-fetch mobileBusinessCards error:', fetchErr);
+            }
+          }
+
           const normName = (parsed.contactName || '').trim().toLowerCase();
           const normComp = (parsed.companyName || '').trim().toLowerCase();
           const rawPhones = Array.isArray(parsed.phones) ? parsed.phones : [];
           const normPhones = rawPhones.map(p => String(p).replace(/\D/g, '')).filter(p => p.length >= 8);
+          const rawEmails = Array.isArray(parsed.emails) ? parsed.emails : (parsed.email ? [parsed.email] : []);
+          const normEmails = rawEmails.map(e => String(e).trim().toLowerCase()).filter(Boolean);
 
-          const duplicate = mobileBusinessCards.find(c => {
+          const duplicate = (mobileBusinessCards || []).find(c => {
             const cName = (c.contactName || '').trim().toLowerCase();
             const cComp = (c.companyName || '').trim().toLowerCase();
-            if (normName && cName && normName === cName) {
-              if (!normComp || !cComp || normComp === cComp) return true;
-            }
+            // 1. Phone match (>= 8 digits)
             if (normPhones.length > 0) {
               const cPhones = (c.phones || []).map(p => String(p).replace(/\D/g, '')).filter(p => p.length >= 8);
               if (normPhones.some(np => cPhones.includes(np))) return true;
+            }
+            // 2. Email match
+            if (normEmails.length > 0) {
+              const cEmails = (c.emails || []).map(e => String(e).trim().toLowerCase()).filter(Boolean);
+              if (normEmails.some(ne => cEmails.includes(ne))) return true;
+            }
+            // 3. Name & Company match (exact or partial)
+            if (normName && cName) {
+              const isNameMatch = (normName === cName) || 
+                (normName.length >= 4 && cName.includes(normName)) || 
+                (cName.length >= 4 && normName.includes(cName));
+              if (isNameMatch) {
+                if (!normComp || !cComp || normComp === cComp || normComp.includes(cComp) || cComp.includes(normComp)) return true;
+              }
             }
             return false;
           });
@@ -6781,11 +6818,11 @@ Strict Rules:
             const existingTags = Array.isArray(duplicate.tags) ? duplicate.tags : [];
             existingTags.forEach(t => addMobileBcFormTag(t));
 
-            // ดึงโน้ตเดิมมารวม
+            // ดึงโน้ตเดิมมารวม (ไม่ต่อท้าย [AI สรุป] ซ้ำซ้อน)
             if (duplicate.notes) {
               const notesEl = document.getElementById('mobBcFormNotes');
-              if (notesEl && !notesEl.value.includes(duplicate.notes)) {
-                notesEl.value = duplicate.notes + (notesEl.value ? `\n[AI สรุป]: ${notesEl.value}` : '');
+              if (notesEl) {
+                notesEl.value = duplicate.notes;
               }
             }
 
