@@ -266,7 +266,7 @@
           </button>
 
           <!-- 5. คลังนามบัตรส่วนกลาง (Business Cards - Search & Save) -->
-          <button id="btnBusinessCardsCard" onclick="openView('businessCards')" class="glass-card p-4 rounded-2xl border border-slate-200 text-left hover:border-violet-400 hover:shadow-md transition-all flex flex-col justify-between col-span-2 sm:col-span-1">
+          <button id="btnBusinessCardsCard" onclick="openView('businessCards')" class="glass-card p-4 rounded-2xl border border-slate-200 text-left hover:border-violet-400 hover:shadow-md transition-all flex flex-col justify-between">
             <div class="flex items-center justify-between w-full mb-2">
               <div class="w-10 h-10 rounded-xl bg-violet-100 text-violet-700 flex items-center justify-center text-xl shadow-2xs">
                 📇
@@ -276,6 +276,20 @@
             <div>
               <h3 class="text-sm font-bold text-slate-800">คลังนามบัตร</h3>
               <p class="text-[11px] text-slate-500 mt-0.5">ค้นหาเบอร์โทร, บริษัท & คู่ค้า</p>
+            </div>
+          </button>
+
+          <!-- 6. ขอเบิกสินค้าคงคลัง (Parts Request) -->
+          <button id="btnPartsRequestCard" onclick="openView('partsRequest')" class="glass-card p-4 rounded-2xl border border-slate-200 text-left hover:border-cyan-400 hover:shadow-md transition-all flex flex-col justify-between">
+            <div class="flex items-center justify-between w-full mb-2">
+              <div class="w-10 h-10 rounded-xl bg-cyan-100 text-cyan-700 flex items-center justify-center text-xl shadow-2xs">
+                📦
+              </div>
+              <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-cyan-50 text-cyan-700 border border-cyan-100">คลัง PC</span>
+            </div>
+            <div>
+              <h3 class="text-sm font-bold text-slate-800">เบิกสินค้าคงคลัง</h3>
+              <p class="text-[11px] text-slate-500 mt-0.5">ขอเบิกชิ้นงาน & ติดตามคลัง</p>
             </div>
           </button>
         </div>
@@ -2076,6 +2090,115 @@
       </div>
     </section>
 
+    <!-- ========================================== -->
+    <!-- VIEW: ขอเบิกสินค้าคงคลังสำหรับหัวหน้างาน (Parts Request) -->
+    <!-- ========================================== -->
+    <section id="viewPartsRequest" class="hidden space-y-4 animate-fadeIn text-left">
+      <div class="glass-card rounded-2xl p-4 shadow-sm border border-slate-200">
+        <!-- Header -->
+        <div class="flex items-center justify-between pb-3 mb-3 border-b border-slate-200">
+          <div class="flex items-center space-x-2">
+            <span class="text-xl">📦</span>
+            <div>
+              <div class="flex items-center gap-1.5">
+                <h2 class="text-base font-bold text-slate-800">เบิกสินค้าคงคลัง (PC)</h2>
+                <span class="text-[9px] font-mono font-bold text-cyan-700 bg-cyan-100 px-1.5 py-0.5 rounded">Warehouse</span>
+              </div>
+              <p class="text-[10px] text-slate-500">บันทึกขอเบิกชิ้นงานจากคลังสินค้าฝ่าย PC</p>
+            </div>
+          </div>
+          <button type="button" onclick="closeCurrentView()" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition active:scale-95 shadow-2xs">
+            <span>‹ กลับหน้าหลัก</span>
+          </button>
+        </div>
+
+        <!-- Shift Round Info Banner -->
+        <div class="bg-cyan-50 border border-cyan-200 rounded-xl p-2.5 mb-3 flex items-center justify-between text-xs">
+          <div class="flex items-center space-x-2">
+            <span class="text-base">⏰</span>
+            <div>
+              <span class="font-bold text-cyan-900" id="mobPartsShiftRoundText">กำลังคำนวณรอบเบิก...</span>
+              <p class="text-[10px] text-cyan-700" id="mobPartsDeadlineText">กำหนดเวลาจัดส่ง: -</p>
+            </div>
+          </div>
+          <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-cyan-200/70 text-cyan-800">คำนวณอัตโนมัติ</span>
+        </div>
+
+        <!-- Parts Request Form -->
+        <form id="mobPartsRequestForm" onsubmit="submitMobilePartsRequest(event)" class="space-y-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Part Code (รหัสสินค้า) <span class="text-red-500">*</span></label>
+            <input type="text" id="mobPartsCode" list="mobPartsDatalist" required placeholder="พิมพ์หรือเลือกรหัสสินค้า เช่น M-101" onchange="onMobilePartCodeChange()" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-cyan-500 font-medium">
+            <datalist id="mobPartsDatalist"></datalist>
+          </div>
+
+          <div class="grid grid-cols-2 gap-2.5">
+            <div>
+              <label class="block text-[11px] font-semibold text-slate-600 mb-1">ชื่อสินค้า (Part Name)</label>
+              <input type="text" id="mobPartsName" readonly placeholder="ระบบดึงอัตโนมัติ" class="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs bg-slate-50 text-slate-600 outline-none">
+            </div>
+            <div>
+              <label class="block text-[11px] font-semibold text-slate-600 mb-1">Part No.</label>
+              <input type="text" id="mobPartsNo" readonly placeholder="-" class="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs bg-slate-50 text-slate-600 outline-none">
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-2.5">
+            <div>
+              <label class="block text-[11px] font-semibold text-slate-600 mb-1">ประเภทสต็อก (Stock Type)</label>
+              <input type="text" id="mobPartsStockType" readonly placeholder="-" class="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs bg-slate-50 text-slate-600 outline-none">
+            </div>
+            <div>
+              <label class="block text-[11px] font-semibold text-slate-600 mb-1">จำนวนที่ต้องการเบิก <span class="text-red-500">*</span></label>
+              <input type="number" id="mobPartsQty" required min="1" step="1" placeholder="เช่น 50" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-cyan-500 font-bold text-red-600">
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-2.5">
+            <div>
+              <label class="block text-[11px] font-semibold text-slate-600 mb-1">จุดส่ง (Process)</label>
+              <input type="text" id="mobPartsProcess" placeholder="เช่น LINE-1" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs bg-white focus:outline-none">
+            </div>
+            <div>
+              <label class="block text-[11px] font-semibold text-slate-600 mb-1">พื้นที่นำส่ง (Area)</label>
+              <input type="text" id="mobPartsArea" placeholder="เช่น AREA-A" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs bg-white focus:outline-none">
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-2.5">
+            <div>
+              <label class="block text-[11px] font-semibold text-slate-600 mb-1">Lot No.</label>
+              <input type="text" id="mobPartsLot" placeholder="เช่น L-2401" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs bg-white focus:outline-none">
+            </div>
+            <div>
+              <label class="block text-[11px] font-semibold text-slate-600 mb-1">ผู้ขอเบิก (Requester)</label>
+              <input type="text" id="mobPartsRequester" readonly class="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs bg-slate-50 text-slate-700 font-medium outline-none">
+            </div>
+          </div>
+
+          <button type="submit" id="btnSubmitMobileParts" class="w-full py-3 bg-cyan-600 hover:bg-cyan-700 text-white rounded-xl font-bold text-sm shadow-md transition-all flex items-center justify-center space-x-2 mt-2">
+            <span>ส่งคำขอเบิกสินค้าคงคลัง</span>
+          </button>
+        </form>
+      </div>
+
+      <!-- Recent Requests Today Container -->
+      <div class="glass-card rounded-2xl p-4 shadow-sm border border-slate-200">
+        <div class="flex items-center justify-between pb-2 mb-3 border-b border-slate-100">
+          <div class="flex items-center space-x-1.5">
+            <span class="text-sm">📋</span>
+            <h3 class="text-xs font-bold text-slate-800">รายการเบิกของแผนกวันนี้</h3>
+          </div>
+          <button type="button" onclick="loadMobilePartsRequestsHistory()" class="text-[11px] font-bold text-cyan-600 hover:text-cyan-800">
+            🔄 รีเฟรช
+          </button>
+        </div>
+        <div id="mobPartsHistoryList" class="space-y-2">
+          <p class="text-xs text-slate-400 text-center py-4">กำลังโหลดประวัติ...</p>
+        </div>
+      </div>
+    </section>
+
     <!-- Modal: เพิ่มนามบัตรใหม่บนมือถือ (Add Business Card Modal) -->
     <div id="modalAddMobileBc" class="hidden fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-3 overflow-y-auto">
       <div class="bg-white rounded-2xl max-w-sm w-full p-4 shadow-2xl border border-slate-200 space-y-3.5 my-auto text-left max-h-[92vh] overflow-y-auto">
@@ -2822,7 +2945,7 @@
         'viewPaySlip', 'viewShiftAtt', 'viewSwap', 'viewSafety',
         'viewPersonal', 'viewRoomBooking', 'viewVehicleBooking',
         'viewMnwRequest', 'viewMnwWorkbench', 'viewMnwRoutine', 'viewKaizen',
-        'viewBusinessCards'
+        'viewBusinessCards', 'viewPartsRequest'
       ];
       allViewIds.forEach(id => {
         const el = document.getElementById(id);
@@ -2900,6 +3023,10 @@
         const vbc = document.getElementById('viewBusinessCards');
         if (vbc) vbc.classList.remove('hidden');
         loadMobileBusinessCards();
+      } else if (viewName === 'partsRequest') {
+        const vp = document.getElementById('viewPartsRequest');
+        if (vp) vp.classList.remove('hidden');
+        initMobilePartsRequest();
       }
       state.currentView = viewName;
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -2915,7 +3042,7 @@
         'viewPaySlip', 'viewShiftAtt', 'viewSwap', 'viewSafety',
         'viewPersonal', 'viewRoomBooking', 'viewVehicleBooking',
         'viewMnwRequest', 'viewMnwWorkbench', 'viewMnwRoutine', 'viewKaizen',
-        'viewBusinessCards'
+        'viewBusinessCards', 'viewPartsRequest'
       ];
       allViewIds.forEach(id => {
         const el = document.getElementById(id);
@@ -7280,6 +7407,194 @@ Strict Rules:
     function closeMobileBcDetailModal() {
       const modal = document.getElementById('modalViewMobileBcDetail');
       if (modal) modal.classList.add('hidden');
+    }
+
+    // ==========================================
+    // MOBILE PARTS REQUEST CONTROLLER
+    // ==========================================
+    let mobilePartsProductsList = [];
+
+    function updateMobilePartsShiftBanner() {
+      const now = new Date();
+      const hour = now.getHours();
+      const roundEl = document.getElementById('mobPartsShiftRoundText');
+      const deadlineEl = document.getElementById('mobPartsDeadlineText');
+
+      if (hour < 12) {
+        if (roundEl) roundEl.textContent = 'รอบที่ 1 (ช่วงเช้า 08:00 - 11:00 น.)';
+        if (deadlineEl) deadlineEl.textContent = 'กำหนดเวลาจัดส่ง: 11:30 น.';
+      } else {
+        if (roundEl) roundEl.textContent = 'รอบที่ 2 (ช่วงบ่าย 13:00 - 16:00 น.)';
+        if (deadlineEl) deadlineEl.textContent = 'กำหนดเวลาจัดส่ง: 16:30 น.';
+      }
+    }
+
+    async function initMobilePartsRequest() {
+      updateMobilePartsShiftBanner();
+
+      const user = state.currentUser;
+      const reqInput = document.getElementById('mobPartsRequester');
+      if (reqInput && user) {
+        reqInput.value = user.fullName || user.name || user.employeeCode || '';
+      }
+
+      if (!mobilePartsProductsList || mobilePartsProductsList.length === 0) {
+        try {
+          const res = await postApiRequest({ action: 'getMobilePartsMasterProducts' });
+          if (res && res.status === 'success' && res.data && res.data.products) {
+            mobilePartsProductsList = res.data.products;
+            populateMobilePartsDatalist(mobilePartsProductsList);
+          }
+        } catch (err) {
+          console.error('initMobilePartsRequest products error:', err);
+        }
+      } else {
+        populateMobilePartsDatalist(mobilePartsProductsList);
+      }
+
+      loadMobilePartsRequestsHistory();
+    }
+
+    function populateMobilePartsDatalist(products) {
+      const dl = document.getElementById('mobPartsDatalist');
+      if (!dl) return;
+      dl.innerHTML = (products || []).map(p => 
+        `<option value="${p.partCode}">${p.partCode} - ${p.partName} (PN: ${p.partNo || '-'})</option>`
+      ).join('');
+    }
+
+    function onMobilePartCodeChange() {
+      const codeInput = document.getElementById('mobPartsCode');
+      if (!codeInput) return;
+      const val = codeInput.value.trim().toLowerCase();
+
+      const item = (mobilePartsProductsList || []).find(p => String(p.partCode).trim().toLowerCase() === val);
+      const nameEl = document.getElementById('mobPartsName');
+      const noEl = document.getElementById('mobPartsNo');
+      const stockEl = document.getElementById('mobPartsStockType');
+      const procEl = document.getElementById('mobPartsProcess');
+      const areaEl = document.getElementById('mobPartsArea');
+
+      if (item) {
+        if (nameEl) nameEl.value = item.partName || '';
+        if (noEl) noEl.value = item.partNo || '';
+        if (stockEl) stockEl.value = item.stockType || '';
+        if (procEl && !procEl.value) procEl.value = item.defaultProcess || '';
+        if (areaEl && !areaEl.value) areaEl.value = item.defaultArea || '';
+      } else {
+        if (nameEl) nameEl.value = '';
+        if (noEl) noEl.value = '';
+        if (stockEl) stockEl.value = '';
+      }
+    }
+
+    async function submitMobilePartsRequest(e) {
+      if (e) e.preventDefault();
+      const code = document.getElementById('mobPartsCode').value.trim();
+      const qty = document.getElementById('mobPartsQty').value;
+      const name = document.getElementById('mobPartsName').value.trim();
+      const partNo = document.getElementById('mobPartsNo').value.trim();
+      const stockType = document.getElementById('mobPartsStockType').value.trim();
+      const targetProcess = document.getElementById('mobPartsProcess').value.trim();
+      const targetArea = document.getElementById('mobPartsArea').value.trim();
+      const lotNo = document.getElementById('mobPartsLot').value.trim();
+      const requestedBy = document.getElementById('mobPartsRequester').value.trim();
+
+      if (!code || !qty) {
+        showToast('กรุณากรอกรหัสสินค้าและจำนวนให้ครบถ้วน');
+        return;
+      }
+
+      const btn = document.getElementById('btnSubmitMobileParts');
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<span>กำลังบันทึกข้อมูล...</span>';
+      }
+
+      try {
+        const payload = {
+          action: 'submitMobilePartsRequest',
+          partCode: code,
+          qty: qty,
+          partName: name,
+          partNo: partNo,
+          stockType: stockType,
+          targetProcess: targetProcess,
+          targetArea: targetArea,
+          lotNo: lotNo,
+          requestedBy: requestedBy
+        };
+
+        const res = await postApiRequest(payload);
+        if (res && res.status === 'success') {
+          showToast(res.message || 'บันทึกคำขอเบิกสินค้าสำเร็จ');
+          document.getElementById('mobPartsRequestForm').reset();
+          const user = state.currentUser;
+          if (user) {
+            document.getElementById('mobPartsRequester').value = user.fullName || user.name || user.employeeCode || '';
+          }
+          loadMobilePartsRequestsHistory();
+        } else {
+          showToast(res ? (res.message || res.error) : 'เกิดข้อผิดพลาดในการบันทึก');
+        }
+      } catch (err) {
+        console.error('submitMobilePartsRequest error:', err);
+        showToast('เชื่อมต่อเซิร์ฟเวอร์ไม่สำเร็จ: ' + err.message);
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = '<span>ส่งคำขอเบิกสินค้าคงคลัง</span>';
+        }
+      }
+    }
+
+    async function loadMobilePartsRequestsHistory() {
+      const container = document.getElementById('mobPartsHistoryList');
+      if (!container) return;
+
+      const today = new Date().toISOString().split('T')[0];
+      try {
+        const res = await postApiRequest({ action: 'getMobilePartsRequests', targetDate: today });
+        if (res && res.status === 'success' && res.data && res.data.requests) {
+          const list = res.data.requests;
+          if (list.length === 0) {
+            container.innerHTML = '<p class="text-xs text-slate-400 text-center py-4">ยังไม่มีรายการขอเบิกประจำวันนี้</p>';
+            return;
+          }
+
+          container.innerHTML = list.slice(0, 10).map(item => {
+            let badgeClass = 'bg-amber-100 text-amber-800 border-amber-300';
+            let statusText = 'รอเบิกสินค้า';
+            if (item.status === 'Completed' || item.status === 'จ่ายของแล้ว') {
+              badgeClass = 'bg-emerald-100 text-emerald-800 border-emerald-300';
+              statusText = 'จ่ายของแล้ว';
+            } else if (item.status === 'In Progress' || item.status === 'กำลังจัดส่ง') {
+              badgeClass = 'bg-sky-100 text-sky-800 border-sky-300';
+              statusText = 'กำลังจัดส่ง';
+            }
+
+            const timeOnly = item.timestamp ? (item.timestamp.includes(' ') ? item.timestamp.split(' ')[1] : item.timestamp) : '-';
+
+            return `
+              <div class="p-2.5 rounded-xl border border-slate-200 bg-white shadow-2xs space-y-1">
+                <div class="flex items-center justify-between">
+                  <span class="font-bold text-xs text-cyan-800">${item.partCode} (${item.partName || '-'})</span>
+                  <span class="px-2 py-0.5 rounded-full border text-[10px] font-bold ${badgeClass}">${statusText}</span>
+                </div>
+                <div class="flex items-center justify-between text-[11px] text-slate-500">
+                  <span>จำนวน: <strong class="text-rose-600 font-bold">${item.qty}</strong> | จุดส่ง: ${item.targetProcess || '-'}</span>
+                  <span>เวลา: ${timeOnly}</span>
+                </div>
+              </div>
+            `;
+          }).join('');
+        } else {
+          container.innerHTML = '<p class="text-xs text-slate-400 text-center py-4">ไม่สามารถโหลดรายการได้</p>';
+        }
+      } catch (err) {
+        console.error('loadMobilePartsRequestsHistory error:', err);
+        container.innerHTML = '<p class="text-xs text-red-400 text-center py-4">เกิดข้อผิดพลาดในการโหลด</p>';
+      }
     }
 
     // ==========================================
