@@ -335,6 +335,32 @@
         </div>
       </section>
 
+      <!-- ======================================================== -->
+      <!-- SECTION 5: ฝ่ายผลิต (PD Production Department Section) -->
+      <!-- ======================================================== -->
+      <section id="sectionPdWorkbench" class="hidden space-y-2">
+        <div class="flex items-center justify-between px-1 pt-1">
+          <span class="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center space-x-1">
+            <span>⚙️ ฝ่ายผลิต (PD Production)</span>
+          </span>
+        </div>
+        <div class="grid grid-cols-1 gap-3">
+          <!-- บันทึกประวัติซ่อมเครื่องจักรหน้างาน -->
+          <button id="btnPdRepairCard" onclick="openView('pdRepair')" class="glass-card p-4 rounded-2xl border border-orange-300 bg-orange-50/50 text-left hover:shadow-md transition-all flex items-center justify-between">
+            <div class="flex items-center space-x-3.5">
+              <div class="w-11 h-11 rounded-xl bg-orange-500 text-white flex items-center justify-center text-2xl shadow-sm flex-shrink-0">
+                ⚙️
+              </div>
+              <div>
+                <h3 class="text-sm font-bold text-slate-800">บันทึกประวัติซ่อมเครื่องจักร</h3>
+                <p class="text-[11px] text-slate-600 mt-0.5">กรอกอาการ, ถ่ายภาพ 4 จุด (บีบอัดภาพอัตโนมัติ) & เบิกอะไหล่</p>
+              </div>
+            </div>
+            <span class="text-slate-400 text-base">➔</span>
+          </button>
+        </div>
+      </section>
+
       <!-- Hidden Elements for Preserving DOM References -->
       <div class="hidden">
         <span id="swapBadgeCount">0</span>
@@ -2405,6 +2431,162 @@
       </div>
     </div>
 
+    <!-- ======================================================== -->
+    <!-- VIEW: บันทึกประวัติซ่อมเครื่องจักรฝ่ายผลิต (PD Machine Repair) -->
+    <!-- ======================================================== -->
+    <section id="viewPdRepair" class="hidden space-y-4 animate-fadeIn text-left">
+      <div class="glass-card rounded-2xl p-4 shadow-sm border border-slate-200">
+        <!-- Header -->
+        <div class="flex items-center justify-between pb-3 mb-3 border-b border-slate-200">
+          <div class="flex items-center space-x-2">
+            <span class="text-xl">⚙️</span>
+            <div>
+              <h2 class="text-base font-bold text-slate-800">บันทึกประวัติซ่อมเครื่องจักร</h2>
+              <p class="text-[10px] text-orange-600 font-medium">ฝ่ายผลิตและแม่พิมพ์ (MMT-PD-FM-028)</p>
+            </div>
+          </div>
+          <button type="button" onclick="openView('dashboard')" class="text-xs text-slate-500 hover:text-slate-700 bg-slate-100 hover:bg-slate-200 px-2.5 py-1 rounded-lg font-medium transition">
+            ✕ ปิด
+          </button>
+        </div>
+
+        <!-- Form -->
+        <form id="mobPdRepairForm" onsubmit="handleMobilePdRepairSubmit(event)" class="space-y-3.5 text-xs">
+          <!-- Machine Selection -->
+          <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
+            <label class="block font-bold text-slate-700">เครื่องจักรที่ซ่อม (110 เครื่อง) <span class="text-rose-500">*</span></label>
+            <select id="mobPdMachineSelect" onchange="handleMobilePdMachineChange()" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs bg-white font-medium focus:ring-2 focus:ring-orange-500 outline-none">
+              <option value="">-- กำลังโหลดรายชื่อเครื่องจักร... --</option>
+            </select>
+            <div class="flex items-center gap-1.5 mt-1">
+              <input type="checkbox" id="mobPdCheckCustomMachine" onchange="toggleMobileCustomMachine()" class="rounded border-slate-300 text-orange-600">
+              <label for="mobPdCheckCustomMachine" class="text-[11px] text-slate-600">ระบุเครื่องจักร/อุปกรณ์อื่นเอง</label>
+            </div>
+            <div id="mobPdCustomMachineBox" class="hidden mt-1.5">
+              <input type="text" id="mobPdCustomMachineName" placeholder="พิมพ์ชื่อเครื่องจักรหรืออุปกรณ์ เช่น เครื่องกลึงพิเศษ..." class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs bg-white outline-none">
+            </div>
+          </div>
+
+          <!-- Time, Type, Nature -->
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="block font-bold text-slate-700 mb-0.5">เวลาเริ่มซ่อม <span class="text-rose-500">*</span></label>
+              <input type="datetime-local" id="mobPdStartTime" class="w-full px-2 py-1.5 rounded-xl border border-slate-300 text-xs bg-white" required>
+            </div>
+            <div>
+              <label class="block font-bold text-slate-700 mb-0.5">เวลาเสร็จสิ้น <span class="text-rose-500">*</span></label>
+              <input type="datetime-local" id="mobPdEndTime" class="w-full px-2 py-1.5 rounded-xl border border-slate-300 text-xs bg-white" required>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="block font-bold text-slate-700 mb-0.5">ประเภทการซ่อม</label>
+              <select id="mobPdRepairType" onchange="toggleMobileMakerBox()" class="w-full px-2 py-1.5 rounded-xl border border-slate-300 text-xs bg-white">
+                <option value="INTERNAL">ซ่อมภายในโรงงาน</option>
+                <option value="MAKER">ซ่อมโดยเมกเกอร์</option>
+              </select>
+            </div>
+            <div>
+              <label class="block font-bold text-slate-700 mb-0.5">ลักษณะการซ่อม</label>
+              <select id="mobPdRepairNature" class="w-full px-2 py-1.5 rounded-xl border border-slate-300 text-xs bg-white">
+                <option value="PERMANENT">ซ่อมถาวร</option>
+                <option value="TEMPORARY">ซ่อมชั่วคราว</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Maker Details Box (Conditionally shown) -->
+          <div id="mobPdMakerBox" class="hidden p-3 bg-sky-50 rounded-xl border border-sky-200 space-y-2">
+            <div>
+              <label class="block font-bold text-sky-900 mb-0.5">ชื่อเมกเกอร์ / ผู้ให้บริการภายนอก</label>
+              <input type="text" id="mobPdMakerName" placeholder="เช่น Takamatsu, SMC Tech" class="w-full px-2.5 py-1.5 rounded-xl border border-sky-300 text-xs bg-white">
+            </div>
+            <div>
+              <label class="block font-bold text-sky-900 mb-0.5">ถ่ายภาพหรือแนบใบ Service Report (ถ้ามี)</label>
+              <input type="file" id="mobPdMakerReportFile" accept="image/*,application/pdf" onchange="handleMobilePdReportFile(this)" class="w-full text-[11px]">
+            </div>
+          </div>
+
+          <!-- 4 Problem & Photo Zones (with HTML5 Canvas Auto-Compression) -->
+          <div class="space-y-2.5 pt-1">
+            <div class="font-bold text-slate-800 text-xs flex items-center justify-between border-b pb-1">
+              <span>📷 บันทึกปัญหา 4 จุด & ถ่ายภาพหน้างาน</span>
+              <span class="text-[10px] text-emerald-600 font-semibold">บีบอัดภาพอัตโนมัติ</span>
+            </div>
+
+            <!-- 1. Abnormal -->
+            <div class="p-2.5 bg-slate-50 rounded-xl border border-slate-200 space-y-1.5">
+              <label class="block font-bold text-slate-700">1. สิ่งผิดปกติที่พบ (Abnormal)</label>
+              <textarea id="mobPdAbnormalDesc" rows="2" placeholder="อธิบายอาการผิดปกติ..." class="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 text-xs"></textarea>
+              <div class="flex items-center gap-2">
+                <input type="file" accept="image/*" onchange="handleMobilePdPhotoSelect(this, 'abnormal')" class="text-[11px] flex-1">
+                <img id="mobPdPreviewAbnormal" class="hidden w-12 h-12 rounded-lg object-cover border border-slate-300">
+              </div>
+            </div>
+
+            <!-- 2. Cause -->
+            <div class="p-2.5 bg-slate-50 rounded-xl border border-slate-200 space-y-1.5">
+              <label class="block font-bold text-slate-700">2. สาเหตุของปัญหา (Root Cause)</label>
+              <textarea id="mobPdCauseDesc" rows="2" placeholder="ระบุสาเหตุ..." class="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 text-xs"></textarea>
+              <div class="flex items-center gap-2">
+                <input type="file" accept="image/*" onchange="handleMobilePdPhotoSelect(this, 'cause')" class="text-[11px] flex-1">
+                <img id="mobPdPreviewCause" class="hidden w-12 h-12 rounded-lg object-cover border border-slate-300">
+              </div>
+            </div>
+
+            <!-- 3. Defect -->
+            <div class="p-2.5 bg-slate-50 rounded-xl border border-slate-200 space-y-1.5">
+              <label class="block font-bold text-slate-700">3. ผลกระทบต่อชิ้นงาน (Workpiece Defect)</label>
+              <textarea id="mobPdDefectDesc" rows="2" placeholder="รอยขีดข่วน, มิติเพี้ยน หรือไม่มี..." class="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 text-xs"></textarea>
+              <div class="flex items-center gap-2">
+                <input type="file" accept="image/*" onchange="handleMobilePdPhotoSelect(this, 'defect')" class="text-[11px] flex-1">
+                <img id="mobPdPreviewDefect" class="hidden w-12 h-12 rounded-lg object-cover border border-slate-300">
+              </div>
+            </div>
+
+            <!-- 4. Repair -->
+            <div class="p-2.5 bg-slate-50 rounded-xl border border-slate-200 space-y-1.5">
+              <label class="block font-bold text-slate-700">4. รายละเอียดการซ่อม (Repair Details) <span class="text-rose-500">*</span></label>
+              <textarea id="mobPdRepairDesc" rows="2" placeholder="อธิบายวิธีแก้ไขหรือซ่อมแซม..." class="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 text-xs" required></textarea>
+              <div class="flex items-center gap-2">
+                <input type="file" accept="image/*" onchange="handleMobilePdPhotoSelect(this, 'repair')" class="text-[11px] flex-1">
+                <img id="mobPdPreviewRepair" class="hidden w-12 h-12 rounded-lg object-cover border border-slate-300">
+              </div>
+            </div>
+          </div>
+
+          <!-- Spare Parts Selector -->
+          <div class="p-3 bg-orange-50/60 rounded-xl border border-orange-200 space-y-2">
+            <div class="flex items-center justify-between">
+              <label class="font-bold text-orange-900">อะไหล่ที่เปลี่ยน / เบิกใช้</label>
+              <button type="button" onclick="addMobilePdPartRow()" class="px-2 py-0.5 bg-orange-600 text-white rounded-md text-[11px] font-bold">+ เพิ่มอะไหล่</button>
+            </div>
+            <div id="mobPdPartsList" class="space-y-2">
+              <!-- Dynamic rows -->
+            </div>
+            <div class="text-[11px] text-right font-bold text-orange-800 pt-1">
+              มูลค่ารวม: <span id="mobPdPartsTotalCost" class="font-mono text-xs">฿0</span>
+            </div>
+          </div>
+
+          <!-- Remarks -->
+          <div>
+            <label class="block font-bold text-slate-700 mb-0.5">หมายเหตุอื่นๆ</label>
+            <input type="text" id="mobPdRemarks" placeholder="หมายเหตุเพิ่มเติม..." class="w-full px-3 py-1.5 rounded-xl border border-slate-300 text-xs">
+          </div>
+
+          <!-- Submit Buttons -->
+          <div class="pt-2 flex items-center justify-end gap-2">
+            <button type="button" onclick="openView('dashboard')" class="px-3.5 py-2 rounded-xl border border-slate-200 text-slate-600 font-bold text-xs hover:bg-slate-50">ยกเลิก</button>
+            <button type="submit" id="mobPdSubmitBtn" class="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-700 hover:to-amber-700 text-white font-bold text-xs shadow-md shadow-orange-200 active:scale-95 transition flex items-center justify-center gap-1.5">
+              <span>บันทึกประวัติการซ่อม</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </section>
+
   </main>
 
   <!-- Application Logic -->
@@ -2709,6 +2891,13 @@
         if (secMnw) secMnw.classList.remove('hidden');
       }
 
+      // Check PD Department Section (เฉพาะผู้ที่ได้รับการเปิดสิทธิ์ pd เท่านั้น หรือ Super Admin)
+      const canViewPd = user.canAccessPd || user.isPd || (user.allowedModules && user.allowedModules.includes('pd')) || isSuperAdmin;
+      if (canViewPd) {
+        const secPd = document.getElementById('sectionPdWorkbench');
+        if (secPd) secPd.classList.remove('hidden');
+      }
+
       // Pre-fill default dates
       const todayStr = new Date().toISOString().split('T')[0];
       document.getElementById('leaveStartDate').value = todayStr;
@@ -2945,7 +3134,7 @@
         'viewPaySlip', 'viewShiftAtt', 'viewSwap', 'viewSafety',
         'viewPersonal', 'viewRoomBooking', 'viewVehicleBooking',
         'viewMnwRequest', 'viewMnwWorkbench', 'viewMnwRoutine', 'viewKaizen',
-        'viewBusinessCards', 'viewPartsRequest'
+        'viewBusinessCards', 'viewPartsRequest', 'viewPdRepair'
       ];
       allViewIds.forEach(id => {
         const el = document.getElementById(id);
@@ -3027,6 +3216,10 @@
         const vp = document.getElementById('viewPartsRequest');
         if (vp) vp.classList.remove('hidden');
         initMobilePartsRequest();
+      } else if (viewName === 'pdRepair') {
+        const vpd = document.getElementById('viewPdRepair');
+        if (vpd) vpd.classList.remove('hidden');
+        loadMobilePdRepairView();
       }
       state.currentView = viewName;
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -3042,7 +3235,7 @@
         'viewPaySlip', 'viewShiftAtt', 'viewSwap', 'viewSafety',
         'viewPersonal', 'viewRoomBooking', 'viewVehicleBooking',
         'viewMnwRequest', 'viewMnwWorkbench', 'viewMnwRoutine', 'viewKaizen',
-        'viewBusinessCards', 'viewPartsRequest'
+        'viewBusinessCards', 'viewPartsRequest', 'viewPdRepair'
       ];
       allViewIds.forEach(id => {
         const el = document.getElementById(id);
@@ -7594,6 +7787,331 @@ Strict Rules:
       } catch (err) {
         console.error('loadMobilePartsRequestsHistory error:', err);
         container.innerHTML = '<p class="text-xs text-red-400 text-center py-4">เกิดข้อผิดพลาดในการโหลด</p>';
+      }
+    }
+
+    // ==========================================
+    // PD Machine Repair (Mobile LIFF Logic)
+    // ==========================================
+    let mobilePdMachinesCache = [];
+    let mobilePdSparePartsCache = [];
+    let mobilePdRepairPhotos = {
+      abnormal: '',
+      cause: '',
+      defect: '',
+      repair: '',
+      makerReport: ''
+    };
+
+    async function loadMobilePdRepairView() {
+      // Set default start/end times
+      const now = new Date();
+      const nowStr = now.toISOString().slice(0, 16);
+      const startEl = document.getElementById('mobPdStartTime');
+      const endEl = document.getElementById('mobPdEndTime');
+      if (startEl && !startEl.value) startEl.value = nowStr;
+      if (endEl && !endEl.value) endEl.value = nowStr;
+
+      // Load initial data (machines + spare parts)
+      try {
+        const res = await jsonpRequest({ action: 'getMobilePdInitialData', empId: state.currentUser ? state.currentUser.employeeCode : '' });
+        if (res && res.status === 'success' && res.data) {
+          mobilePdMachinesCache = res.data.machines || [];
+          mobilePdSparePartsCache = res.data.spareParts || [];
+
+          // Populate machines select
+          const mSelect = document.getElementById('mobPdMachineSelect');
+          if (mSelect) {
+            let opts = '<option value="">-- เลือกเครื่องจักร (110 เครื่อง) --</option>';
+            mobilePdMachinesCache.forEach(m => {
+              opts += `<option value="${m.MachineNo}">${m.MachineNo} - ${m.MachineName} (${m.Location || m.Division || ''})</option>`;
+            });
+            mSelect.innerHTML = opts;
+          }
+        }
+      } catch (err) {
+        console.warn('loadMobilePdRepairView init error:', err);
+      }
+    }
+
+    function handleMobilePdMachineChange() {
+      const select = document.getElementById('mobPdMachineSelect');
+      const customInput = document.getElementById('mobPdCustomMachineName');
+      if (!select) return;
+      const val = select.value;
+      const matched = mobilePdMachinesCache.find(m => m.MachineNo === val);
+      if (matched && customInput) {
+        customInput.value = matched.MachineName;
+      }
+    }
+
+    function toggleMobileCustomMachine() {
+      const chk = document.getElementById('mobPdCheckCustomMachine');
+      const box = document.getElementById('mobPdCustomMachineBox');
+      const select = document.getElementById('mobPdMachineSelect');
+      if (chk && chk.checked) {
+        if (box) box.classList.remove('hidden');
+        if (select) select.disabled = true;
+      } else {
+        if (box) box.classList.add('hidden');
+        if (select) select.disabled = false;
+      }
+    }
+
+    function toggleMobileMakerBox() {
+      const rType = document.getElementById('mobPdRepairType');
+      const box = document.getElementById('mobPdMakerBox');
+      if (rType && box) {
+        if (rType.value === 'MAKER') box.classList.remove('hidden');
+        else box.classList.add('hidden');
+      }
+    }
+
+    // Canvas Auto-Compression: Resize to max 1200px at 0.75 JPEG (~100-200KB)
+    function compressPdMobileImage(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          const img = new Image();
+          img.onload = function() {
+            const maxDim = 1200;
+            let width = img.width;
+            let height = img.height;
+            if (width > maxDim || height > maxDim) {
+              if (width > height) {
+                height = Math.round((height * maxDim) / width);
+                width = maxDim;
+              } else {
+                width = Math.round((width * maxDim) / height);
+                height = maxDim;
+              }
+            }
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+            const compressedBase64 = canvas.toDataURL('image/jpeg', 0.75);
+            resolve(compressedBase64);
+          };
+          img.onerror = reject;
+          img.src = e.target.result;
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    }
+
+    async function handleMobilePdPhotoSelect(input, targetKey) {
+      const file = input.files && input.files[0];
+      if (!file) return;
+
+      try {
+        const compressedBase64 = await compressPdMobileImage(file);
+        mobilePdRepairPhotos[targetKey] = compressedBase64;
+
+        const previewMap = {
+          abnormal: 'mobPdPreviewAbnormal',
+          cause: 'mobPdPreviewCause',
+          defect: 'mobPdPreviewDefect',
+          repair: 'mobPdPreviewRepair'
+        };
+        const prevId = previewMap[targetKey];
+        if (prevId) {
+          const prevEl = document.getElementById(prevId);
+          if (prevEl) {
+            prevEl.src = compressedBase64;
+            prevEl.classList.remove('hidden');
+          }
+        }
+      } catch (err) {
+        console.error('Image compression error:', err);
+        showToast('บีบอัดรูปภาพล้มเหลว กรุณาลองใหม่อีกครั้ง', 'error');
+      }
+    }
+
+    async function handleMobilePdReportFile(input) {
+      const file = input.files && input.files[0];
+      if (!file) return;
+
+      if (file.type.startsWith('image/')) {
+        try {
+          const b64 = await compressPdMobileImage(file);
+          mobilePdRepairPhotos.makerReport = b64;
+        } catch (e) {}
+      } else {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          mobilePdRepairPhotos.makerReport = e.target.result;
+        };
+        reader.readAsDataURL(file);
+      }
+    }
+
+    function addMobilePdPartRow() {
+      const container = document.getElementById('mobPdPartsList');
+      if (!container) return;
+
+      const rowId = 'pd_part_row_' + Date.now();
+      let partOpts = '<option value="">-- เลือกอะไหล่หรือพิมพ์ใหม่ --</option>';
+      mobilePdSparePartsCache.forEach(p => {
+        partOpts += `<option value="${p.PartId}" data-code="${p.PartCode}" data-name="${p.PartName}" data-price="${p.UnitPrice}" data-unit="${p.Unit}">${p.PartCode} - ${p.PartName} (คงเหลือ: ${p.InStockQty})</option>`;
+      });
+
+      const rowHtml = `
+        <div id="${rowId}" class="p-2.5 bg-white rounded-xl border border-orange-200 space-y-2">
+          <div class="flex items-center justify-between">
+            <select onchange="handleMobilePdPartSelect('${rowId}', this)" class="part-select flex-1 px-2 py-1 rounded-lg border border-slate-200 text-xs mr-2">
+              ${partOpts}
+            </select>
+            <button type="button" onclick="removeMobilePdPartRow('${rowId}')" class="text-rose-500 font-bold px-2 py-0.5 rounded hover:bg-rose-50">✕</button>
+          </div>
+          <div class="grid grid-cols-3 gap-1.5">
+            <input type="text" placeholder="ชื่อ/รหัสอะไหล่" class="part-custom-name px-2 py-1 rounded-lg border border-slate-200 text-xs">
+            <input type="number" step="1" value="1" min="1" placeholder="จำนวน" oninput="calcMobilePdPartsTotal()" class="part-qty px-2 py-1 rounded-lg border border-slate-200 text-xs text-center">
+            <input type="number" step="0.01" value="0" placeholder="ราคา/หน่วย" oninput="calcMobilePdPartsTotal()" class="part-price px-2 py-1 rounded-lg border border-slate-200 text-xs text-right">
+          </div>
+        </div>
+      `;
+      container.insertAdjacentHTML('beforeend', rowHtml);
+    }
+
+    function removeMobilePdPartRow(rowId) {
+      const el = document.getElementById(rowId);
+      if (el) el.remove();
+      calcMobilePdPartsTotal();
+    }
+
+    function handleMobilePdPartSelect(rowId, select) {
+      const row = document.getElementById(rowId);
+      if (!row) return;
+      const opt = select.selectedOptions[0];
+      if (opt && opt.value) {
+        const nameInput = row.querySelector('.part-custom-name');
+        const priceInput = row.querySelector('.part-price');
+        if (nameInput) nameInput.value = `${opt.dataset.code} ${opt.dataset.name}`.trim();
+        if (priceInput) priceInput.value = opt.dataset.price || '0';
+      }
+      calcMobilePdPartsTotal();
+    }
+
+    function calcMobilePdPartsTotal() {
+      let total = 0;
+      const rows = document.querySelectorAll('#mobPdPartsList > div');
+      rows.forEach(r => {
+        const qty = Number(r.querySelector('.part-qty')?.value || 0);
+        const price = Number(r.querySelector('.part-price')?.value || 0);
+        total += (qty * price);
+      });
+      const totalEl = document.getElementById('mobPdPartsTotalCost');
+      if (totalEl) totalEl.innerText = `฿${total.toLocaleString()}`;
+    }
+
+    async function handleMobilePdRepairSubmit(event) {
+      event.preventDefault();
+      const btn = document.getElementById('mobPdSubmitBtn');
+      const machineSelect = document.getElementById('mobPdMachineSelect');
+      const customChk = document.getElementById('mobPdCheckCustomMachine');
+      const customName = document.getElementById('mobPdCustomMachineName');
+
+      let machineNo = '';
+      let machineName = '';
+
+      if (customChk && customChk.checked) {
+        machineName = customName ? customName.value.trim() : '';
+        machineNo = 'CUSTOM';
+        if (!machineName) {
+          showToast('กรุณาระบุชื่อเครื่องจักร/อุปกรณ์', 'error');
+          return;
+        }
+      } else {
+        machineNo = machineSelect ? machineSelect.value : '';
+        if (!machineNo) {
+          showToast('กรุณาเลือกเครื่องจักรที่ซ่อม', 'error');
+          return;
+        }
+        const matched = mobilePdMachinesCache.find(m => m.MachineNo === machineNo);
+        machineName = matched ? matched.MachineName : machineNo;
+      }
+
+      const startTime = document.getElementById('mobPdStartTime').value;
+      const endTime = document.getElementById('mobPdEndTime').value;
+      if (!startTime || !endTime) {
+        showToast('กรุณาระบุวัน-เวลาเริ่มและเสร็จสิ้น', 'error');
+        return;
+      }
+
+      // Collect parts
+      const parts = [];
+      const rows = document.querySelectorAll('#mobPdPartsList > div');
+      rows.forEach(r => {
+        const sel = r.querySelector('.part-select');
+        const opt = sel ? sel.selectedOptions[0] : null;
+        const customNameVal = r.querySelector('.part-custom-name')?.value.trim() || '';
+        const qty = Number(r.querySelector('.part-qty')?.value || 0);
+        const price = Number(r.querySelector('.part-price')?.value || 0);
+
+        if (qty > 0 && (customNameVal || (opt && opt.value))) {
+          parts.push({
+            partId: opt ? opt.value : '',
+            partCode: opt ? (opt.dataset.code || '') : '',
+            partName: customNameVal || (opt ? opt.dataset.name : ''),
+            qty: qty,
+            unitPrice: price,
+            saveToCatalog: !opt || !opt.value
+          });
+        }
+      });
+
+      const payload = {
+        action: 'submitMobileMachineRepair',
+        MachineNo: machineNo,
+        MachineName: machineName,
+        StartDateTime: startTime.replace('T', ' '),
+        EndDateTime: endTime.replace('T', ' '),
+        RepairType: document.getElementById('mobPdRepairType').value,
+        RepairNature: document.getElementById('mobPdRepairNature').value,
+        MakerName: document.getElementById('mobPdMakerName')?.value || '',
+        MakerServiceReportBase64: mobilePdRepairPhotos.makerReport || '',
+        AbnormalDesc: document.getElementById('mobPdAbnormalDesc').value,
+        AbnormalPhotoBase64: mobilePdRepairPhotos.abnormal || '',
+        CauseDesc: document.getElementById('mobPdCauseDesc').value,
+        CausePhotoBase64: mobilePdRepairPhotos.cause || '',
+        DefectDesc: document.getElementById('mobPdDefectDesc').value,
+        DefectPhotoBase64: mobilePdRepairPhotos.defect || '',
+        RepairDesc: document.getElementById('mobPdRepairDesc').value,
+        RepairPhotoBase64: mobilePdRepairPhotos.repair || '',
+        parts: parts,
+        OtherRemarks: document.getElementById('mobPdRemarks')?.value || '',
+        ReporterEmpId: state.currentUser ? state.currentUser.employeeCode : '',
+        ReporterName: state.currentUser ? state.currentUser.fullName : ''
+      };
+
+      try {
+        btn.disabled = true;
+        btn.innerHTML = '<span class="inline-block animate-spin mr-1">⏳</span> กำลังบันทึกประวัติการซ่อม...';
+
+        const res = await postApiRequest(payload);
+        if (res && (res.status === 'success' || res.success)) {
+          showToast(`บันทึกประวัติซ่อม ${res.repairNo || ''} สำเร็จเรียบร้อย!`, 'success');
+          // Reset Form
+          document.getElementById('mobPdRepairForm').reset();
+          document.getElementById('mobPdPartsList').innerHTML = '';
+          calcMobilePdPartsTotal();
+          mobilePdRepairPhotos = { abnormal: '', cause: '', defect: '', repair: '', makerReport: '' };
+          ['mobPdPreviewAbnormal', 'mobPdPreviewCause', 'mobPdPreviewDefect', 'mobPdPreviewRepair'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.classList.add('hidden');
+          });
+          openView('dashboard');
+        } else {
+          showToast('บันทึกล้มเหลว: ' + ((res && res.message) || (res && res.error) || 'Unknown error'), 'error');
+        }
+      } catch (err) {
+        showToast('เกิดข้อผิดพลาดในการส่งข้อมูล: ' + err.message, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<span>บันทึกประวัติการซ่อม</span>';
       }
     }
 
