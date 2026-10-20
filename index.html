@@ -2891,8 +2891,10 @@
         if (secMnw) secMnw.classList.remove('hidden');
       }
 
-      // Check PD Department Section (เฉพาะผู้ที่ได้รับการเปิดสิทธิ์ pd เท่านั้น หรือ Super Admin)
-      const canViewPd = user.canAccessPd || user.isPd || (user.allowedModules && user.allowedModules.includes('pd')) || isSuperAdmin;
+      // Check PD Department Section (สำหรับสมาชิกฝ่ายผลิต Forging, PD-M หรือผู้ได้รับสิทธิ์ และ Super Admin)
+      const userDeptUpper = String(user.department || '').trim().toUpperCase();
+      const isPdMember = userDeptUpper.includes('PD') || userDeptUpper.includes('FORG') || userDeptUpper.includes('MACH') || user.isPdMember;
+      const canViewPd = isPdMember || user.canAccessPd || user.isPd || (user.allowedModules && user.allowedModules.includes('pd')) || isSuperAdmin;
       if (canViewPd) {
         const secPd = document.getElementById('sectionPdWorkbench');
         if (secPd) secPd.classList.remove('hidden');
