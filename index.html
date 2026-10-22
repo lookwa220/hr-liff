@@ -2432,9 +2432,14 @@
           </div>
         </div>
 
-        <!-- Close Button -->
-        <div class="pt-2 border-t border-slate-100">
-          <button type="button" onclick="closeMobileBcDetailModal()" class="w-full py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition active:scale-95">ปิดหน้าต่าง</button>
+        <!-- Action Buttons -->
+        <div class="pt-2 border-t border-slate-100 grid grid-cols-2 gap-2">
+          <button type="button" onclick="openEditMobileBcModalFromDetail()" class="w-full py-2.5 rounded-xl bg-violet-600 hover:bg-violet-700 text-white font-bold text-xs transition active:scale-95 flex items-center justify-center gap-1.5 shadow-xs">
+            <span>✏️ แก้ไขข้อมูล</span>
+          </button>
+          <button type="button" onclick="closeMobileBcDetailModal()" class="w-full py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition active:scale-95">
+            <span>ปิดหน้าต่าง</span>
+          </button>
         </div>
       </div>
     </div>

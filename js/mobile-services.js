@@ -341,6 +341,8 @@
     let currentMobileBcQuery = '';
     let currentMobileBcFrontBase64 = '';
     let currentMobileBcBackBase64 = '';
+    let currentMobileBcFrontExistingUrl = '';
+    let currentMobileBcBackExistingUrl = '';
     let mobileBcFormTags = [];
     let currentEditingMobileBcId = null;
     let currentMobileBcViewingCard = null;
@@ -431,10 +433,27 @@
       return s.replace(/\D/g, '');
     }
 
-    async function loadMobileBusinessCards() {
+    async function loadMobileBusinessCards(silent = false) {
       const container = document.getElementById('mobBcListContainer');
       const countEl = document.getElementById('mobBcCount');
-      if (container) {
+
+      // 1. Instant Cache-First: โหลดข้อมูลจาก LocalStorage ขึ้นมาแสดงทันทีใน 0.05 วินาที
+      if (!silent && (!mobileBusinessCards || mobileBusinessCards.length === 0)) {
+        try {
+          const cachedStr = localStorage.getItem('MINAMIDA_BC_CACHE');
+          if (cachedStr) {
+            const cachedCards = JSON.parse(cachedStr);
+            if (Array.isArray(cachedCards) && cachedCards.length > 0) {
+              mobileBusinessCards = cachedCards;
+              renderMobileBusinessCards();
+            }
+          }
+        } catch(e) {
+          console.warn('Load BC cache warning:', e);
+        }
+      }
+
+      if (container && (!mobileBusinessCards || mobileBusinessCards.length === 0)) {
         container.innerHTML = '<p class="text-xs text-slate-400 text-center py-8">⏳ กำลังโหลดข้อมูลนามบัตร...</p>';
       }
 
@@ -449,15 +468,20 @@
 
         if (res && res.status === 'success') {
           mobileBusinessCards = Array.isArray(res.cards) ? res.cards : [];
+          try {
+            if (!currentMobileBcQuery && !currentMobileBcTag) {
+              localStorage.setItem('MINAMIDA_BC_CACHE', JSON.stringify(mobileBusinessCards));
+            }
+          } catch(e) {}
           renderMobileBusinessCards();
         } else {
-          if (container) {
+          if (container && (!mobileBusinessCards || mobileBusinessCards.length === 0)) {
             container.innerHTML = `<p class="text-xs text-rose-500 text-center py-6">${(res && res.message) || 'ไม่สามารถโหลดข้อมูลนามบัตรได้'}</p>`;
           }
         }
       } catch (err) {
         console.error('loadMobileBusinessCards error:', err);
-        if (container) {
+        if (container && (!mobileBusinessCards || mobileBusinessCards.length === 0)) {
           container.innerHTML = '<p class="text-xs text-rose-500 text-center py-6">เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์</p>';
         }
       }
@@ -574,9 +598,14 @@
                 </a>
               ` : `<span class="text-[10px] text-slate-400">ไม่มีเบอร์โทรศัพท์</span>`}
 
-              <button type="button" onclick="event.stopPropagation(); openMobileBcDetailModal('${cardId}')" class="inline-flex items-center gap-1 text-[11px] font-semibold text-violet-600 hover:text-violet-800">
-                <span>ดูข้อมูลเต็ม ›</span>
-              </button>
+              <div class="flex items-center gap-1.5">
+                <button type="button" onclick="event.stopPropagation(); openEditMobileBcModal('${cardId}')" class="inline-flex items-center gap-1 text-[11px] font-bold text-violet-700 hover:text-violet-900 bg-violet-50 hover:bg-violet-100 px-2 py-1 rounded-lg border border-violet-200 shadow-2xs active:scale-95 transition">
+                  <span>✏️ แก้ไข</span>
+                </button>
+                <button type="button" onclick="event.stopPropagation(); openMobileBcDetailModal('${cardId}')" class="inline-flex items-center gap-0.5 text-[11px] font-semibold text-slate-600 hover:text-slate-800 px-1.5 py-1">
+                  <span>ดูเต็ม ›</span>
+                </button>
+              </div>
             </div>
           </div>
         `;
@@ -629,6 +658,8 @@
       const modal = document.getElementById('modalAddMobileBc');
       if (!modal) return;
       currentEditingMobileBcId = null;
+      currentMobileBcFrontExistingUrl = '';
+      currentMobileBcBackExistingUrl = '';
       const titleEl = document.getElementById('mobAddBcModalTitle');
       if (titleEl) titleEl.innerText = 'เพิ่มนามบัตรใหม่';
       const submitBtn = document.getElementById('mobBcSubmitBtn');
@@ -645,6 +676,99 @@
     function closeAddMobileBcModal() {
       const modal = document.getElementById('modalAddMobileBc');
       if (modal) modal.classList.add('hidden');
+      currentEditingMobileBcId = null;
+    }
+
+    // Modal: Edit Business Card on Mobile
+    function openEditMobileBcModal(cardId) {
+      const card = mobileBusinessCards.find(c => c.cardId === cardId);
+      if (!card) {
+        showToast('ไม่พบนามบัตรที่ต้องการแก้ไข', 'error');
+        return;
+      }
+
+      const modal = document.getElementById('modalAddMobileBc');
+      if (!modal) return;
+
+      currentEditingMobileBcId = card.cardId;
+      const titleEl = document.getElementById('mobAddBcModalTitle');
+      if (titleEl) titleEl.innerHTML = `<span class="text-violet-700 font-bold">✏️ แก้ไขนามบัตร (${card.cardId})</span>`;
+      const submitBtn = document.getElementById('mobBcSubmitBtn');
+      if (submitBtn) submitBtn.innerHTML = '<span>บันทึกการแก้ไข</span>';
+
+      document.getElementById('formAddMobileBc').reset();
+
+      // กรอกข้อมูลเดิมลงในฟอร์ม
+      const companyInput = document.getElementById('mobBcFormCompanyName');
+      if (companyInput) companyInput.value = card.companyName || '';
+
+      const contactInput = document.getElementById('mobBcFormContactName');
+      if (contactInput) contactInput.value = card.contactName || '';
+
+      const positionInput = document.getElementById('mobBcFormPosition');
+      if (positionInput) positionInput.value = card.position || card.department || '';
+
+      const phoneInput = document.getElementById('mobBcFormPhone');
+      if (phoneInput) {
+        const rawPhones = Array.isArray(card.phones) ? card.phones : (card.phone ? [card.phone] : []);
+        const sorted = normalizeAndPrioritizePhones(rawPhones);
+        phoneInput.value = sorted.join(', ');
+      }
+
+      const emailInput = document.getElementById('mobBcFormEmail');
+      if (emailInput) {
+        const rawEmails = Array.isArray(card.emails) ? card.emails : (card.email ? [card.email] : []);
+        emailInput.value = rawEmails.join(', ');
+      }
+
+      const webInput = document.getElementById('mobBcFormWebsite');
+      if (webInput) webInput.value = card.website || card.lineId || '';
+
+      const addressInput = document.getElementById('mobBcFormAddress');
+      if (addressInput) addressInput.value = card.address || '';
+
+      const notesInput = document.getElementById('mobBcFormNotes');
+      if (notesInput) notesInput.value = card.notes || '';
+
+      // แท็กเดิม
+      mobileBcFormTags = Array.isArray(card.tags) ? [...card.tags] : [];
+      renderMobileBcFormTags();
+
+      // จัดการรูปภาพเดิม
+      currentMobileBcFrontBase64 = '';
+      currentMobileBcBackBase64 = '';
+      currentMobileBcFrontExistingUrl = card.imgFrontRef || '';
+      currentMobileBcBackExistingUrl = card.imgBackRef || '';
+
+      const frontPreviewBox = document.getElementById('mobBcFrontPreviewBox');
+      const frontPreviewEl = document.getElementById('mobBcFrontPreview');
+      const scanBtn = document.getElementById('mobBtnScanCardFrontOcr');
+      if (currentMobileBcFrontExistingUrl) {
+        if (frontPreviewEl) frontPreviewEl.src = currentMobileBcFrontExistingUrl;
+        if (frontPreviewBox) frontPreviewBox.classList.remove('hidden');
+        if (scanBtn) scanBtn.classList.remove('hidden');
+      } else {
+        if (frontPreviewBox) frontPreviewBox.classList.add('hidden');
+        if (scanBtn) scanBtn.classList.add('hidden');
+      }
+
+      const backPreviewBox = document.getElementById('mobBcBackPreviewBox');
+      const backPreviewEl = document.getElementById('mobBcBackPreview');
+      if (currentMobileBcBackExistingUrl) {
+        if (backPreviewEl) backPreviewEl.src = currentMobileBcBackExistingUrl;
+        if (backPreviewBox) backPreviewBox.classList.remove('hidden');
+      } else {
+        if (backPreviewBox) backPreviewBox.classList.add('hidden');
+      }
+
+      closeMobileBcDetailModal();
+      modal.classList.remove('hidden');
+    }
+
+    function openEditMobileBcModalFromDetail() {
+      if (currentMobileBcViewingCard && currentMobileBcViewingCard.cardId) {
+        openEditMobileBcModal(currentMobileBcViewingCard.cardId);
+      }
     }
 
     function addMobileBcFormTag(rawInput) {
@@ -743,12 +867,14 @@
     function clearMobileBcPhoto(side) {
       if (side === 'front') {
         currentMobileBcFrontBase64 = '';
+        currentMobileBcFrontExistingUrl = '';
         const previewBox = document.getElementById('mobBcFrontPreviewBox');
         if (previewBox) previewBox.classList.add('hidden');
         const scanBtn = document.getElementById('mobBtnScanCardFrontOcr');
         if (scanBtn) scanBtn.classList.add('hidden');
       } else {
         currentMobileBcBackBase64 = '';
+        currentMobileBcBackExistingUrl = '';
         const previewBox = document.getElementById('mobBcBackPreviewBox');
         if (previewBox) previewBox.classList.add('hidden');
       }
@@ -1193,7 +1319,9 @@ Strict Rules:
           tags: mobileBcFormTags,
           frontImageBase64: currentMobileBcFrontBase64,
           backImageBase64: currentMobileBcBackBase64,
-          hasBackImage: Boolean(currentMobileBcBackBase64)
+          imgFrontRef: currentMobileBcFrontExistingUrl,
+          imgBackRef: currentMobileBcBackExistingUrl,
+          hasBackImage: Boolean(currentMobileBcBackBase64 || currentMobileBcBackExistingUrl)
         };
 
         const res = await postApiRequest(payload);
@@ -1203,9 +1331,28 @@ Strict Rules:
         }
 
         if (res && res.status === 'success') {
-          showToast('บันทึกนามบัตรเรียบร้อยแล้ว', 'success');
+          const isEdit = Boolean(currentEditingMobileBcId);
+          showToast(isEdit ? 'อัปเดตข้อมูลนามบัตรเรียบร้อยแล้ว' : 'บันทึกนามบัตรเรียบร้อยแล้ว', 'success');
           closeAddMobileBcModal();
-          await loadMobileBusinessCards();
+
+          // อัปเดตในหน่วยความจำทันทีโดยไม่ต้องรอเครือข่าย
+          if (res.card && isEdit) {
+            const idx = mobileBusinessCards.findIndex(c => c.cardId === payload.cardId);
+            if (idx !== -1) {
+              mobileBusinessCards[idx] = res.card;
+            } else {
+              mobileBusinessCards.unshift(res.card);
+            }
+          } else if (res.card) {
+            mobileBusinessCards.unshift(res.card);
+          }
+
+          try {
+            localStorage.setItem('MINAMIDA_BC_CACHE', JSON.stringify(mobileBusinessCards));
+          } catch(e) {}
+
+          renderMobileBusinessCards();
+          loadMobileBusinessCards(true);
         } else {
           showToast((res && res.message) ? res.message : 'เกิดข้อผิดพลาดในการบันทึก', 'error');
         }
