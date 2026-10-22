@@ -1,6 +1,17 @@
 // ============================================================================
 // MINAMIDA MOBILE LIFF — PC PARTS REQUEST & PD MACHINE REPAIRS
 // ============================================================================
+    if (typeof escapeHtml !== 'function') {
+      window.escapeHtml = function(str) {
+        if (str === null || str === undefined) return '';
+        return String(str)
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#39;');
+      };
+    }
     // ==========================================
     // MOBILE PARTS REQUEST CONTROLLER
     // ==========================================
@@ -194,6 +205,7 @@
     // ==========================================
     let mobilePdMachinesCache = [];
     let mobilePdSparePartsCache = [];
+    let mobilePdRepairsCache = [];
     let mobilePdRepairPhotos = {
       abnormal: '',
       cause: '',
@@ -202,35 +214,197 @@
       makerReport: ''
     };
 
-    async function loadMobilePdRepairView() {
-      // Set default start/end times
+    function getLocalThaiIso() {
       const now = new Date();
-      const nowStr = now.toISOString().slice(0, 16);
+      const tzOffset = now.getTimezoneOffset() * 60000;
+      return (new Date(now.getTime() - tzOffset)).toISOString().slice(0, 16);
+    }
+
+    async function loadMobilePdRepairView() {
+      // Set default start/end times using Local Thai Time
+      const localNow = getLocalThaiIso();
       const startEl = document.getElementById('mobPdStartTime');
       const endEl = document.getElementById('mobPdEndTime');
-      if (startEl && !startEl.value) startEl.value = nowStr;
-      if (endEl && !endEl.value) endEl.value = nowStr;
+      if (startEl && !startEl.value) startEl.value = localNow;
+      if (endEl && !endEl.value) endEl.value = localNow;
+      calculateMobilePdDuration();
 
-      // Load initial data (machines + spare parts)
+      // Load initial data (machines + spare parts + recent repairs)
       try {
         const res = await jsonpRequest({ action: 'getMobilePdInitialData', empId: state.currentUser ? state.currentUser.employeeCode : '' });
         if (res && res.status === 'success' && res.data) {
           mobilePdMachinesCache = res.data.machines || [];
           mobilePdSparePartsCache = res.data.spareParts || [];
+          mobilePdRepairsCache = res.data.repairs || [];
 
           // Populate machines select
-          const mSelect = document.getElementById('mobPdMachineSelect');
-          if (mSelect) {
-            let opts = '<option value="">-- เลือกเครื่องจักร (110 เครื่อง) --</option>';
-            mobilePdMachinesCache.forEach(m => {
-              opts += `<option value="${m.MachineNo}">${m.MachineNo} - ${m.MachineName} (${m.Location || m.Division || ''})</option>`;
-            });
-            mSelect.innerHTML = opts;
-          }
+          filterMobilePdMachines('');
         }
       } catch (err) {
         console.warn('loadMobilePdRepairView init error:', err);
       }
+    }
+
+    function filterMobilePdMachines(searchTerm) {
+      const mSelect = document.getElementById('mobPdMachineSelect');
+      const countBadge = document.getElementById('mobPdMachineCountBadge');
+      if (!mSelect) return;
+      const term = (searchTerm || '').toLowerCase().trim();
+      const filtered = term
+        ? mobilePdMachinesCache.filter(m =>
+            (m.MachineNo && m.MachineNo.toLowerCase().includes(term)) ||
+            (m.MachineName && m.MachineName.toLowerCase().includes(term)) ||
+            (m.Division && m.Division.toLowerCase().includes(term)) ||
+            (m.Location && m.Location.toLowerCase().includes(term))
+          )
+        : mobilePdMachinesCache;
+
+      if (countBadge) {
+        countBadge.innerText = `${filtered.length} / ${mobilePdMachinesCache.length} เครื่อง`;
+      }
+
+      let opts = `<option value="">-- เลือกเครื่องจักร (${filtered.length} เครื่อง) --</option>`;
+      filtered.forEach(m => {
+        opts += `<option value="${m.MachineNo}">${m.MachineNo} - ${m.MachineName} (${m.Location || m.Division || ''})</option>`;
+      });
+      mSelect.innerHTML = opts;
+
+      if (filtered.length === 1) {
+        mSelect.value = filtered[0].MachineNo;
+        handleMobilePdMachineChange();
+      }
+    }
+
+    function handleMobilePdMachineChange() {
+      const select = document.getElementById('mobPdMachineSelect');
+      const customInput = document.getElementById('mobPdCustomMachineName');
+      const hintBox = document.getElementById('mobPdMachineLastRepairHint');
+      if (!select) return;
+      const val = select.value;
+      const matched = mobilePdMachinesCache.find(m => m.MachineNo === val);
+      if (matched && customInput) {
+        customInput.value = matched.MachineName;
+      }
+
+      // Quick hint for latest repair on this machine
+      if (val && hintBox) {
+        const lastRepair = (mobilePdRepairsCache || []).find(r => r.MachineNo === val);
+        if (lastRepair) {
+          const ab = lastRepair.AbnormalDesc || '-';
+          const rep = lastRepair.RepairDesc || '-';
+          const dt = lastRepair.StartDateTime || lastRepair.CreatedAt || '-';
+          hintBox.innerHTML = `
+            <div class="p-2.5 bg-amber-50 rounded-xl border border-amber-200 text-xs space-y-1 mt-1">
+              <div class="flex items-center justify-between">
+                <span class="font-bold text-amber-900 text-[11px]">💡 ซ่อมล่าสุด: ${escapeHtml(dt)} (${lastRepair.RepairNo})</span>
+                <button type="button" onclick="applyMobilePdLastRepair('${lastRepair.RepairNo}')" class="px-2 py-0.5 rounded bg-amber-200 hover:bg-amber-300 text-amber-900 font-bold text-[10px] active:scale-95 transition cursor-pointer">ดึงอาการเดิมมาใช้</button>
+              </div>
+              <div class="text-[11px] text-slate-700 truncate" title="${escapeHtml(ab)}"><span class="font-semibold text-rose-700">อาการ:</span> ${escapeHtml(ab)}</div>
+              <div class="text-[11px] text-slate-700 truncate" title="${escapeHtml(rep)}"><span class="font-semibold text-emerald-700">วิธีซ่อม:</span> ${escapeHtml(rep)}</div>
+            </div>
+          `;
+          hintBox.classList.remove('hidden');
+        } else {
+          hintBox.innerHTML = '';
+          hintBox.classList.add('hidden');
+        }
+      } else if (hintBox) {
+        hintBox.innerHTML = '';
+        hintBox.classList.add('hidden');
+      }
+    }
+
+    function applyMobilePdLastRepair(repairNo) {
+      const repair = (mobilePdRepairsCache || []).find(r => r.RepairNo === repairNo);
+      if (!repair) return;
+      const ab = document.getElementById('mobPdAbnormalDesc');
+      const cause = document.getElementById('mobPdCauseDesc');
+      const defect = document.getElementById('mobPdDefectDesc');
+      const rep = document.getElementById('mobPdRepairDesc');
+      if (ab && repair.AbnormalDesc) ab.value = repair.AbnormalDesc;
+      if (cause && repair.CauseDesc) cause.value = repair.CauseDesc;
+      if (defect && repair.DefectDesc) defect.value = repair.DefectDesc;
+      if (rep && repair.RepairDesc) rep.value = repair.RepairDesc;
+      if (typeof showToast === 'function') {
+        showToast(`ดึงอาการและวิธีซ่อมจาก ${repairNo} เรียบร้อยแล้ว`, 'info');
+      }
+    }
+
+    function stepMobilePdStartTime(deltaMinutes) {
+      const startEl = document.getElementById('mobPdStartTime');
+      const endEl = document.getElementById('mobPdEndTime');
+      if (!startEl || !endEl) return;
+
+      const now = new Date();
+      const endVal = endEl.value ? new Date(endEl.value) : now;
+      let startVal = startEl.value ? new Date(startEl.value) : new Date(endVal.getTime());
+
+      let newTime = startVal.getTime() + deltaMinutes * 60000;
+      if (newTime > endVal.getTime()) {
+        newTime = endVal.getTime();
+      }
+
+      const tzOffset = (new Date(newTime)).getTimezoneOffset() * 60000;
+      startEl.value = (new Date(newTime - tzOffset)).toISOString().slice(0, 16);
+      calculateMobilePdDuration();
+    }
+
+    function setMobilePdEndTimeNow() {
+      const startEl = document.getElementById('mobPdStartTime');
+      const endEl = document.getElementById('mobPdEndTime');
+      if (!endEl) return;
+      const now = new Date();
+      const tzOffset = now.getTimezoneOffset() * 60000;
+      const nowIso = (new Date(now.getTime() - tzOffset)).toISOString().slice(0, 16);
+
+      let prevDuration = 0;
+      if (startEl && startEl.value && endEl.value) {
+        const s = new Date(startEl.value);
+        const e = new Date(endEl.value);
+        if (!isNaN(s.getTime()) && !isNaN(e.getTime()) && e >= s) {
+          prevDuration = Math.round((e - s) / 60000);
+        }
+      }
+
+      endEl.value = nowIso;
+      if (startEl) {
+        if (prevDuration > 0) {
+          const newStart = new Date(now.getTime() - prevDuration * 60000);
+          const startTz = newStart.getTimezoneOffset() * 60000;
+          startEl.value = (new Date(newStart.getTime() - startTz)).toISOString().slice(0, 16);
+        } else {
+          startEl.value = nowIso;
+        }
+      }
+      calculateMobilePdDuration();
+    }
+
+    function calculateMobilePdDuration() {
+      const startEl = document.getElementById('mobPdStartTime');
+      const endEl = document.getElementById('mobPdEndTime');
+      const badge = document.getElementById('mobPdDurationBadge');
+      const plusBtn = document.getElementById('mobPdStepPlus15Btn');
+      if (!startEl || !endEl) return;
+
+      if (startEl.value && endEl.value) {
+        const s = new Date(startEl.value);
+        const e = new Date(endEl.value);
+        if (!isNaN(s.getTime()) && !isNaN(e.getTime())) {
+          // Rule: cannot step start time into the future beyond end time (s >= e disables +15 button)
+          if (plusBtn) {
+            plusBtn.disabled = (s.getTime() >= e.getTime());
+          }
+          const diffMins = Math.max(0, Math.round((e - s) / (1000 * 60)));
+          const hrs = Math.floor(diffMins / 60);
+          const mins = diffMins % 60;
+          if (badge) {
+            badge.innerText = `⏱️ ระยะเวลาซ่อม (Downtime): ${hrs > 0 ? hrs + ' ชม. ' : ''}${mins} นาที (${diffMins} นาที)`;
+          }
+          return;
+        }
+      }
+      if (plusBtn) plusBtn.disabled = true;
+      if (badge) badge.innerText = '⏱️ ระยะเวลาซ่อม (Downtime): 0 นาที';
     }
 
     function handleMobilePdMachineChange() {
@@ -373,6 +547,69 @@
         </div>
       `;
       container.insertAdjacentHTML('beforeend', rowHtml);
+      return rowId;
+    }
+
+    function openMobilePdAiPartCamera() {
+      const input = document.getElementById('mobPdAiCameraInput');
+      if (input) input.click();
+    }
+
+    async function handleMobilePdAiCameraCapture(input) {
+      if (!input || !input.files || !input.files[0]) return;
+      const file = input.files[0];
+      const statusBox = document.getElementById('mobPdAiScanStatus');
+      const statusText = document.getElementById('mobPdAiScanStatusText');
+      if (statusBox) statusBox.classList.remove('hidden');
+      if (statusText) statusText.innerText = 'กำลังบีบอัดภาพและวิเคราะห์ด้วย AI...';
+
+      try {
+        const base64 = await compressPdMobileImage(file);
+        if (statusText) statusText.innerText = 'AI กำลังค้นหาข้อมูลอะไหล่ในระบบและวิเคราะห์สเปก...';
+
+        const res = await postApiRequest({
+          action: 'scanPdSparePartWithAi',
+          images: [base64],
+          callerEmpId: state.currentUser ? state.currentUser.employeeCode : ''
+        });
+
+        if (res && res.status === 'success' && res.data) {
+          const aiData = res.data;
+          const rowId = addMobilePdPartRow();
+          const row = document.getElementById(rowId);
+          if (row) {
+            const customNameInput = row.querySelector('.part-custom-name');
+            const priceInput = row.querySelector('.part-price');
+            const qtyInput = row.querySelector('.part-qty');
+            const sel = row.querySelector('.part-select');
+
+            if (aiData.matchedInternalPart && aiData.matchedInternalPart.partId && sel) {
+              sel.value = aiData.matchedInternalPart.partId;
+              if (customNameInput) customNameInput.value = aiData.matchedInternalPart.partName || aiData.matchedInternalPart.partCode;
+              if (priceInput) priceInput.value = aiData.matchedInternalPart.unitPrice || 0;
+            } else {
+              const displayName = [aiData.detectedPartCode, aiData.detectedPartName].filter(Boolean).join(' - ');
+              if (customNameInput) customNameInput.value = displayName || 'อะไหล่สแกน AI';
+              if (priceInput && aiData.estimatedPrice) priceInput.value = aiData.estimatedPrice;
+            }
+            if (qtyInput) qtyInput.value = 1;
+            calcMobilePdPartsTotal();
+          }
+
+          if (typeof showToast === 'function') {
+            const detectedName = aiData.detectedPartName || aiData.detectedPartCode || 'สำเร็จ';
+            showToast(`สแกนอะไหล่สำเร็จ: ${detectedName}`, 'success');
+          }
+        } else {
+          showToast((res && res.message) || 'ไม่สามารถวิเคราะห์อะไหล่ได้ กรุณากรอกเอง', 'info');
+        }
+      } catch (err) {
+        console.error('handleMobilePdAiCameraCapture error:', err);
+        showToast('เกิดข้อผิดพลาดในการสแกนภาพ: ' + err.message, 'error');
+      } finally {
+        if (statusBox) statusBox.classList.add('hidden');
+        input.value = '';
+      }
     }
 
     function removeMobilePdPartRow(rowId) {
@@ -481,6 +718,7 @@
         RepairDesc: document.getElementById('mobPdRepairDesc').value,
         RepairPhotoBase64: mobilePdRepairPhotos.repair || '',
         parts: parts,
+        PartsReplaced: parts, // Contract parity with PD.js
         OtherRemarks: document.getElementById('mobPdRemarks')?.value || '',
         ReporterEmpId: state.currentUser ? state.currentUser.employeeCode : '',
         ReporterName: state.currentUser ? state.currentUser.fullName : ''
@@ -502,6 +740,8 @@
             const el = document.getElementById(id);
             if (el) el.classList.add('hidden');
           });
+          const hintBox = document.getElementById('mobPdMachineLastRepairHint');
+          if (hintBox) { hintBox.innerHTML = ''; hintBox.classList.add('hidden'); }
           openView('dashboard');
         } else {
           showToast('บันทึกล้มเหลว: ' + ((res && res.message) || (res && res.error) || 'Unknown error'), 'error');
@@ -513,6 +753,17 @@
         btn.innerHTML = '<span>บันทึกประวัติการซ่อม</span>';
       }
     }
+
+    // Expose PD functions to window
+    window.loadMobilePdRepairView = loadMobilePdRepairView;
+    window.filterMobilePdMachines = filterMobilePdMachines;
+    window.handleMobilePdMachineChange = handleMobilePdMachineChange;
+    window.applyMobilePdLastRepair = applyMobilePdLastRepair;
+    window.stepMobilePdStartTime = stepMobilePdStartTime;
+    window.setMobilePdEndTimeNow = setMobilePdEndTimeNow;
+    window.calculateMobilePdDuration = calculateMobilePdDuration;
+    window.openMobilePdAiPartCamera = openMobilePdAiPartCamera;
+    window.handleMobilePdAiCameraCapture = handleMobilePdAiCameraCapture;
 
     // ==========================================
     // Run on Page Load

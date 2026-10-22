@@ -2460,12 +2460,20 @@
 
         <!-- Form -->
         <form id="mobPdRepairForm" onsubmit="handleMobilePdRepairSubmit(event)" class="space-y-3.5 text-xs">
-          <!-- Machine Selection -->
+          <!-- Machine Selection with Search & Quick-Hint -->
           <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
-            <label class="block font-bold text-slate-700">เครื่องจักรที่ซ่อม (110 เครื่อง) <span class="text-rose-500">*</span></label>
+            <div class="flex items-center justify-between">
+              <label class="block font-bold text-slate-700">เครื่องจักรที่ซ่อม <span class="text-rose-500">*</span></label>
+              <span id="mobPdMachineCountBadge" class="text-[10px] px-2 py-0.5 rounded-full bg-slate-200 text-slate-700 font-semibold">110 เครื่อง</span>
+            </div>
+            <div>
+              <input type="text" id="mobPdMachineSearchInput" oninput="filterMobilePdMachines(this.value)" placeholder="🔍 พิมพ์ค้นหา เช่น MC-01, มิลลิ่ง, Forging..." class="w-full px-3 py-1.5 rounded-xl border border-slate-300 text-xs bg-white font-medium focus:ring-2 focus:ring-orange-500 outline-none">
+            </div>
             <select id="mobPdMachineSelect" onchange="handleMobilePdMachineChange()" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs bg-white font-medium focus:ring-2 focus:ring-orange-500 outline-none">
               <option value="">-- กำลังโหลดรายชื่อเครื่องจักร... --</option>
             </select>
+            <!-- Quick Hint Box for Last Repair -->
+            <div id="mobPdMachineLastRepairHint" class="hidden"></div>
             <div class="flex items-center gap-1.5 mt-1">
               <input type="checkbox" id="mobPdCheckCustomMachine" onchange="toggleMobileCustomMachine()" class="rounded border-slate-300 text-orange-600">
               <label for="mobPdCheckCustomMachine" class="text-[11px] text-slate-600">ระบุเครื่องจักร/อุปกรณ์อื่นเอง</label>
@@ -2475,16 +2483,28 @@
             </div>
           </div>
 
-          <!-- Time, Type, Nature -->
-          <div class="grid grid-cols-2 gap-2">
-            <div>
-              <label class="block font-bold text-slate-700 mb-0.5">เวลาเริ่มซ่อม <span class="text-rose-500">*</span></label>
-              <input type="datetime-local" id="mobPdStartTime" class="w-full px-2 py-1.5 rounded-xl border border-slate-300 text-xs bg-white" required>
+          <!-- Time Stepper, End Time, Downtime Badge -->
+          <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <div class="flex items-center justify-between mb-1">
+                  <label class="block font-bold text-slate-700 text-[11px]">เวลาเริ่มซ่อม <span class="text-rose-500">*</span></label>
+                  <div class="flex items-center gap-1">
+                    <button type="button" id="mobPdStepMinus15Btn" onclick="stepMobilePdStartTime(-15)" class="px-1.5 py-0.5 rounded bg-orange-100 hover:bg-orange-200 text-orange-800 text-[10px] font-bold transition active:scale-95 shadow-2xs cursor-pointer" title="ถอยเวลาเริ่มซ่อม 15 นาที">-15น.</button>
+                    <button type="button" id="mobPdStepPlus15Btn" onclick="stepMobilePdStartTime(15)" disabled class="px-1.5 py-0.5 rounded bg-orange-100 hover:bg-orange-200 text-orange-800 text-[10px] font-bold transition active:scale-95 shadow-2xs cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed" title="เพิ่มเวลาเริ่มซ่อม 15 นาที">+15น.</button>
+                  </div>
+                </div>
+                <input type="datetime-local" id="mobPdStartTime" onchange="calculateMobilePdDuration()" class="w-full px-2 py-1.5 rounded-xl border border-slate-300 text-xs bg-white font-medium outline-none focus:ring-2 focus:ring-orange-500" required>
+              </div>
+              <div>
+                <div class="flex items-center justify-between mb-1">
+                  <label class="block font-bold text-slate-700 text-[11px]">เวลาเสร็จสิ้น <span class="text-rose-500">*</span></label>
+                  <button type="button" onclick="setMobilePdEndTimeNow()" class="px-1.5 py-0.5 rounded bg-slate-200 hover:bg-slate-300 text-slate-700 text-[10px] font-bold transition active:scale-95 shadow-2xs cursor-pointer">📍 ตอนนี้</button>
+                </div>
+                <input type="datetime-local" id="mobPdEndTime" onchange="calculateMobilePdDuration()" class="w-full px-2 py-1.5 rounded-xl border border-slate-300 text-xs bg-white font-medium outline-none focus:ring-2 focus:ring-orange-500" required>
+              </div>
             </div>
-            <div>
-              <label class="block font-bold text-slate-700 mb-0.5">เวลาเสร็จสิ้น <span class="text-rose-500">*</span></label>
-              <input type="datetime-local" id="mobPdEndTime" class="w-full px-2 py-1.5 rounded-xl border border-slate-300 text-xs bg-white" required>
-            </div>
+            <div id="mobPdDurationBadge" class="text-[11px] text-orange-600 font-bold text-right pt-0.5">⏱️ ระยะเวลาซ่อม (Downtime): 0 นาที</div>
           </div>
 
           <div class="grid grid-cols-2 gap-2">
@@ -2568,7 +2588,16 @@
           <div class="p-3 bg-orange-50/60 rounded-xl border border-orange-200 space-y-2">
             <div class="flex items-center justify-between">
               <label class="font-bold text-orange-900">อะไหล่ที่เปลี่ยน / เบิกใช้</label>
-              <button type="button" onclick="addMobilePdPartRow()" class="px-2 py-0.5 bg-orange-600 text-white rounded-md text-[11px] font-bold">+ เพิ่มอะไหล่</button>
+              <div class="flex items-center gap-1.5">
+                <button type="button" onclick="openMobilePdAiPartCamera()" class="px-2 py-0.5 bg-amber-500 hover:bg-amber-600 text-white rounded-md text-[11px] font-bold shadow-2xs transition active:scale-95">📷 สแกน AI</button>
+                <button type="button" onclick="addMobilePdPartRow()" class="px-2 py-0.5 bg-orange-600 hover:bg-orange-700 text-white rounded-md text-[11px] font-bold shadow-2xs transition active:scale-95">+ เพิ่มอะไหล่</button>
+              </div>
+            </div>
+            <!-- Hidden Camera Input for Mobile AI Scan -->
+            <input type="file" id="mobPdAiCameraInput" accept="image/*" capture="environment" onchange="handleMobilePdAiCameraCapture(this)" class="hidden">
+            <div id="mobPdAiScanStatus" class="hidden p-2 rounded-lg bg-amber-100 text-amber-900 text-[11px] font-bold flex items-center gap-2">
+              <span class="animate-spin">⏳</span>
+              <span id="mobPdAiScanStatusText">กำลังวิเคราะห์อะไหล่ด้วย Gemini AI...</span>
             </div>
             <div id="mobPdPartsList" class="space-y-2">
               <!-- Dynamic rows -->
