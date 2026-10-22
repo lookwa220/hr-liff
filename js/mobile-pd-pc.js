@@ -407,17 +407,6 @@
       if (badge) badge.innerText = '⏱️ ระยะเวลาซ่อม (Downtime): 0 นาที';
     }
 
-    function handleMobilePdMachineChange() {
-      const select = document.getElementById('mobPdMachineSelect');
-      const customInput = document.getElementById('mobPdCustomMachineName');
-      if (!select) return;
-      const val = select.value;
-      const matched = mobilePdMachinesCache.find(m => m.MachineNo === val);
-      if (matched && customInput) {
-        customInput.value = matched.MachineName;
-      }
-    }
-
     function toggleMobileCustomMachine() {
       const chk = document.getElementById('mobPdCheckCustomMachine');
       const box = document.getElementById('mobPdCustomMachineBox');
@@ -719,9 +708,12 @@
 
           const banner = document.getElementById('mobPdAiMatchBanner');
           if (banner) {
-            if (aiData.matchedInternalPart && aiData.matchedInternalPart.partId) {
+            const isInternal = (aiData.matchType === 'INTERNAL_MATCH') || Boolean(aiData.matchedPartId) || Boolean(aiData.matchedInternalPart && aiData.matchedInternalPart.partId);
+            if (isInternal) {
+              const matchedCode = aiData.partCode || (aiData.matchedInternalPart ? aiData.matchedInternalPart.partCode : '');
+              const matchedName = aiData.partName || (aiData.matchedInternalPart ? aiData.matchedInternalPart.partName : '');
               banner.className = 'p-2 rounded-lg text-xs font-bold bg-emerald-100 text-emerald-800 flex items-center gap-1.5';
-              banner.innerHTML = `<span>✅ พบตรงกับอะไหล่ในระบบ:</span> <span class="font-mono">${escapeHtml(aiData.matchedInternalPart.partCode)} - ${escapeHtml(aiData.matchedInternalPart.partName)}</span>`;
+              banner.innerHTML = `<span>✅ พบตรงกับอะไหล่ในระบบ:</span> <span class="font-mono">${escapeHtml(matchedCode)} - ${escapeHtml(matchedName)}</span>`;
             } else {
               banner.className = 'p-2 rounded-lg text-xs font-bold bg-amber-100 text-amber-800 flex items-center gap-1.5';
               banner.innerHTML = `<span>✨ อะไหล่ใหม่ (วิเคราะห์สเปกและร้านค้าจากเน็ต)</span>`;
@@ -736,13 +728,21 @@
           const vendorText = document.getElementById('mobPdAiVendorText');
           const leadTimeText = document.getElementById('mobPdAiLeadTimeText');
 
-          if (codeInput) codeInput.value = aiData.detectedPartCode || '';
-          if (nameInput) nameInput.value = aiData.detectedPartName || '';
-          if (specInput) specInput.value = aiData.detectedSpec || '';
-          if (brandInput) brandInput.value = aiData.detectedBrand || '';
-          if (priceInput) priceInput.value = aiData.estimatedPrice || (aiData.matchedInternalPart ? aiData.matchedInternalPart.unitPrice : 0) || 0;
-          if (vendorText) vendorText.innerText = aiData.recommendedVendor || '-';
-          if (leadTimeText) leadTimeText.innerText = aiData.estimatedLeadTime || '-';
+          const codeVal = aiData.partCode || aiData.detectedPartCode || (aiData.matchedInternalPart ? aiData.matchedInternalPart.partCode : '') || '';
+          const nameVal = aiData.partName || aiData.detectedPartName || (aiData.matchedInternalPart ? aiData.matchedInternalPart.partName : '') || '';
+          const specVal = aiData.spec || aiData.detectedSpec || (aiData.matchedInternalPart ? aiData.matchedInternalPart.spec : '') || '';
+          const brandVal = aiData.brand || aiData.detectedBrand || (aiData.matchedInternalPart ? aiData.matchedInternalPart.brand : '') || '';
+          const priceVal = Number(aiData.unitPrice !== undefined ? aiData.unitPrice : (aiData.estimatedPrice !== undefined ? aiData.estimatedPrice : (aiData.matchedInternalPart ? aiData.matchedInternalPart.unitPrice : 0))) || 0;
+          const vendorVal = aiData.recommendedVendor || aiData.vendor || (aiData.matchedInternalPart ? aiData.matchedInternalPart.vendor : '') || '-';
+          const leadTimeVal = aiData.estimatedLeadTime || aiData.leadTime || (aiData.matchedInternalPart ? aiData.matchedInternalPart.leadTime : '') || '-';
+
+          if (codeInput) codeInput.value = codeVal;
+          if (nameInput) nameInput.value = nameVal;
+          if (specInput) specInput.value = specVal;
+          if (brandInput) brandInput.value = brandVal;
+          if (priceInput) priceInput.value = priceVal;
+          if (vendorText) vendorText.innerText = vendorVal;
+          if (leadTimeText) leadTimeText.innerText = leadTimeVal;
 
           if (resultCard) resultCard.classList.remove('hidden');
           showToast(`วิเคราะห์อะไหล่สำเร็จ (${activeImages.length} ภาพ)`, 'success');
@@ -787,8 +787,9 @@
         const sel = row.querySelector('.part-select');
 
         // Check if matched internal catalog
-        if (mobilePdAiLastScanResult && mobilePdAiLastScanResult.matchedInternalPart && mobilePdAiLastScanResult.matchedInternalPart.partId && sel) {
-          sel.value = mobilePdAiLastScanResult.matchedInternalPart.partId;
+        const internalId = mobilePdAiLastScanResult && (mobilePdAiLastScanResult.matchedPartId || (mobilePdAiLastScanResult.matchedInternalPart && mobilePdAiLastScanResult.matchedInternalPart.partId));
+        if (internalId && sel) {
+          sel.value = internalId;
         }
 
         const displayName = (codeVal && nameVal && codeVal !== nameVal) ? `${codeVal} ${nameVal}` : (nameVal || codeVal);
