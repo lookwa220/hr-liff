@@ -550,66 +550,256 @@
       return rowId;
     }
 
-    function openMobilePdAiPartCamera() {
-      const input = document.getElementById('mobPdAiCameraInput');
+    // ==========================================
+    // Mobile Spare Part Picker & 4-Slot AI Vision
+    // ==========================================
+    let mobilePdAiSlots = { 1: null, 2: null, 3: null, 4: null };
+    let mobilePdAiLastScanResult = null;
+
+    function openMobilePdSparePartPickerModal(tab) {
+      const modal = document.getElementById('mobPdSparePartPickerModal');
+      if (!modal) return;
+      modal.classList.remove('hidden');
+      switchMobilePdSparePartTab(tab || 'catalog');
+    }
+
+    function closeMobilePdSparePartPickerModal() {
+      const modal = document.getElementById('mobPdSparePartPickerModal');
+      if (modal) modal.classList.add('hidden');
+    }
+
+    function switchMobilePdSparePartTab(tab) {
+      const btnCat = document.getElementById('mobPdPartTabBtnCatalog');
+      const btnAi = document.getElementById('mobPdPartTabBtnAi');
+      const contentCat = document.getElementById('mobPdPartTabCatalogContent');
+      const contentAi = document.getElementById('mobPdPartTabAiContent');
+
+      if (tab === 'ai') {
+        if (btnAi) btnAi.className = 'flex-1 py-2 text-xs font-bold rounded-t-xl transition border-b-2 border-orange-600 text-orange-600 bg-white text-center cursor-pointer';
+        if (btnCat) btnCat.className = 'flex-1 py-2 text-xs font-bold rounded-t-xl transition border-b-2 border-transparent text-slate-500 hover:text-slate-800 text-center cursor-pointer';
+        if (contentAi) contentAi.classList.remove('hidden');
+        if (contentCat) contentCat.classList.add('hidden');
+      } else {
+        if (btnCat) btnCat.className = 'flex-1 py-2 text-xs font-bold rounded-t-xl transition border-b-2 border-orange-600 text-orange-600 bg-white text-center cursor-pointer';
+        if (btnAi) btnAi.className = 'flex-1 py-2 text-xs font-bold rounded-t-xl transition border-b-2 border-transparent text-slate-500 hover:text-slate-800 text-center cursor-pointer';
+        if (contentCat) contentCat.classList.remove('hidden');
+        if (contentAi) contentAi.classList.add('hidden');
+        filterMobilePdSparePartCatalog(document.getElementById('mobPdSparePartSearchQuery')?.value || '');
+      }
+    }
+
+    function filterMobilePdSparePartCatalog(query) {
+      const container = document.getElementById('mobPdSparePartCatalogList');
+      if (!container) return;
+      const q = (query || '').toLowerCase().trim();
+      const filtered = q
+        ? mobilePdSparePartsCache.filter(p =>
+            String(p.PartCode || '').toLowerCase().includes(q) ||
+            String(p.PartName || '').toLowerCase().includes(q) ||
+            String(p.Spec || '').toLowerCase().includes(q) ||
+            String(p.Brand || '').toLowerCase().includes(q)
+          )
+        : mobilePdSparePartsCache;
+
+      if (filtered.length === 0) {
+        container.innerHTML = '<div class="p-6 text-center text-slate-400">ไม่พบอะไหล่ที่ค้นหา</div>';
+        return;
+      }
+
+      container.innerHTML = filtered.map(p => {
+        const stock = Number(p.InStockQty || 0);
+        let stockBadge = '';
+        if (stock > 0) {
+          stockBadge = `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">คงเหลือ ${stock} ${escapeHtml(p.Unit || 'ชิ้น')}</span>`;
+        } else {
+          stockBadge = `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800">สต็อก ${stock} (ติดลบ)</span>`;
+        }
+        return `
+          <div class="p-3 hover:bg-slate-50 transition flex items-center justify-between gap-2">
+            <div class="flex-1 min-w-0">
+              <div class="font-bold text-slate-800 truncate">${escapeHtml(p.PartCode || '')} &bull; ${escapeHtml(p.PartName || '')}</div>
+              <div class="text-[11px] text-slate-500 truncate">${escapeHtml(p.Spec || '')} ${p.Brand ? `[${escapeHtml(p.Brand)}]` : ''}</div>
+              <div class="mt-1 flex items-center gap-2">
+                ${stockBadge}
+                <span class="text-[11px] text-slate-700 font-semibold font-mono">฿${Number(p.UnitPrice || 0).toLocaleString()}</span>
+              </div>
+            </div>
+            <button type="button" onclick="selectMobilePdCatalogPart('${p.PartId}')" class="px-3 py-1.5 bg-orange-600 hover:bg-orange-700 text-white rounded-lg font-bold text-xs shadow-2xs transition active:scale-95 cursor-pointer">
+              เลือก
+            </button>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function selectMobilePdCatalogPart(partId) {
+      const part = mobilePdSparePartsCache.find(p => p.PartId === partId);
+      if (!part) return;
+      const rowId = addMobilePdPartRow();
+      const row = document.getElementById(rowId);
+      if (row) {
+        const sel = row.querySelector('.part-select');
+        const customName = row.querySelector('.part-custom-name');
+        const price = row.querySelector('.part-price');
+        const qty = row.querySelector('.part-qty');
+        if (sel) sel.value = part.PartId;
+        if (customName) customName.value = `${part.PartCode} ${part.PartName}`.trim();
+        if (price) price.value = part.UnitPrice || 0;
+        if (qty) qty.value = 1;
+        calcMobilePdPartsTotal();
+      }
+      closeMobilePdSparePartPickerModal();
+      if (typeof showToast === 'function') {
+        showToast(`เลือกอะไหล่ ${part.PartCode} เรียบร้อยแล้ว`, 'success');
+      }
+    }
+
+    function triggerMobilePdAiSlotCapture(slot) {
+      const input = document.getElementById(`mobPdAiFile${slot}`);
       if (input) input.click();
     }
 
-    async function handleMobilePdAiCameraCapture(input) {
+    async function handleMobilePdAiSlotCapture(slot, input) {
       if (!input || !input.files || !input.files[0]) return;
       const file = input.files[0];
-      const statusBox = document.getElementById('mobPdAiScanStatus');
-      const statusText = document.getElementById('mobPdAiScanStatusText');
-      if (statusBox) statusBox.classList.remove('hidden');
-      if (statusText) statusText.innerText = 'กำลังบีบอัดภาพและวิเคราะห์ด้วย AI...';
-
       try {
         const base64 = await compressPdMobileImage(file);
-        if (statusText) statusText.innerText = 'AI กำลังค้นหาข้อมูลอะไหล่ในระบบและวิเคราะห์สเปก...';
+        mobilePdAiSlots[slot] = base64;
+        const preview = document.getElementById(`mobPdAiPreview${slot}`);
+        const drop = document.getElementById(`mobPdAiDrop${slot}`);
+        const img = document.getElementById(`mobPdAiImg${slot}`);
+        if (img) img.src = base64;
+        if (preview) preview.classList.remove('hidden');
+        if (drop) drop.classList.add('hidden');
+      } catch (err) {
+        console.error('handleMobilePdAiSlotCapture error:', err);
+        showToast('บีบอัดรูปภาพล้มเหลว', 'error');
+      }
+    }
 
+    function clearMobilePdAiSlot(slot) {
+      mobilePdAiSlots[slot] = null;
+      const preview = document.getElementById(`mobPdAiPreview${slot}`);
+      const drop = document.getElementById(`mobPdAiDrop${slot}`);
+      const file = document.getElementById(`mobPdAiFile${slot}`);
+      if (preview) preview.classList.add('hidden');
+      if (drop) drop.classList.remove('hidden');
+      if (file) file.value = '';
+    }
+
+    async function runMobilePdSparePartAiScan() {
+      const activeImages = [1, 2, 3, 4]
+        .map(s => mobilePdAiSlots[s])
+        .filter(b64 => Boolean(b64));
+
+      if (activeImages.length === 0) {
+        showToast('กรุณาถ่ายรูปอะไหล่อย่างน้อย 1 รูปก่อนกดสแกน', 'warning');
+        return;
+      }
+
+      const statusBox = document.getElementById('mobPdAiScanStatusBox');
+      const statusText = document.getElementById('mobPdAiScanStatusText');
+      const btn = document.getElementById('mobPdBtnRunAiScan');
+      const resultCard = document.getElementById('mobPdAiResultCard');
+
+      if (statusBox) statusBox.classList.remove('hidden');
+      if (statusText) statusText.innerText = `กำลังส่ง ${activeImages.length} ภาพให้ Gemini AI วิเคราะห์สเปก...`;
+      if (btn) btn.disabled = true;
+
+      try {
         const res = await postApiRequest({
           action: 'scanPdSparePartWithAi',
-          images: [base64],
+          images: activeImages,
           callerEmpId: state.currentUser ? state.currentUser.employeeCode : ''
         });
 
         if (res && res.status === 'success' && res.data) {
           const aiData = res.data;
-          const rowId = addMobilePdPartRow();
-          const row = document.getElementById(rowId);
-          if (row) {
-            const customNameInput = row.querySelector('.part-custom-name');
-            const priceInput = row.querySelector('.part-price');
-            const qtyInput = row.querySelector('.part-qty');
-            const sel = row.querySelector('.part-select');
+          mobilePdAiLastScanResult = aiData;
 
-            if (aiData.matchedInternalPart && aiData.matchedInternalPart.partId && sel) {
-              sel.value = aiData.matchedInternalPart.partId;
-              if (customNameInput) customNameInput.value = aiData.matchedInternalPart.partName || aiData.matchedInternalPart.partCode;
-              if (priceInput) priceInput.value = aiData.matchedInternalPart.unitPrice || 0;
+          const banner = document.getElementById('mobPdAiMatchBanner');
+          if (banner) {
+            if (aiData.matchedInternalPart && aiData.matchedInternalPart.partId) {
+              banner.className = 'p-2 rounded-lg text-xs font-bold bg-emerald-100 text-emerald-800 flex items-center gap-1.5';
+              banner.innerHTML = `<span>✅ พบตรงกับอะไหล่ในระบบ:</span> <span class="font-mono">${escapeHtml(aiData.matchedInternalPart.partCode)} - ${escapeHtml(aiData.matchedInternalPart.partName)}</span>`;
             } else {
-              const displayName = [aiData.detectedPartCode, aiData.detectedPartName].filter(Boolean).join(' - ');
-              if (customNameInput) customNameInput.value = displayName || 'อะไหล่สแกน AI';
-              if (priceInput && aiData.estimatedPrice) priceInput.value = aiData.estimatedPrice;
+              banner.className = 'p-2 rounded-lg text-xs font-bold bg-amber-100 text-amber-800 flex items-center gap-1.5';
+              banner.innerHTML = `<span>✨ อะไหล่ใหม่ (วิเคราะห์สเปกและร้านค้าจากเน็ต)</span>`;
             }
-            if (qtyInput) qtyInput.value = 1;
-            calcMobilePdPartsTotal();
           }
 
-          if (typeof showToast === 'function') {
-            const detectedName = aiData.detectedPartName || aiData.detectedPartCode || 'สำเร็จ';
-            showToast(`สแกนอะไหล่สำเร็จ: ${detectedName}`, 'success');
-          }
+          const codeInput = document.getElementById('mobPdAiPartCode');
+          const nameInput = document.getElementById('mobPdAiPartName');
+          const specInput = document.getElementById('mobPdAiSpec');
+          const brandInput = document.getElementById('mobPdAiBrand');
+          const priceInput = document.getElementById('mobPdAiUnitPrice');
+          const vendorText = document.getElementById('mobPdAiVendorText');
+          const leadTimeText = document.getElementById('mobPdAiLeadTimeText');
+
+          if (codeInput) codeInput.value = aiData.detectedPartCode || '';
+          if (nameInput) nameInput.value = aiData.detectedPartName || '';
+          if (specInput) specInput.value = aiData.detectedSpec || '';
+          if (brandInput) brandInput.value = aiData.detectedBrand || '';
+          if (priceInput) priceInput.value = aiData.estimatedPrice || (aiData.matchedInternalPart ? aiData.matchedInternalPart.unitPrice : 0) || 0;
+          if (vendorText) vendorText.innerText = aiData.recommendedVendor || '-';
+          if (leadTimeText) leadTimeText.innerText = aiData.estimatedLeadTime || '-';
+
+          if (resultCard) resultCard.classList.remove('hidden');
+          showToast(`วิเคราะห์อะไหล่สำเร็จ (${activeImages.length} ภาพ)`, 'success');
         } else {
           showToast((res && res.message) || 'ไม่สามารถวิเคราะห์อะไหล่ได้ กรุณากรอกเอง', 'info');
         }
       } catch (err) {
-        console.error('handleMobilePdAiCameraCapture error:', err);
-        showToast('เกิดข้อผิดพลาดในการสแกนภาพ: ' + err.message, 'error');
+        console.error('runMobilePdSparePartAiScan error:', err);
+        showToast('เกิดข้อผิดพลาดในการวิเคราะห์ภาพ: ' + err.message, 'error');
       } finally {
         if (statusBox) statusBox.classList.add('hidden');
-        input.value = '';
+        if (btn) btn.disabled = false;
       }
+    }
+
+    function confirmMobilePdAiPart() {
+      const codeInput = document.getElementById('mobPdAiPartCode');
+      const nameInput = document.getElementById('mobPdAiPartName');
+      const priceInput = document.getElementById('mobPdAiUnitPrice');
+      const qtyInput = document.getElementById('mobPdAiUsedQty');
+      const specInput = document.getElementById('mobPdAiSpec');
+      const brandInput = document.getElementById('mobPdAiBrand');
+
+      const codeVal = codeInput ? codeInput.value.trim() : '';
+      const nameVal = nameInput ? nameInput.value.trim() : '';
+      const priceVal = Number(priceInput ? priceInput.value : 0) || 0;
+      const qtyVal = Number(qtyInput ? qtyInput.value : 1) || 1;
+      const specVal = specInput ? specInput.value.trim() : '';
+      const brandVal = brandInput ? brandInput.value.trim() : '';
+
+      if (!nameVal && !codeVal) {
+        showToast('กรุณาระบุรหัสหรือชื่ออะไหล่', 'warning');
+        return;
+      }
+
+      const rowId = addMobilePdPartRow();
+      const row = document.getElementById(rowId);
+      if (row) {
+        const customName = row.querySelector('.part-custom-name');
+        const price = row.querySelector('.part-price');
+        const qty = row.querySelector('.part-qty');
+        const sel = row.querySelector('.part-select');
+
+        // Check if matched internal catalog
+        if (mobilePdAiLastScanResult && mobilePdAiLastScanResult.matchedInternalPart && mobilePdAiLastScanResult.matchedInternalPart.partId && sel) {
+          sel.value = mobilePdAiLastScanResult.matchedInternalPart.partId;
+        }
+
+        const displayName = (codeVal && nameVal && codeVal !== nameVal) ? `${codeVal} ${nameVal}` : (nameVal || codeVal);
+        if (customName) customName.value = displayName;
+        if (price) price.value = priceVal;
+        if (qty) qty.value = qtyVal;
+        calcMobilePdPartsTotal();
+      }
+
+      closeMobilePdSparePartPickerModal();
+      showToast('เพิ่มอะไหล่ลงในรายการซ่อมเรียบร้อยแล้ว', 'success');
     }
 
     function removeMobilePdPartRow(rowId) {
@@ -762,8 +952,16 @@
     window.stepMobilePdStartTime = stepMobilePdStartTime;
     window.setMobilePdEndTimeNow = setMobilePdEndTimeNow;
     window.calculateMobilePdDuration = calculateMobilePdDuration;
-    window.openMobilePdAiPartCamera = openMobilePdAiPartCamera;
-    window.handleMobilePdAiCameraCapture = handleMobilePdAiCameraCapture;
+    window.openMobilePdSparePartPickerModal = openMobilePdSparePartPickerModal;
+    window.closeMobilePdSparePartPickerModal = closeMobilePdSparePartPickerModal;
+    window.switchMobilePdSparePartTab = switchMobilePdSparePartTab;
+    window.filterMobilePdSparePartCatalog = filterMobilePdSparePartCatalog;
+    window.selectMobilePdCatalogPart = selectMobilePdCatalogPart;
+    window.triggerMobilePdAiSlotCapture = triggerMobilePdAiSlotCapture;
+    window.handleMobilePdAiSlotCapture = handleMobilePdAiSlotCapture;
+    window.clearMobilePdAiSlot = clearMobilePdAiSlot;
+    window.runMobilePdSparePartAiScan = runMobilePdSparePartAiScan;
+    window.confirmMobilePdAiPart = confirmMobilePdAiPart;
 
     // ==========================================
     // Run on Page Load

@@ -2589,15 +2589,13 @@
             <div class="flex items-center justify-between">
               <label class="font-bold text-orange-900">อะไหล่ที่เปลี่ยน / เบิกใช้</label>
               <div class="flex items-center gap-1.5">
-                <button type="button" onclick="openMobilePdAiPartCamera()" class="px-2 py-0.5 bg-amber-500 hover:bg-amber-600 text-white rounded-md text-[11px] font-bold shadow-2xs transition active:scale-95">📷 สแกน AI</button>
-                <button type="button" onclick="addMobilePdPartRow()" class="px-2 py-0.5 bg-orange-600 hover:bg-orange-700 text-white rounded-md text-[11px] font-bold shadow-2xs transition active:scale-95">+ เพิ่มอะไหล่</button>
+                <button type="button" onclick="openMobilePdSparePartPickerModal('ai')" class="px-2 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-[11px] font-bold shadow-2xs transition active:scale-95 flex items-center gap-1">
+                  <span>📷 สแกน AI (1-4 ภาพ)</span>
+                </button>
+                <button type="button" onclick="openMobilePdSparePartPickerModal('catalog')" class="px-2 py-1 bg-orange-600 hover:bg-orange-700 text-white rounded-lg text-[11px] font-bold shadow-2xs transition active:scale-95 flex items-center gap-1">
+                  <span>+ คลังอะไหล่</span>
+                </button>
               </div>
-            </div>
-            <!-- Hidden Camera Input for Mobile AI Scan -->
-            <input type="file" id="mobPdAiCameraInput" accept="image/*" capture="environment" onchange="handleMobilePdAiCameraCapture(this)" class="hidden">
-            <div id="mobPdAiScanStatus" class="hidden p-2 rounded-lg bg-amber-100 text-amber-900 text-[11px] font-bold flex items-center gap-2">
-              <span class="animate-spin">⏳</span>
-              <span id="mobPdAiScanStatusText">กำลังวิเคราะห์อะไหล่ด้วย Gemini AI...</span>
             </div>
             <div id="mobPdPartsList" class="space-y-2">
               <!-- Dynamic rows -->
@@ -2624,14 +2622,183 @@
       </div>
     </section>
 
+    <!-- MODAL: ค้นหาและถ่ายภาพวิเคราะห์อะไหล่ด้วย AI (#mobPdSparePartPickerModal) -->
+    <div id="mobPdSparePartPickerModal" class="fixed inset-0 z-[80] bg-slate-900/60 backdrop-blur-xs flex items-end sm:items-center justify-center hidden">
+      <div class="bg-white w-full sm:max-w-lg rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden border border-slate-200 animate-in slide-in-from-bottom sm:zoom-in-95 duration-200 max-h-[92vh] flex flex-col text-xs text-left">
+        
+        <!-- Header -->
+        <div class="px-4 py-3 bg-gradient-to-r from-orange-600 to-amber-600 text-white flex items-center justify-between flex-shrink-0">
+          <div class="flex items-center space-x-2">
+            <span class="text-lg">📦</span>
+            <div>
+              <h4 class="text-sm font-bold leading-tight">ค้นหาและเบิกใช้อะไหล่</h4>
+              <p class="text-[10px] text-orange-100">เลือกจากคลัง หรือถ่ายรูป 1-4 ภาพให้ AI ช่วยวิเคราะห์</p>
+            </div>
+          </div>
+          <button type="button" onclick="closeMobilePdSparePartPickerModal()" class="text-white/80 hover:text-white p-1 rounded-lg hover:bg-white/10 transition">
+            ✕ ปิด
+          </button>
+        </div>
+
+        <!-- Tabs -->
+        <div class="flex items-center border-b border-slate-200 bg-slate-50 px-4 pt-1.5 flex-shrink-0 gap-2">
+          <button type="button" id="mobPdPartTabBtnCatalog" onclick="switchMobilePdSparePartTab('catalog')" class="flex-1 py-2 text-xs font-bold rounded-t-xl transition border-b-2 border-orange-600 text-orange-600 bg-white text-center cursor-pointer">
+            1. คลังสต็อก
+          </button>
+          <button type="button" id="mobPdPartTabBtnAi" onclick="switchMobilePdSparePartTab('ai')" class="flex-1 py-2 text-xs font-bold rounded-t-xl transition border-b-2 border-transparent text-slate-500 hover:text-slate-800 text-center cursor-pointer">
+            2. ถ่ายรูป 1-4 ภาพ (AI)
+          </button>
+        </div>
+
+        <!-- Body -->
+        <div class="flex-1 overflow-y-auto p-4 space-y-3.5">
+          
+          <!-- TAB 1: คลังสต็อก (Catalog) -->
+          <div id="mobPdPartTabCatalogContent" class="space-y-2.5">
+            <input type="text" id="mobPdSparePartSearchQuery" oninput="filterMobilePdSparePartCatalog(this.value)" placeholder="🔍 พิมพ์ค้นหารหัส, ชื่อ, สเปก เช่น SMC, 6204..." class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs bg-slate-50 focus:bg-white focus:ring-2 focus:ring-orange-500 outline-none font-medium">
+            <div id="mobPdSparePartCatalogList" class="max-h-72 overflow-y-auto divide-y divide-slate-100 border border-slate-200 rounded-xl bg-white">
+              <!-- Catalog items rendered by JS -->
+            </div>
+          </div>
+
+          <!-- TAB 2: ถ่ายรูป 1-4 ภาพให้ AI วิเคราะห์ (AI Vision) -->
+          <div id="mobPdPartTabAiContent" class="hidden space-y-3">
+            <div class="p-2.5 bg-amber-50 rounded-xl border border-amber-200 text-[11px] text-amber-900 flex items-start gap-2">
+              <span class="text-sm">💡</span>
+              <p>ถ่ายรูปอะไหล่ได้ <b>1 ถึง 4 ภาพ</b> (ป้ายรุ่น, ภาพรวม, เกลียว/ข้อต่อ, จุดชำรุด) จากนั้นกดปุ่มวิเคราะห์เพื่อให้ AI อ่านสเปกและค้นหาร้านค้าให้อัตโนมัติ</p>
+            </div>
+
+            <!-- 4 Photo Slots (2x2 Grid) -->
+            <div class="grid grid-cols-2 gap-2">
+              
+              <!-- Slot 1 -->
+              <div class="p-2.5 bg-slate-50 rounded-xl border border-slate-200 space-y-1.5 text-center relative">
+                <span class="block text-[10px] font-bold text-slate-700 text-left truncate">1. ป้ายยี่ห้อ / รหัสรุ่น</span>
+                <div id="mobPdAiPreview1" class="hidden relative h-24 rounded-lg overflow-hidden border border-slate-200 bg-white">
+                  <img id="mobPdAiImg1" src="" class="w-full h-full object-contain">
+                  <button type="button" onclick="clearMobilePdAiSlot(1)" class="absolute top-1 right-1 w-5 h-5 flex items-center justify-center rounded-full bg-rose-500 text-white font-bold text-[10px] shadow-xs">✕</button>
+                </div>
+                <div id="mobPdAiDrop1" onclick="triggerMobilePdAiSlotCapture(1)" class="border-2 border-dashed border-slate-300 hover:border-orange-400 rounded-lg p-2.5 bg-white cursor-pointer transition">
+                  <span class="text-xl block mb-0.5">🏷️</span>
+                  <span class="text-[10px] text-slate-600 font-semibold block">ถ่ายป้ายรุ่น</span>
+                </div>
+                <input type="file" id="mobPdAiFile1" accept="image/*" capture="environment" onchange="handleMobilePdAiSlotCapture(1, this)" class="hidden">
+              </div>
+
+              <!-- Slot 2 -->
+              <div class="p-2.5 bg-slate-50 rounded-xl border border-slate-200 space-y-1.5 text-center relative">
+                <span class="block text-[10px] font-bold text-slate-700 text-left truncate">2. ภาพรวม & ขนาด</span>
+                <div id="mobPdAiPreview2" class="hidden relative h-24 rounded-lg overflow-hidden border border-slate-200 bg-white">
+                  <img id="mobPdAiImg2" src="" class="w-full h-full object-contain">
+                  <button type="button" onclick="clearMobilePdAiSlot(2)" class="absolute top-1 right-1 w-5 h-5 flex items-center justify-center rounded-full bg-rose-500 text-white font-bold text-[10px] shadow-xs">✕</button>
+                </div>
+                <div id="mobPdAiDrop2" onclick="triggerMobilePdAiSlotCapture(2)" class="border-2 border-dashed border-slate-300 hover:border-orange-400 rounded-lg p-2.5 bg-white cursor-pointer transition">
+                  <span class="text-xl block mb-0.5">📐</span>
+                  <span class="text-[10px] text-slate-600 font-semibold block">ถ่ายภาพรวม</span>
+                </div>
+                <input type="file" id="mobPdAiFile2" accept="image/*" capture="environment" onchange="handleMobilePdAiSlotCapture(2, this)" class="hidden">
+              </div>
+
+              <!-- Slot 3 -->
+              <div class="p-2.5 bg-slate-50 rounded-xl border border-slate-200 space-y-1.5 text-center relative">
+                <span class="block text-[10px] font-bold text-slate-700 text-left truncate">3. เกลียว / ข้อต่อ</span>
+                <div id="mobPdAiPreview3" class="hidden relative h-24 rounded-lg overflow-hidden border border-slate-200 bg-white">
+                  <img id="mobPdAiImg3" src="" class="w-full h-full object-contain">
+                  <button type="button" onclick="clearMobilePdAiSlot(3)" class="absolute top-1 right-1 w-5 h-5 flex items-center justify-center rounded-full bg-rose-500 text-white font-bold text-[10px] shadow-xs">✕</button>
+                </div>
+                <div id="mobPdAiDrop3" onclick="triggerMobilePdAiSlotCapture(3)" class="border-2 border-dashed border-slate-300 hover:border-orange-400 rounded-lg p-2.5 bg-white cursor-pointer transition">
+                  <span class="text-xl block mb-0.5">🔩</span>
+                  <span class="text-[10px] text-slate-600 font-semibold block">ถ่ายข้อต่อ/เกลียว</span>
+                </div>
+                <input type="file" id="mobPdAiFile3" accept="image/*" capture="environment" onchange="handleMobilePdAiSlotCapture(3, this)" class="hidden">
+              </div>
+
+              <!-- Slot 4 -->
+              <div class="p-2.5 bg-slate-50 rounded-xl border border-slate-200 space-y-1.5 text-center relative">
+                <span class="block text-[10px] font-bold text-slate-700 text-left truncate">4. จุดชำรุดเสียหาย</span>
+                <div id="mobPdAiPreview4" class="hidden relative h-24 rounded-lg overflow-hidden border border-slate-200 bg-white">
+                  <img id="mobPdAiImg4" src="" class="w-full h-full object-contain">
+                  <button type="button" onclick="clearMobilePdAiSlot(4)" class="absolute top-1 right-1 w-5 h-5 flex items-center justify-center rounded-full bg-rose-500 text-white font-bold text-[10px] shadow-xs">✕</button>
+                </div>
+                <div id="mobPdAiDrop4" onclick="triggerMobilePdAiSlotCapture(4)" class="border-2 border-dashed border-slate-300 hover:border-orange-400 rounded-lg p-2.5 bg-white cursor-pointer transition">
+                  <span class="text-xl block mb-0.5">⚠️</span>
+                  <span class="text-[10px] text-slate-600 font-semibold block">ถ่ายจุดชำรุด</span>
+                </div>
+                <input type="file" id="mobPdAiFile4" accept="image/*" capture="environment" onchange="handleMobilePdAiSlotCapture(4, this)" class="hidden">
+              </div>
+
+            </div>
+
+            <!-- Action Button -->
+            <button type="button" id="mobPdBtnRunAiScan" onclick="runMobilePdSparePartAiScan()" class="w-full py-2.5 rounded-xl bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-700 hover:to-amber-700 text-white font-bold text-xs shadow-md transition active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer">
+              <span>⚡ ให้ AI วิเคราะห์ภาพ (Gemini Vision)</span>
+            </button>
+
+            <!-- AI Scan Status / Spinner -->
+            <div id="mobPdAiScanStatusBox" class="hidden p-3 rounded-xl bg-amber-100 text-amber-900 text-xs font-bold flex items-center justify-center gap-2">
+              <span class="animate-spin text-sm">⏳</span>
+              <span id="mobPdAiScanStatusText">กำลังวิเคราะห์อะไหล่ด้วย Gemini AI...</span>
+            </div>
+
+            <!-- AI Result Card -->
+            <div id="mobPdAiResultCard" class="hidden p-3 rounded-xl bg-orange-50/70 border border-orange-200 space-y-2.5">
+              <div id="mobPdAiMatchBanner" class="p-2 rounded-lg text-xs font-bold"></div>
+              
+              <div class="grid grid-cols-2 gap-2">
+                <div>
+                  <label class="block font-bold text-slate-700 mb-0.5">รหัสรุ่น / Model Code</label>
+                  <input type="text" id="mobPdAiPartCode" class="w-full px-2 py-1.5 rounded-lg border border-slate-300 text-xs bg-white font-semibold">
+                </div>
+                <div>
+                  <label class="block font-bold text-slate-700 mb-0.5">ชื่ออะไหล่</label>
+                  <input type="text" id="mobPdAiPartName" class="w-full px-2 py-1.5 rounded-lg border border-slate-300 text-xs bg-white font-semibold">
+                </div>
+              </div>
+
+              <div>
+                <label class="block font-bold text-slate-700 mb-0.5">สเปกรายละเอียด & ยี่ห้อ</label>
+                <div class="grid grid-cols-2 gap-2">
+                  <input type="text" id="mobPdAiSpec" placeholder="สเปก เช่น 25x52x15mm" class="w-full px-2 py-1.5 rounded-lg border border-slate-300 text-xs bg-white">
+                  <input type="text" id="mobPdAiBrand" placeholder="ยี่ห้อ เช่น NSK, SMC" class="w-full px-2 py-1.5 rounded-lg border border-slate-300 text-xs bg-white">
+                </div>
+              </div>
+
+              <div class="grid grid-cols-2 gap-2">
+                <div>
+                  <label class="block font-bold text-slate-700 mb-0.5">ราคาประเมิน/หน่วย (฿)</label>
+                  <input type="number" id="mobPdAiUnitPrice" min="0" value="0" class="w-full px-2 py-1.5 rounded-lg border border-slate-300 text-xs bg-white text-right font-semibold">
+                </div>
+                <div>
+                  <label class="block font-bold text-slate-700 mb-0.5">จำนวนที่เบิกใช้ <span class="text-rose-500">*</span></label>
+                  <input type="number" id="mobPdAiUsedQty" min="1" value="1" class="w-full px-2 py-1.5 rounded-lg border border-slate-300 text-xs bg-white text-center font-bold">
+                </div>
+              </div>
+
+              <div class="p-2 bg-amber-100/60 rounded-lg border border-amber-200 text-[11px] space-y-1">
+                <div><span class="font-bold text-amber-900">🏪 ผู้ขายแนะนำ:</span> <span id="mobPdAiVendorText">-</span></div>
+                <div><span class="font-bold text-amber-900">🚚 ลีดไทม์:</span> <span id="mobPdAiLeadTimeText">-</span></div>
+              </div>
+
+              <button type="button" onclick="confirmMobilePdAiPart()" class="w-full py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs shadow-sm transition active:scale-95 cursor-pointer">
+                + นำอะไหล่นี้ไปใช้ในงานซ่อม
+              </button>
+            </div>
+
+          </div>
+
+        </div>
+
+      </div>
+    </div>
+
   </main>
 
   <!-- Application Logic -->
-  <!-- Modular Mobile JS Architecture (v3.0.1) -->
-  <script src="js/mobile-core.js?v=3.0.1"></script>
-  <script src="js/mobile-hr.js?v=3.0.1"></script>
-  <script src="js/mobile-services.js?v=3.0.1"></script>
-  <script src="js/mobile-iso-mnw.js?v=3.0.1"></script>
-  <script src="js/mobile-pd-pc.js?v=3.0.1"></script>
+  <!-- Modular Mobile JS Architecture (v3.0.7) -->
+  <script src="js/mobile-core.js?v=3.0.7"></script>
+  <script src="js/mobile-hr.js?v=3.0.7"></script>
+  <script src="js/mobile-services.js?v=3.0.7"></script>
+  <script src="js/mobile-iso-mnw.js?v=3.0.7"></script>
+  <script src="js/mobile-pd-pc.js?v=3.0.7"></script>
 </body>
 </html>
