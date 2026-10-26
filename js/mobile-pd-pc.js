@@ -1010,11 +1010,12 @@
         const res = await postApiRequest({
           action: 'extractCoilTagWithAI',
           base64Data: base64Data,
-          mimeType: file.type || 'image/jpeg',
+          mimeType: 'image/jpeg',
+          images: [{ base64Data: base64Data, mimeType: 'image/jpeg' }],
           callerEmpId: state.currentUser ? state.currentUser.employeeCode : 'MOBILE_PC'
         });
 
-        if (res && res.status === 'success' && res.data) {
+        if (res && (res.status === 'success' || res.success) && res.data) {
           const d = res.data;
           const lotInput = document.getElementById('mobPcCoilLotNo');
           const heatInput = document.getElementById('mobPcHeatNo');
@@ -1027,7 +1028,7 @@
           if (heatInput && d.heatNo) heatInput.value = d.heatNo;
           if (gradeInput && d.materialGrade) gradeInput.value = d.materialGrade;
           if (specInput && d.specDimension) specInput.value = d.specDimension;
-          if (weightInput && d.totalWeightKg) weightInput.value = d.totalWeightKg;
+          if (weightInput && (d.totalWeightKg !== undefined && d.totalWeightKg !== null && d.totalWeightKg !== '')) weightInput.value = d.totalWeightKg;
           if (supInput && d.supplierName) supInput.value = d.supplierName;
 
           const banner = document.getElementById('mobPcMtcMatchStatusBanner');
@@ -1056,7 +1057,8 @@
           }
           showToast('สแกนป้ายสำเร็จ กรุณาตรวจสอบตัวเลขก่อนบันทึก', 'success');
         } else {
-          showToast('ไม่สามารถอ่านข้อมูลป้ายอัตโนมัติได้ กรุณากรอกข้อมูล', 'warning');
+          const errMsg = (res && (res.message || res.error)) ? `: ${res.message || res.error}` : '';
+          showToast(`ไม่สามารถอ่านข้อมูลป้ายอัตโนมัติได้${errMsg} กรุณากรอกข้อมูล`, 'warning');
         }
       } catch (err) {
         console.error('Mobile coil tag scan error:', err);
@@ -1109,7 +1111,7 @@
         };
 
         const res = await postApiRequest(payload);
-        if (res && res.status === 'success') {
+        if (res && (res.status === 'success' || res.success)) {
           const status = (res.data && res.data.Status) || '';
           const msg = status === 'AVAILABLE'
             ? `บันทึกม้วน ${coilLot} สำเร็จ (พร้อมผลิต AVAILABLE)`
@@ -1173,7 +1175,7 @@
 
       try {
         const res = await postApiRequest({ action: 'getMesRawMaterials' });
-        if (res && res.status === 'success' && Array.isArray(res.data)) {
+        if (res && (res.status === 'success' || res.success) && Array.isArray(res.data)) {
           mobilePcCoilsCache = res.data;
           renderMobilePcCoils();
         } else {
