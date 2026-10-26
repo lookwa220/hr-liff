@@ -970,6 +970,8 @@
     let mobilePcCoilsCache = [];
     let mobilePcActiveFilter = 'ALL';
     let mobilePcStagedMtcMatch = null;
+    let mobilePcCurrentTagBase64 = null;
+    let mobilePcCurrentViewingTag = null;
 
     function initMobilePcCoilReceive() {
       const form = document.getElementById('mobPcCoilReceiveForm');
@@ -984,6 +986,7 @@
         banner.innerHTML = '';
       }
       mobilePcStagedMtcMatch = null;
+      mobilePcCurrentTagBase64 = null;
     }
 
     async function handleMobilePcCoilTagCapture(event) {
@@ -1006,6 +1009,7 @@
 
         const compressedBase64 = await compressMobileImage(file, 1200, 0.8);
         const base64Data = compressedBase64.replace(/^data:image\/[a-zA-Z]+;base64,/, '');
+        mobilePcCurrentTagBase64 = base64Data;
 
         const res = await postApiRequest({
           action: 'extractCoilTagWithAI',
@@ -1107,6 +1111,7 @@
           Location: location,
           SupplierName: supplier,
           Origin: 'DOMESTIC',
+          tagPhotoBase64: mobilePcCurrentTagBase64 || null,
           callerEmpId: state.currentUser ? state.currentUser.employeeCode : 'MOBILE_PC'
         };
 
@@ -1119,6 +1124,10 @@
           showToast(msg, 'success');
           initMobilePcCoilReceive();
           closeCurrentView();
+          // เปิดป้ายแท็กภายในให้ตรวจสอบ/พิมพ์ทันที
+          setTimeout(() => {
+            openMobilePcCoilTag(coilLot);
+          }, 300);
         } else {
           showToast('บันทึกไม่สำเร็จ: ' + ((res && res.message) || 'Unknown error'), 'error');
         }
@@ -1256,9 +1265,185 @@
               <div>คงเหลือ: <strong class="text-slate-800">${weight.toLocaleString()} กก.</strong></div>
               <div>พิกัด: <strong class="text-indigo-700">${escapeHtml(c.Location || 'ไม่ระบุ')}</strong></div>
             </div>
+
+            <div class="flex items-center justify-between pt-1 border-t border-slate-50 text-[10px]">
+              <div class="text-slate-400 font-sans truncate max-w-[150px]">
+                ${c.SupplierName ? escapeHtml(c.SupplierName) : ''}
+              </div>
+              <div class="flex items-center gap-1.5 shrink-0">
+                ${c.MillSheetUrl ? `<a href="${c.MillSheetUrl}" target="_blank" onclick="event.stopPropagation()" class="px-2 py-0.5 rounded-md border border-indigo-200 bg-indigo-50 text-indigo-700 font-bold hover:bg-indigo-100 transition">📄 MTC</a>` : ''}
+                <button type="button" onclick="event.stopPropagation(); openMobilePcCoilTag('${escapeHtml(c.CoilLotNo || '')}')" class="px-2 py-0.5 rounded-md border border-slate-300 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold active:scale-95 transition">🏷️ ป้ายแท็ก</button>
+              </div>
+            </div>
           </div>
         `;
       }).join('');
+    }
+
+    async function handleMobilePcBarcodeScan(event) {
+      const file = event.target.files && event.target.files[0];
+      if (!file) return;
+
+      try {
+        showToast('กำลังตรวจหาบาร์โค้ดจากภาพ...', 'info');
+
+        // 1. ลองใช้ Native BarcodeDetector API (Android Chrome & iOS 17+)
+        if ('BarcodeDetector' in window) {
+          try {
+            const barcodeDetector = new window.BarcodeDetector({ formats: ['code_128', 'qr_code', 'ean_13', 'code_39', 'data_matrix'] });
+            const bitmap = await createImageBitmap(file);
+            const barcodes = await barcodeDetector.detect(bitmap);
+            if (barcodes && barcodes.length > 0) {
+              const code = String(barcodes[0].rawValue || '').trim();
+              if (code) {
+                const searchInput = document.getElementById('mobPcSearchCoilInput');
+                if (searchInput) searchInput.value = code;
+                filterMobilePcCoils();
+                showToast(`พบบาร์โค้ด: ${code}`, 'success');
+                return;
+              }
+            }
+          } catch (bcErr) {
+            console.warn('BarcodeDetector error:', bcErr);
+          }
+        }
+
+        // 2. Fallback: บีบอัดและส่งให้ AI Vision วิเคราะห์รหัสขดลวด
+        const compressed = await compressMobileImage(file, 900, 0.7);
+        const base64 = compressed.replace(/^data:image\/[a-zA-Z]+;base64,/, '');
+        const res = await postApiRequest({
+          action: 'extractCoilTagWithAI',
+          base64Data: base64,
+          mimeType: 'image/jpeg',
+          callerEmpId: state.currentUser ? state.currentUser.employeeCode : 'MOBILE_PC'
+        });
+
+        if (res && (res.status === 'success' || res.success) && res.data) {
+          const found = res.data.coilLotNo || res.data.heatNo || '';
+          if (found) {
+            const searchInput = document.getElementById('mobPcSearchCoilInput');
+            if (searchInput) searchInput.value = found;
+            filterMobilePcCoils();
+            showToast(`พบข้อมูลขดลวด: ${found}`, 'success');
+            return;
+          }
+        }
+
+        showToast('ไม่พบบาร์โค้ดที่ชัดเจน กรุณาลองถ่ายใหม่อีกครั้งหรือพิมพ์ค้นหา', 'warning');
+      } catch (err) {
+        console.error('Barcode scan error:', err);
+        showToast('เกิดข้อผิดพลาดในการสแกนบาร์โค้ด: ' + err.message, 'error');
+      } finally {
+        event.target.value = '';
+      }
+    }
+
+    async function openMobilePcCoilTag(coilLotNo) {
+      const modal = document.getElementById('mobPcCoilTagModal');
+      const content = document.getElementById('mobPcCoilTagContent');
+      if (!modal || !content) return;
+
+      content.innerHTML = '<div class="text-center py-6 text-slate-400 text-xs animate-pulse">กำลังโหลดข้อมูลป้ายแท็ก...</div>';
+      modal.classList.remove('hidden');
+
+      try {
+        const res = await postApiRequest({
+          action: 'getPcCoilTagPrintData',
+          coilLotNo: coilLotNo
+        });
+
+        if (res && (res.status === 'success' || res.success) && res.data) {
+          const t = res.data;
+          mobilePcCurrentViewingTag = t;
+
+          const isAvail = String(t.status).trim() === 'AVAILABLE';
+          const statusBadge = isAvail
+            ? '<span class="px-2 py-0.5 rounded font-black bg-emerald-100 text-emerald-800 text-[10px] border border-emerald-300">AVAILABLE</span>'
+            : '<span class="px-2 py-0.5 rounded font-black bg-amber-100 text-amber-800 text-[10px] border border-amber-300">PENDING_QA</span>';
+
+          content.innerHTML = `
+            <div class="border-b-2 border-slate-900 pb-2">
+              <div class="flex items-start justify-between">
+                <div>
+                  <div class="text-[11px] font-black uppercase text-slate-900">MINAMIDA (THAILAND)</div>
+                  <div class="text-[9px] font-bold text-slate-600">PRODUCTION CONTROL • RAW MATERIAL IQC</div>
+                </div>
+                <div class="text-right">
+                  <span class="px-1.5 py-0.5 bg-slate-900 text-white font-mono font-bold text-[9px] rounded">${escapeHtml(t.tagDocNo || 'FM-PC-RM-001')}</span>
+                  <div class="text-[8px] text-slate-500 font-semibold mt-0.5">IATF 16949</div>
+                </div>
+              </div>
+              <div class="text-center mt-1">
+                <span class="text-[10px] font-black text-slate-900 uppercase tracking-wide">COIL IDENTIFICATION TAG</span>
+              </div>
+            </div>
+
+            <div class="space-y-1.5 font-mono text-[11px] pt-1">
+              <div class="flex justify-between items-center bg-slate-100 px-2 py-1 rounded">
+                <span class="text-slate-500 font-sans text-[10px]">Coil Lot No:</span>
+                <strong class="text-slate-900 text-xs">${escapeHtml(t.coilLotNo || '-')}</strong>
+              </div>
+              <div class="flex justify-between items-center px-1">
+                <span class="text-slate-500 font-sans text-[10px]">Heat / Charge No:</span>
+                <span class="text-indigo-800 font-bold">${escapeHtml(t.heatNo || '-')}</span>
+              </div>
+              <div class="flex justify-between items-center px-1">
+                <span class="text-slate-500 font-sans text-[10px]">เกรด (Grade):</span>
+                <strong class="text-slate-800">${escapeHtml(t.materialGrade || '-')}</strong>
+              </div>
+              <div class="flex justify-between items-center px-1">
+                <span class="text-slate-500 font-sans text-[10px]">สเปกขนาด (Spec):</span>
+                <strong class="text-slate-800">${escapeHtml(t.specDimension || '-')}</strong>
+              </div>
+              <div class="flex justify-between items-center px-1">
+                <span class="text-slate-500 font-sans text-[10px]">น้ำหนักสุทธิ:</span>
+                <strong class="text-slate-900 font-bold">${Number(t.totalWeightKg || t.remainingWeightKg || 0).toLocaleString()} กก.</strong>
+              </div>
+              <div class="flex justify-between items-center px-1">
+                <span class="text-slate-500 font-sans text-[10px]">ผู้ผลิต / คู่ค้า:</span>
+                <span class="text-slate-700 text-[10px] font-sans truncate max-w-[170px]">${escapeHtml(t.supplierName || '-')}</span>
+              </div>
+              <div class="flex justify-between items-center px-1">
+                <span class="text-slate-500 font-sans text-[10px]">วันที่รับเข้า:</span>
+                <span class="text-slate-700 text-[10px]">${escapeHtml(t.receivedDate || '-')}</span>
+              </div>
+              <div class="flex justify-between items-center bg-slate-100 px-2 py-1 rounded">
+                <span class="text-slate-500 font-sans text-[10px]">พิกัดจัดเก็บ / สถานะ:</span>
+                <div class="flex items-center gap-1.5">
+                  <span class="font-bold text-slate-800">${escapeHtml(t.location || 'ไม่ระบุ')}</span>
+                  ${statusBadge}
+                </div>
+              </div>
+            </div>
+          `;
+        } else {
+          content.innerHTML = '<div class="text-center py-6 text-rose-500 text-xs">ไม่พบข้อมูลป้ายแท็กของม้วนนี้</div>';
+        }
+      } catch (err) {
+        console.error('openMobilePcCoilTag error:', err);
+        content.innerHTML = `<div class="text-center py-6 text-rose-500 text-xs">โหลดไม่สำเร็จ: ${err.message}</div>`;
+      }
+    }
+
+    function closeMobilePcCoilTagModal() {
+      const modal = document.getElementById('mobPcCoilTagModal');
+      if (modal) modal.classList.add('hidden');
+      mobilePcCurrentViewingTag = null;
+    }
+
+    function shareOrPrintMobilePcTag() {
+      if (!mobilePcCurrentViewingTag) return;
+      const t = mobilePcCurrentViewingTag;
+      const text = `🏷️ MINAMIDA COIL TAG (${t.tagDocNo || 'FM-PC-RM-001'})\nCoil Lot: ${t.coilLotNo}\nHeat No: ${t.heatNo}\nGrade: ${t.materialGrade}\nSpec: ${t.specDimension}\nWeight: ${t.totalWeightKg} kg\nLocation: ${t.location || '-'}\nStatus: ${t.status}`;
+
+      if (navigator.share) {
+        navigator.share({
+          title: `Coil Tag - ${t.coilLotNo}`,
+          text: text
+        }).catch(() => {});
+      } else {
+        window.print();
+      }
     }
 
     // Expose PC functions to window
@@ -1269,6 +1454,10 @@
     window.loadMobilePcCoilStockList = loadMobilePcCoilStockList;
     window.setMobilePcCoilFilter = setMobilePcCoilFilter;
     window.filterMobilePcCoils = filterMobilePcCoils;
+    window.handleMobilePcBarcodeScan = handleMobilePcBarcodeScan;
+    window.openMobilePcCoilTag = openMobilePcCoilTag;
+    window.closeMobilePcCoilTagModal = closeMobilePcCoilTagModal;
+    window.shareOrPrintMobilePcTag = shareOrPrintMobilePcTag;
 
     // ==========================================
     // Run on Page Load
