@@ -310,6 +310,14 @@
         if (secPd) secPd.classList.remove('hidden');
       }
 
+      // Check PC Department Section (สำหรับสมาชิกฝ่ายสโตร์/วางแผน PC หรือผู้ได้รับสิทธิ์ และ Super Admin)
+      const isPcMember = userDeptUpper.includes('PC') || userDeptUpper.includes('STORE') || userDeptUpper.includes('PLAN') || user.isPcMember;
+      const canViewPc = isPcMember || user.canAccessPc || user.isPc || (user.allowedModules && (user.allowedModules.includes('pc') || user.allowedModules.includes('pc_raw_materials'))) || isSuperAdmin;
+      if (canViewPc) {
+        const secPc = document.getElementById('sectionPcWorkbench');
+        if (secPc) secPc.classList.remove('hidden');
+      }
+
       // Pre-fill default dates
       const todayStr = new Date().toISOString().split('T')[0];
       document.getElementById('leaveStartDate').value = todayStr;
@@ -546,7 +554,8 @@
         'viewPaySlip', 'viewShiftAtt', 'viewSwap', 'viewSafety',
         'viewPersonal', 'viewRoomBooking', 'viewVehicleBooking',
         'viewMnwRequest', 'viewMnwWorkbench', 'viewMnwRoutine', 'viewKaizen',
-        'viewBusinessCards', 'viewPartsRequest', 'viewPdRepair'
+        'viewBusinessCards', 'viewPartsRequest', 'viewPdRepair',
+        'viewPcCoilReceive', 'viewPcCoilCheck'
       ];
       allViewIds.forEach(id => {
         const el = document.getElementById(id);
@@ -632,6 +641,14 @@
         const vpd = document.getElementById('viewPdRepair');
         if (vpd) vpd.classList.remove('hidden');
         loadMobilePdRepairView();
+      } else if (viewName === 'pcCoilReceive') {
+        const vcr = document.getElementById('viewPcCoilReceive');
+        if (vcr) vcr.classList.remove('hidden');
+        if (typeof initMobilePcCoilReceive === 'function') initMobilePcCoilReceive();
+      } else if (viewName === 'pcCoilCheck') {
+        const vcc = document.getElementById('viewPcCoilCheck');
+        if (vcc) vcc.classList.remove('hidden');
+        if (typeof initMobilePcCoilCheck === 'function') initMobilePcCoilCheck();
       }
       state.currentView = viewName;
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -647,7 +664,8 @@
         'viewPaySlip', 'viewShiftAtt', 'viewSwap', 'viewSafety',
         'viewPersonal', 'viewRoomBooking', 'viewVehicleBooking',
         'viewMnwRequest', 'viewMnwWorkbench', 'viewMnwRoutine', 'viewKaizen',
-        'viewBusinessCards', 'viewPartsRequest', 'viewPdRepair'
+        'viewBusinessCards', 'viewPartsRequest', 'viewPdRepair',
+        'viewPcCoilReceive', 'viewPcCoilCheck'
       ];
       allViewIds.forEach(id => {
         const el = document.getElementById(id);

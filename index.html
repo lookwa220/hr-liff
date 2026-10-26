@@ -361,6 +361,46 @@
         </div>
       </section>
 
+      <!-- ======================================================== -->
+      <!-- SECTION 6: ฝ่ายสโตร์ & วางแผน (PC Store & Planning) -->
+      <!-- ======================================================== -->
+      <section id="sectionPcWorkbench" class="hidden space-y-2">
+        <div class="flex items-center justify-between px-1 pt-1">
+          <span class="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center space-x-1">
+            <span>📦 ฝ่ายสโตร์ & วางแผน (PC Store)</span>
+          </span>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <!-- 1. ตรวจรับขดลวดหน้างาน (Coil Receiving) -->
+          <button id="btnPcCoilReceiveCard" onclick="openView('pcCoilReceive')" class="glass-card p-4 rounded-2xl border border-emerald-300 bg-emerald-50/50 text-left hover:shadow-md transition-all flex items-center justify-between cursor-pointer">
+            <div class="flex items-center space-x-3.5">
+              <div class="w-11 h-11 rounded-xl bg-emerald-600 text-white flex items-center justify-center text-2xl shadow-sm flex-shrink-0">
+                📷
+              </div>
+              <div>
+                <h3 class="text-sm font-bold text-slate-800">ตรวจรับขดลวดหน้างาน</h3>
+                <p class="text-[11px] text-slate-600 mt-0.5">ถ่ายรูปป้ายม้วน ➔ AI สกัด Heat/Lot & รับเข้าคลัง</p>
+              </div>
+            </div>
+            <span class="text-slate-400 text-base">➔</span>
+          </button>
+
+          <!-- 2. สแกนเช็คม้วนลวด & สต็อก (Coil Scanner & Stock) -->
+          <button id="btnPcCoilCheckCard" onclick="openView('pcCoilCheck')" class="glass-card p-4 rounded-2xl border border-cyan-300 bg-cyan-50/50 text-left hover:shadow-md transition-all flex items-center justify-between cursor-pointer">
+            <div class="flex items-center space-x-3.5">
+              <div class="w-11 h-11 rounded-xl bg-cyan-600 text-white flex items-center justify-center text-2xl shadow-sm flex-shrink-0">
+                🔍
+              </div>
+              <div>
+                <h3 class="text-sm font-bold text-slate-800">สแกนเช็คขดลวด & สต็อก</h3>
+                <p class="text-[11px] text-slate-600 mt-0.5">เช็คพิกัดจัดเก็บ & สถานะพร้อมผลิต (AVAILABLE)</p>
+              </div>
+            </div>
+            <span class="text-slate-400 text-base">➔</span>
+          </button>
+        </div>
+      </section>
+
       <!-- Hidden Elements for Preserving DOM References -->
       <div class="hidden">
         <span id="swapBadgeCount">0</span>
@@ -2796,14 +2836,147 @@
       </div>
     </div>
 
+    <!-- ======================================================== -->
+    <!-- VIEW: ตรวจรับขดลวดหน้างาน (Coil Receiving - Mobile PC)    -->
+    <!-- ======================================================== -->
+    <section id="viewPcCoilReceive" class="hidden space-y-4 animate-fadeIn text-left">
+      <!-- Header -->
+      <div class="glass-card rounded-2xl p-4 shadow-sm border border-slate-200">
+        <div class="flex items-center justify-between pb-3 border-b border-slate-200">
+          <div class="flex items-center space-x-2.5">
+            <button type="button" onclick="closeCurrentView()" class="p-2 -ml-2 rounded-xl text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition cursor-pointer">
+              <span class="text-lg">←</span>
+            </button>
+            <div>
+              <h2 class="text-base font-bold text-slate-800 leading-tight">ตรวจรับขดลวดหน้างาน</h2>
+              <p class="text-[11px] text-slate-500">สแกนป้ายม้วนลวด ➔ ตรวจสอบ MTC & รับเข้าคลัง</p>
+            </div>
+          </div>
+          <span class="text-xs font-bold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800">PC Store</span>
+        </div>
+
+        <form id="mobPcCoilReceiveForm" onsubmit="handleMobilePcCoilSubmit(event)" class="space-y-3.5 pt-3">
+          <!-- Camera Snap Zone -->
+          <div class="p-3.5 bg-gradient-to-r from-emerald-50 to-teal-50 rounded-2xl border border-emerald-200 text-center space-y-2">
+            <div class="text-xs font-bold text-emerald-950">📸 ถ่ายรูปป้ายข้างม้วน (Coil Tag / Label)</div>
+            <p class="text-[10px] text-emerald-700">แตะเพื่อเปิดกล้องหลังมือถือ หรือถ่ายหลายรูปประกอบ</p>
+
+            <input type="file" id="mobPcCoilTagInput" accept="image/*" capture="environment" onchange="handleMobilePcCoilTagCapture(event)" class="hidden">
+            <button type="button" onclick="document.getElementById('mobPcCoilTagInput').click()" class="w-full py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-md transition active:scale-95 flex items-center justify-center gap-2 cursor-pointer">
+              <span class="text-base">📷</span>
+              <span>ถ่ายรูปป้ายด้วยกล้องมือถือ</span>
+            </button>
+
+            <div id="mobPcCoilAiScanningBox" class="hidden p-2 rounded-xl bg-amber-100 text-amber-900 text-xs font-bold flex items-center justify-center gap-2 animate-pulse">
+              <span class="animate-spin text-sm">⏳</span>
+              <span>AI กำลังอ่านข้อมูลป้ายและเช็ค MTC...</span>
+            </div>
+
+            <!-- Image thumbnail preview -->
+            <div id="mobPcCoilImagePreviewBox" class="hidden pt-1">
+              <img id="mobPcCoilImagePreview" src="" alt="ป้ายม้วนลวด" class="max-h-36 mx-auto rounded-xl border border-emerald-300 shadow-xs object-cover">
+            </div>
+          </div>
+
+          <!-- Smart Match Banner -->
+          <div id="mobPcMtcMatchStatusBanner" class="hidden p-3 rounded-xl border text-xs font-semibold animate-in fade-in duration-150"></div>
+
+          <!-- Fields -->
+          <div class="grid grid-cols-2 gap-2.5">
+            <div>
+              <label class="block text-xs font-bold text-slate-700 mb-1">Coil Lot No. <span class="text-rose-500">*</span></label>
+              <input type="text" id="mobPcCoilLotNo" required placeholder="เช่น COIL-01" class="w-full px-3 py-2 text-xs font-mono font-bold bg-white border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none">
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-slate-700 mb-1">Heat No.</label>
+              <input type="text" id="mobPcHeatNo" placeholder="เช่น 5L0531" class="w-full px-3 py-2 text-xs font-mono font-bold bg-white border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none">
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-2.5">
+            <div>
+              <label class="block text-xs font-bold text-slate-700 mb-1">เกรด (Grade) <span class="text-rose-500">*</span></label>
+              <input type="text" id="mobPcMaterialGrade" required placeholder="เช่น SWCH10R" class="w-full px-3 py-2 text-xs font-bold bg-white border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none uppercase">
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-slate-700 mb-1">ขนาด (Dimension)</label>
+              <input type="text" id="mobPcSpecDimension" placeholder="เช่น Ø 25.5 mm" class="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none">
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-2.5">
+            <div>
+              <label class="block text-xs font-bold text-slate-700 mb-1">น้ำหนักรวม (กก.) <span class="text-rose-500">*</span></label>
+              <input type="number" id="mobPcTotalWeight" required step="any" min="0" placeholder="เช่น 1250" class="w-full px-3 py-2 text-xs font-mono font-bold text-right bg-white border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none">
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-slate-700 mb-1">พิกัดจัดเก็บ (Bay/Zone)</label>
+              <input type="text" id="mobPcLocation" placeholder="เช่น Bay A1, คอยล์ 2" class="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none">
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">ผู้จำหน่าย / ผู้รีดลวด (Supplier)</label>
+            <input type="text" id="mobPcSupplierName" placeholder="เช่น Sanyu Co., Ltd., Thai Steel Wire" class="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none">
+          </div>
+
+          <button type="submit" id="mobPcBtnSubmitReceive" class="w-full py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold text-xs shadow-md transition active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer mt-2">
+            <span>💾 ยืนยันบันทึกรับเข้าคลัง</span>
+          </button>
+        </form>
+      </div>
+    </section>
+
+    <!-- ======================================================== -->
+    <!-- VIEW: สแกนเช็คขดลวด & สต็อก (Coil Scanner & Stock)        -->
+    <!-- ======================================================== -->
+    <section id="viewPcCoilCheck" class="hidden space-y-4 animate-fadeIn text-left">
+      <div class="glass-card rounded-2xl p-4 shadow-sm border border-slate-200 space-y-3">
+        <!-- Header -->
+        <div class="flex items-center justify-between pb-3 border-b border-slate-200">
+          <div class="flex items-center space-x-2.5">
+            <button type="button" onclick="closeCurrentView()" class="p-2 -ml-2 rounded-xl text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition cursor-pointer">
+              <span class="text-lg">←</span>
+            </button>
+            <div>
+              <h2 class="text-base font-bold text-slate-800 leading-tight">สแกนเช็คขดลวด & สต็อก</h2>
+              <p class="text-[11px] text-slate-500">ตรวจสอบพิกัดจัดเก็บ & สถานะพร้อมผลิต</p>
+            </div>
+          </div>
+          <button type="button" onclick="loadMobilePcCoilStockList()" class="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold transition cursor-pointer" title="รีเฟรช">
+            🔄
+          </button>
+        </div>
+
+        <!-- Search Bar -->
+        <div class="relative">
+          <input type="text" id="mobPcSearchCoilInput" oninput="filterMobilePcCoils()" placeholder="ค้นหา Coil Lot, Heat No, เกรด, พิกัด..." class="w-full pl-9 pr-8 py-2 text-xs font-semibold bg-white border border-slate-300 rounded-xl focus:ring-2 focus:ring-cyan-500 outline-none">
+          <span class="absolute left-3 top-2.5 text-slate-400 text-xs">🔍</span>
+          <button type="button" onclick="document.getElementById('mobPcSearchCoilInput').value=''; filterMobilePcCoils();" class="absolute right-2.5 top-2 text-slate-400 hover:text-slate-600 text-xs">✕</button>
+        </div>
+
+        <!-- Status Filter Pills -->
+        <div class="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs">
+          <button type="button" onclick="setMobilePcCoilFilter('ALL')" id="mobPcFilterPill_ALL" class="px-3 py-1 rounded-full font-bold bg-cyan-600 text-white shrink-0 cursor-pointer">ทั้งหมด</button>
+          <button type="button" onclick="setMobilePcCoilFilter('AVAILABLE')" id="mobPcFilterPill_AVAILABLE" class="px-3 py-1 rounded-full font-semibold bg-slate-100 text-slate-600 shrink-0 cursor-pointer">🟢 พร้อมผลิต</button>
+          <button type="button" onclick="setMobilePcCoilFilter('PENDING_QA_VERIFY')" id="mobPcFilterPill_PENDING" class="px-3 py-1 rounded-full font-semibold bg-slate-100 text-slate-600 shrink-0 cursor-pointer">🟡 รอ QA ตรวจ</button>
+        </div>
+
+        <!-- Coil Cards List -->
+        <div id="mobPcCoilListContainer" class="space-y-2.5 pt-1">
+          <div class="text-center py-8 text-slate-400 text-xs">กำลังโหลดสต็อกขดลวด...</div>
+        </div>
+      </div>
+    </section>
+
   </main>
 
   <!-- Application Logic -->
-  <!-- Modular Mobile JS Architecture (v3.0.7) -->
-  <script src="js/mobile-core.js?v=3.0.7"></script>
-  <script src="js/mobile-hr.js?v=3.0.7"></script>
-  <script src="js/mobile-services.js?v=3.0.7"></script>
-  <script src="js/mobile-iso-mnw.js?v=3.0.7"></script>
-  <script src="js/mobile-pd-pc.js?v=3.0.8"></script>
+  <!-- Modular Mobile JS Architecture (v3.0.9) -->
+  <script src="js/mobile-core.js?v=3.0.9"></script>
+  <script src="js/mobile-hr.js?v=3.0.9"></script>
+  <script src="js/mobile-services.js?v=3.0.9"></script>
+  <script src="js/mobile-iso-mnw.js?v=3.0.9"></script>
+  <script src="js/mobile-pd-pc.js?v=3.0.9"></script>
 </body>
 </html>

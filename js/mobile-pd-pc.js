@@ -965,6 +965,310 @@
     window.confirmMobilePdAiPart = confirmMobilePdAiPart;
 
     // ==========================================
+    // MOBILE PC STORE CONTROLLER (Frontline Lean Hub)
+    // ==========================================
+    let mobilePcCoilsCache = [];
+    let mobilePcActiveFilter = 'ALL';
+    let mobilePcStagedMtcMatch = null;
+
+    function initMobilePcCoilReceive() {
+      const form = document.getElementById('mobPcCoilReceiveForm');
+      if (form) form.reset();
+
+      const previewBox = document.getElementById('mobPcCoilImagePreviewBox');
+      if (previewBox) previewBox.classList.add('hidden');
+
+      const banner = document.getElementById('mobPcMtcMatchStatusBanner');
+      if (banner) {
+        banner.className = 'hidden p-3 rounded-xl border text-xs font-semibold animate-in fade-in duration-150';
+        banner.innerHTML = '';
+      }
+      mobilePcStagedMtcMatch = null;
+    }
+
+    async function handleMobilePcCoilTagCapture(event) {
+      const file = event.target.files && event.target.files[0];
+      if (!file) return;
+
+      const previewBox = document.getElementById('mobPcCoilImagePreviewBox');
+      const previewImg = document.getElementById('mobPcCoilImagePreview');
+      const scanBox = document.getElementById('mobPcCoilAiScanningBox');
+
+      try {
+        if (scanBox) scanBox.classList.remove('hidden');
+
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          if (previewImg) previewImg.src = e.target.result;
+          if (previewBox) previewBox.classList.remove('hidden');
+        };
+        reader.readAsDataURL(file);
+
+        const compressedBase64 = await compressMobileImage(file, 1200, 0.8);
+        const base64Data = compressedBase64.replace(/^data:image\/[a-zA-Z]+;base64,/, '');
+
+        const res = await postApiRequest({
+          action: 'extractCoilTagWithAI',
+          base64Data: base64Data,
+          mimeType: file.type || 'image/jpeg',
+          callerEmpId: state.currentUser ? state.currentUser.employeeCode : 'MOBILE_PC'
+        });
+
+        if (res && res.status === 'success' && res.data) {
+          const d = res.data;
+          const lotInput = document.getElementById('mobPcCoilLotNo');
+          const heatInput = document.getElementById('mobPcHeatNo');
+          const gradeInput = document.getElementById('mobPcMaterialGrade');
+          const specInput = document.getElementById('mobPcSpecDimension');
+          const weightInput = document.getElementById('mobPcTotalWeight');
+          const supInput = document.getElementById('mobPcSupplierName');
+
+          if (lotInput && d.coilLotNo) lotInput.value = d.coilLotNo;
+          if (heatInput && d.heatNo) heatInput.value = d.heatNo;
+          if (gradeInput && d.materialGrade) gradeInput.value = d.materialGrade;
+          if (specInput && d.specDimension) specInput.value = d.specDimension;
+          if (weightInput && d.totalWeightKg) weightInput.value = d.totalWeightKg;
+          if (supInput && d.supplierName) supInput.value = d.supplierName;
+
+          const banner = document.getElementById('mobPcMtcMatchStatusBanner');
+          if (banner) {
+            banner.classList.remove('hidden');
+            if (d.isMtcAvailable && d.stagedMtc) {
+              mobilePcStagedMtcMatch = d.stagedMtc;
+              banner.className = 'p-3 rounded-xl border bg-emerald-50 border-emerald-300 text-emerald-900 text-xs font-semibold animate-in fade-in duration-150';
+              banner.innerHTML = `
+                <div class="flex items-center gap-1.5 font-bold text-emerald-800">
+                  <span>✅ พบใบเซอร์ MTC ในระบบแล้ว</span>
+                  <span class="text-[10px] bg-emerald-200 px-1.5 py-0.2 rounded font-mono">${d.stagedMtc.HeatNo}</span>
+                </div>
+                <div class="text-[11px] text-emerald-700 mt-0.5">ม้วนนี้จะปลดล็อคเป็น <strong>AVAILABLE (พร้อมสั่งผลิต)</strong> ทันทีที่กดบันทึก</div>
+              `;
+            } else {
+              mobilePcStagedMtcMatch = null;
+              banner.className = 'p-3 rounded-xl border bg-amber-50 border-amber-300 text-amber-900 text-xs font-semibold animate-in fade-in duration-150';
+              banner.innerHTML = `
+                <div class="flex items-center gap-1.5 font-bold text-amber-800">
+                  <span>⚠️ ยังไม่พบใบเซอร์ MTC ในระบบ</span>
+                </div>
+                <div class="text-[11px] text-amber-700 mt-0.5">ม้วนนี้จะบันทึกเป็น <strong>PENDING_QA_VERIFY</strong> และส่ง LINE แจ้งเตือนฝ่ายคุณภาพให้เข้ามาตรวจปล่อยอัตโนมัติ</div>
+              `;
+            }
+          }
+          showToast('สแกนป้ายสำเร็จ กรุณาตรวจสอบตัวเลขก่อนบันทึก', 'success');
+        } else {
+          showToast('ไม่สามารถอ่านข้อมูลป้ายอัตโนมัติได้ กรุณากรอกข้อมูล', 'warning');
+        }
+      } catch (err) {
+        console.error('Mobile coil tag scan error:', err);
+        showToast('เกิดข้อผิดพลาดในการสแกนป้าย: ' + err.message, 'error');
+      } finally {
+        if (scanBox) scanBox.classList.add('hidden');
+      }
+    }
+
+    async function handleMobilePcCoilSubmit(event) {
+      event.preventDefault();
+      const btn = document.getElementById('mobPcBtnSubmitReceive');
+      const coilLot = document.getElementById('mobPcCoilLotNo').value.trim();
+      const heatNo = document.getElementById('mobPcHeatNo').value.trim();
+      const grade = document.getElementById('mobPcMaterialGrade').value.trim();
+      const dimension = document.getElementById('mobPcSpecDimension').value.trim();
+      const weight = Number(document.getElementById('mobPcTotalWeight').value || 0);
+      const location = document.getElementById('mobPcLocation').value.trim();
+      const supplier = document.getElementById('mobPcSupplierName').value.trim();
+
+      if (!coilLot) {
+        showToast('กรุณาระบุ Coil Lot No.', 'error');
+        return;
+      }
+      if (!grade) {
+        showToast('กรุณาระบุเกรดวัตถุดิบ (Grade)', 'error');
+        return;
+      }
+      if (weight <= 0) {
+        showToast('กรุณาระบุน้ำหนักรวมให้ถูกต้อง', 'error');
+        return;
+      }
+
+      try {
+        btn.disabled = true;
+        btn.innerHTML = '<span>⏳ กำลังบันทึกรับเข้าคลัง...</span>';
+
+        const payload = {
+          action: 'saveMesRawMaterial',
+          CoilLotNo: coilLot,
+          HeatNo: heatNo,
+          MaterialGrade: grade,
+          SpecDimension: dimension,
+          TotalWeightKg: weight,
+          RemainingWeightKg: weight,
+          Location: location,
+          SupplierName: supplier,
+          Origin: 'DOMESTIC',
+          callerEmpId: state.currentUser ? state.currentUser.employeeCode : 'MOBILE_PC'
+        };
+
+        const res = await postApiRequest(payload);
+        if (res && res.status === 'success') {
+          const status = (res.data && res.data.Status) || '';
+          const msg = status === 'AVAILABLE'
+            ? `บันทึกม้วน ${coilLot} สำเร็จ (พร้อมผลิต AVAILABLE)`
+            : `บันทึกม้วน ${coilLot} สำเร็จ (รอ QA ตรวจ MTC & แจ้งเตือน LINE เรียบร้อย)`;
+          showToast(msg, 'success');
+          initMobilePcCoilReceive();
+          closeCurrentView();
+        } else {
+          showToast('บันทึกไม่สำเร็จ: ' + ((res && res.message) || 'Unknown error'), 'error');
+        }
+      } catch (err) {
+        console.error('handleMobilePcCoilSubmit error:', err);
+        showToast('เกิดข้อผิดพลาดในการบันทึก: ' + err.message, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<span>💾 ยืนยันบันทึกรับเข้าคลัง</span>';
+      }
+    }
+
+    function compressMobileImage(file, maxDimension = 1200, quality = 0.8) {
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => {
+          let width = img.width;
+          let height = img.height;
+          if (width > height && width > maxDimension) {
+            height = Math.round((height * maxDimension) / width);
+            width = maxDimension;
+          } else if (height > maxDimension) {
+            width = Math.round((width * maxDimension) / height);
+            height = maxDimension;
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL('image/jpeg', quality));
+        };
+        img.onerror = reject;
+        const reader = new FileReader();
+        reader.onload = e => (img.src = e.target.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    }
+
+    async function initMobilePcCoilCheck() {
+      mobilePcActiveFilter = 'ALL';
+      const searchInput = document.getElementById('mobPcSearchCoilInput');
+      if (searchInput) searchInput.value = '';
+      setMobilePcCoilFilter('ALL');
+      await loadMobilePcCoilStockList();
+    }
+
+    async function loadMobilePcCoilStockList() {
+      const container = document.getElementById('mobPcCoilListContainer');
+      if (container) {
+        container.innerHTML = '<div class="text-center py-8 text-slate-400 text-xs animate-pulse">กำลังโหลดสต็อกขดลวด...</div>';
+      }
+
+      try {
+        const res = await postApiRequest({ action: 'getMesRawMaterials' });
+        if (res && res.status === 'success' && Array.isArray(res.data)) {
+          mobilePcCoilsCache = res.data;
+          renderMobilePcCoils();
+        } else {
+          if (container) container.innerHTML = '<div class="text-center py-8 text-slate-400 text-xs">ไม่พบข้อมูลขดลวดในคลัง</div>';
+        }
+      } catch (err) {
+        console.error('loadMobilePcCoilStockList error:', err);
+        if (container) container.innerHTML = `<div class="text-center py-8 text-rose-500 text-xs">โหลดไม่สำเร็จ: ${err.message}</div>`;
+      }
+    }
+
+    function setMobilePcCoilFilter(status) {
+      mobilePcActiveFilter = status;
+      const pills = ['ALL', 'AVAILABLE', 'PENDING'];
+      pills.forEach(p => {
+        const el = document.getElementById(`mobPcFilterPill_${p}`);
+        if (!el) return;
+        if ((p === 'ALL' && status === 'ALL') || (p === 'AVAILABLE' && status === 'AVAILABLE') || (p === 'PENDING' && status === 'PENDING_QA_VERIFY')) {
+          el.className = 'px-3 py-1 rounded-full font-bold bg-cyan-600 text-white shrink-0 cursor-pointer';
+        } else {
+          el.className = 'px-3 py-1 rounded-full font-semibold bg-slate-100 text-slate-600 shrink-0 cursor-pointer';
+        }
+      });
+      renderMobilePcCoils();
+    }
+
+    function filterMobilePcCoils() {
+      renderMobilePcCoils();
+    }
+
+    function renderMobilePcCoils() {
+      const container = document.getElementById('mobPcCoilListContainer');
+      if (!container) return;
+
+      const searchVal = String(document.getElementById('mobPcSearchCoilInput')?.value || '').toLowerCase().trim();
+      const filtered = (mobilePcCoilsCache || []).filter(c => {
+        const matchesStatus = mobilePcActiveFilter === 'ALL' || String(c.Status || '').trim() === mobilePcActiveFilter;
+        if (!matchesStatus) return false;
+
+        if (!searchVal) return true;
+        const lot = String(c.CoilLotNo || '').toLowerCase();
+        const heat = String(c.HeatNo || '').toLowerCase();
+        const grade = String(c.MaterialGrade || '').toLowerCase();
+        const loc = String(c.Location || '').toLowerCase();
+        const sup = String(c.SupplierName || '').toLowerCase();
+        return lot.includes(searchVal) || heat.includes(searchVal) || grade.includes(searchVal) || loc.includes(searchVal) || sup.includes(searchVal);
+      });
+
+      if (filtered.length === 0) {
+        container.innerHTML = '<div class="text-center py-8 text-slate-400 text-xs">ไม่พบขดลวดที่ตรงกับเงื่อนไข</div>';
+        return;
+      }
+
+      container.innerHTML = filtered.map(c => {
+        const isAvailable = String(c.Status).trim() === 'AVAILABLE';
+        const statusBadge = isAvailable
+          ? '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">🟢 พร้อมผลิต (AVAILABLE)</span>'
+          : '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200">🟡 รอ QA ตรวจ MTC</span>';
+
+        const weight = Number(c.RemainingWeightKg || c.TotalWeightKg || 0);
+
+        return `
+          <div class="p-3 bg-white rounded-2xl border ${isAvailable ? 'border-slate-200' : 'border-amber-200 bg-amber-50/20'} shadow-2xs space-y-2">
+            <div class="flex items-start justify-between gap-2">
+              <div>
+                <div class="font-mono font-bold text-xs text-slate-800 flex items-center gap-1.5">
+                  <span>${escapeHtml(c.CoilLotNo || '-')}</span>
+                  ${c.HeatNo ? `<span class="text-[10px] font-normal text-indigo-700 bg-indigo-50 px-1.5 py-0.2 rounded border border-indigo-100">Heat: ${escapeHtml(c.HeatNo)}</span>` : ''}
+                </div>
+                <div class="text-[11px] font-semibold text-slate-600 mt-0.5">
+                  ${escapeHtml(c.MaterialGrade || '-')} &bull; ${escapeHtml(c.SpecDimension || '-')}
+                </div>
+              </div>
+              ${statusBadge}
+            </div>
+
+            <div class="flex items-center justify-between text-[11px] border-t border-slate-100 pt-1.5 font-mono text-slate-500">
+              <div>คงเหลือ: <strong class="text-slate-800">${weight.toLocaleString()} กก.</strong></div>
+              <div>พิกัด: <strong class="text-indigo-700">${escapeHtml(c.Location || 'ไม่ระบุ')}</strong></div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // Expose PC functions to window
+    window.initMobilePcCoilReceive = initMobilePcCoilReceive;
+    window.handleMobilePcCoilTagCapture = handleMobilePcCoilTagCapture;
+    window.handleMobilePcCoilSubmit = handleMobilePcCoilSubmit;
+    window.initMobilePcCoilCheck = initMobilePcCoilCheck;
+    window.loadMobilePcCoilStockList = loadMobilePcCoilStockList;
+    window.setMobilePcCoilFilter = setMobilePcCoilFilter;
+    window.filterMobilePcCoils = filterMobilePcCoils;
+
+    // ==========================================
     // Run on Page Load
     // ==========================================
     window.addEventListener('DOMContentLoaded', initApp);
