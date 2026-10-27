@@ -1515,6 +1515,489 @@
     window.shareOrPrintMobilePcTag = shareOrPrintMobilePcTag;
 
     // ==========================================
+    // MOBILE DIES & TOOL TRIAL RECORD CONTROLLER (MMT-PD-FM-036)
+    // ==========================================
+    let mobilePdTrialMachinesCache = [];
+    let mobilePdTrialProductsCache = [];
+    let mobilePdTrialPhotos = { detail: '', trouble: '', cause: '', solution: '' };
+
+    async function loadMobilePdTrialView() {
+      // Set default trial date to today (local Thai date)
+      const dateEl = document.getElementById('mobPdTrialDate');
+      if (dateEl && !dateEl.value) {
+        dateEl.value = new Date().toISOString().slice(0, 10);
+      }
+
+      // Reset form & photos
+      const form = document.getElementById('mobPdTrialForm');
+      if (form) form.reset();
+      if (dateEl) dateEl.value = new Date().toISOString().slice(0, 10);
+
+      mobilePdTrialPhotos = { detail: '', trouble: '', cause: '', solution: '' };
+      ['detail', 'trouble', 'cause', 'solution'].forEach(k => {
+        const box = document.getElementById(`mobPdPreviewBox${k.charAt(0).toUpperCase() + k.slice(1)}`);
+        const img = document.getElementById(`mobPdPreview${k.charAt(0).toUpperCase() + k.slice(1)}`);
+        const file = document.getElementById(`mobPdTrialPhotoFile${k.charAt(0).toUpperCase() + k.slice(1)}`);
+        if (box) box.classList.add('hidden');
+        if (img) img.src = '';
+        if (file) file.value = '';
+      });
+
+      // Populate user info
+      const user = (state && state.currentUser) || {};
+      const empId = user.employeeCode || user.employeeId || user.empId || '';
+      const fullName = user.fullName || user.name || '';
+      const actionNameEl = document.getElementById('mobPdTrialActionByName');
+      const actionEmpIdEl = document.getElementById('mobPdTrialActionByEmpId');
+      if (actionNameEl && !actionNameEl.value) {
+        actionNameEl.value = fullName ? `${fullName}${empId ? ' (' + empId + ')' : ''}` : '';
+      }
+      if (actionEmpIdEl) actionEmpIdEl.value = empId;
+
+      // Reset gain badge & results
+      calculateMobilePdTrialGain();
+      handleMobilePdTrialResultChange('OK');
+
+      // Fetch master machines & products
+      try {
+        const res = await jsonpRequest({
+          action: 'getMobilePdTrialInitialData',
+          empId: empId
+        });
+        if (res && (res.status === 'success' || res.success) && res.data) {
+          mobilePdTrialMachinesCache = res.data.machines || [];
+          mobilePdTrialProductsCache = res.data.products || [];
+
+          const mBadge = document.getElementById('mobPdTrialMachineCountBadge');
+          if (mBadge) mBadge.textContent = `${mobilePdTrialMachinesCache.length} เครื่อง`;
+          const pBadge = document.getElementById('mobPdTrialPartCountBadge');
+          if (pBadge) pBadge.textContent = `${mobilePdTrialProductsCache.length} รายการ`;
+        }
+      } catch (err) {
+        console.warn('loadMobilePdTrialView initial data error:', err);
+      }
+    }
+
+    function handleMobilePdTrialDeptChange(dept) {
+      const typeSelect = document.getElementById('mobPdTrialType');
+      if (typeSelect) {
+        if (dept === 'FORGING' && typeSelect.value === 'Tool') typeSelect.value = 'Dies';
+        else if (dept === 'PDM' && typeSelect.value === 'Dies') typeSelect.value = 'Tool';
+      }
+    }
+
+    function filterMobilePdTrialParts(query) {
+      const dropdown = document.getElementById('mobPdTrialPartDropdown');
+      const clearBtn = document.getElementById('mobPdTrialPartClearBtn');
+      const hiddenNo = document.getElementById('mobPdTrialPartNo');
+      const hiddenName = document.getElementById('mobPdTrialPartName');
+      if (!dropdown) return;
+
+      const q = String(query || '').trim().toLowerCase();
+      if (clearBtn) {
+        if (q.length > 0) clearBtn.classList.remove('hidden');
+        else clearBtn.classList.add('hidden');
+      }
+
+      if (hiddenNo) hiddenNo.value = '';
+      if (hiddenName) hiddenName.value = '';
+
+      if (!q) {
+        dropdown.classList.add('hidden');
+        dropdown.innerHTML = '';
+        return;
+      }
+
+      const filtered = mobilePdTrialProductsCache.filter(p => {
+        const no = String(p.PartNo || '').toLowerCase();
+        const name = String(p.PartName || '').toLowerCase();
+        return no.includes(q) || name.includes(q);
+      });
+
+      if (filtered.length === 0) {
+        dropdown.innerHTML = `
+          <div class="p-2.5 text-center text-xs text-slate-400 italic">
+            ไม่พบชิ้นงานในระบบ (ระบบจะใช้ "${escapeHtml(query)}" ตามที่คุณพิมพ์)
+          </div>`;
+        dropdown.classList.remove('hidden');
+        return;
+      }
+
+      dropdown.innerHTML = filtered.slice(0, 25).map(p => {
+        const safeNo = escapeHtml(p.PartNo || '');
+        const safeName = escapeHtml(p.PartName || '');
+        return `
+          <div class="p-2.5 hover:bg-violet-50 transition cursor-pointer flex items-center justify-between"
+               onclick="selectMobilePdTrialPart('${safeNo}', '${safeName}')">
+            <div>
+              <div class="font-bold text-xs text-slate-800 font-mono">${safeNo}</div>
+              <div class="text-[11px] text-slate-500">${safeName}</div>
+            </div>
+            <span class="text-violet-600 text-xs font-bold">เลือก</span>
+          </div>`;
+      }).join('');
+
+      dropdown.classList.remove('hidden');
+    }
+
+    function selectMobilePdTrialPart(partNo, partName) {
+      const input = document.getElementById('mobPdTrialPartSearchInput');
+      const hiddenNo = document.getElementById('mobPdTrialPartNo');
+      const hiddenName = document.getElementById('mobPdTrialPartName');
+      const dropdown = document.getElementById('mobPdTrialPartDropdown');
+      const clearBtn = document.getElementById('mobPdTrialPartClearBtn');
+
+      if (input) input.value = partName ? `${partNo} - ${partName}` : partNo;
+      if (hiddenNo) hiddenNo.value = partNo;
+      if (hiddenName) hiddenName.value = partName;
+      if (clearBtn) clearBtn.classList.remove('hidden');
+      if (dropdown) dropdown.classList.add('hidden');
+    }
+
+    function clearMobilePdTrialPartSelection() {
+      const input = document.getElementById('mobPdTrialPartSearchInput');
+      const hiddenNo = document.getElementById('mobPdTrialPartNo');
+      const hiddenName = document.getElementById('mobPdTrialPartName');
+      const dropdown = document.getElementById('mobPdTrialPartDropdown');
+      const clearBtn = document.getElementById('mobPdTrialPartClearBtn');
+
+      if (input) {
+        input.value = '';
+        input.focus();
+      }
+      if (hiddenNo) hiddenNo.value = '';
+      if (hiddenName) hiddenName.value = '';
+      if (clearBtn) clearBtn.classList.add('hidden');
+      if (dropdown) dropdown.classList.add('hidden');
+    }
+
+    function filterMobilePdTrialMachines(query) {
+      const dropdown = document.getElementById('mobPdTrialMachineDropdown');
+      const clearBtn = document.getElementById('mobPdTrialMachineClearBtn');
+      const hiddenNo = document.getElementById('mobPdTrialMachineNo');
+      if (!dropdown) return;
+
+      const q = String(query || '').trim().toLowerCase();
+      if (clearBtn) {
+        if (q.length > 0) clearBtn.classList.remove('hidden');
+        else clearBtn.classList.add('hidden');
+      }
+
+      if (hiddenNo) hiddenNo.value = '';
+
+      if (!q) {
+        dropdown.classList.add('hidden');
+        dropdown.innerHTML = '';
+        return;
+      }
+
+      const filtered = mobilePdTrialMachinesCache.filter(m => {
+        const no = String(m.MachineNo || '').toLowerCase();
+        const name = String(m.MachineName || '').toLowerCase();
+        const div = String(m.Division || '').toLowerCase();
+        return no.includes(q) || name.includes(q) || div.includes(q);
+      });
+
+      if (filtered.length === 0) {
+        dropdown.innerHTML = `
+          <div class="p-2.5 text-center text-xs text-slate-400 italic">
+            ไม่พบเครื่องจักร (ระบบจะใช้ "${escapeHtml(query)}" ตามที่คุณพิมพ์)
+          </div>`;
+        dropdown.classList.remove('hidden');
+        return;
+      }
+
+      dropdown.innerHTML = filtered.slice(0, 25).map(m => {
+        const isForging = String(m.Division || '').toLowerCase().includes('forg') || String(m.MachineNo || '').toLowerCase().includes('forg');
+        const badgeColor = isForging ? 'bg-orange-100 text-orange-800' : 'bg-blue-100 text-blue-800';
+        const badgeText = isForging ? 'Forging' : 'Machining';
+        const safeNo = escapeHtml(m.MachineNo || '');
+        const safeName = escapeHtml(m.MachineName || '');
+        const deptKey = isForging ? 'FORGING' : 'PDM';
+
+        return `
+          <div class="p-2.5 hover:bg-violet-50 transition cursor-pointer flex items-center justify-between"
+               onclick="selectMobilePdTrialMachine('${safeNo}', '${deptKey}')">
+            <div class="flex items-center gap-2">
+              <span class="w-2 h-2 rounded-full ${isForging ? 'bg-orange-500' : 'bg-blue-500'} shrink-0"></span>
+              <span class="font-bold text-xs text-slate-800 font-mono">${safeNo}</span>
+              ${safeName ? `<span class="text-xs text-slate-500">${safeName}</span>` : ''}
+            </div>
+            <span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${badgeColor}">${badgeText}</span>
+          </div>`;
+      }).join('');
+
+      dropdown.classList.remove('hidden');
+    }
+
+    function selectMobilePdTrialMachine(machineNo, dept) {
+      const input = document.getElementById('mobPdTrialMachineSearchInput');
+      const hiddenNo = document.getElementById('mobPdTrialMachineNo');
+      const deptSelect = document.getElementById('mobPdTrialDepartment');
+      const dropdown = document.getElementById('mobPdTrialMachineDropdown');
+      const clearBtn = document.getElementById('mobPdTrialMachineClearBtn');
+
+      if (input) input.value = machineNo;
+      if (hiddenNo) hiddenNo.value = machineNo;
+      if (deptSelect && dept) {
+        deptSelect.value = dept;
+        handleMobilePdTrialDeptChange(dept);
+      }
+      if (clearBtn) clearBtn.classList.remove('hidden');
+      if (dropdown) dropdown.classList.add('hidden');
+    }
+
+    function clearMobilePdTrialMachineSelection() {
+      const input = document.getElementById('mobPdTrialMachineSearchInput');
+      const hiddenNo = document.getElementById('mobPdTrialMachineNo');
+      const dropdown = document.getElementById('mobPdTrialMachineDropdown');
+      const clearBtn = document.getElementById('mobPdTrialMachineClearBtn');
+
+      if (input) {
+        input.value = '';
+        input.focus();
+      }
+      if (hiddenNo) hiddenNo.value = '';
+      if (clearBtn) clearBtn.classList.add('hidden');
+      if (dropdown) dropdown.classList.add('hidden');
+    }
+
+    async function handleMobilePdTrialPhotoSelect(input, slotKey) {
+      const file = input && input.files && input.files[0];
+      if (!file) return;
+
+      try {
+        const compressedBase64 = await compressPdMobileImage(file);
+        mobilePdTrialPhotos[slotKey] = compressedBase64;
+
+        const capitalizedKey = slotKey.charAt(0).toUpperCase() + slotKey.slice(1);
+        const box = document.getElementById(`mobPdPreviewBox${capitalizedKey}`);
+        const img = document.getElementById(`mobPdPreview${capitalizedKey}`);
+        if (img) img.src = compressedBase64;
+        if (box) box.classList.remove('hidden');
+      } catch (err) {
+        console.error('Trial image compression error:', err);
+        showToast('บีบอัดรูปภาพล้มเหลว กรุณาลองใหม่อีกครั้ง', 'error');
+      }
+    }
+
+    function removeMobilePdTrialPhoto(slotKey) {
+      mobilePdTrialPhotos[slotKey] = '';
+      const capitalizedKey = slotKey.charAt(0).toUpperCase() + slotKey.slice(1);
+      const box = document.getElementById(`mobPdPreviewBox${capitalizedKey}`);
+      const img = document.getElementById(`mobPdPreview${capitalizedKey}`);
+      const file = document.getElementById(`mobPdTrialPhotoFile${capitalizedKey}`);
+      if (box) box.classList.add('hidden');
+      if (img) img.src = '';
+      if (file) file.value = '';
+    }
+
+    function calculateMobilePdTrialGain() {
+      const beforeEl = document.getElementById('mobPdTrialLifeBefore');
+      const afterEl = document.getElementById('mobPdTrialLifeAfter');
+      const badge = document.getElementById('mobPdTrialGainBadge');
+      if (!badge) return;
+
+      const b = parseFloat(beforeEl ? beforeEl.value : '0');
+      const a = parseFloat(afterEl ? afterEl.value : '0');
+
+      if (b > 0 && a > 0) {
+        const diff = a - b;
+        const pct = (diff / b) * 100;
+        const sign = pct >= 0 ? '+' : '';
+        badge.textContent = `Gain: ${sign}${pct.toFixed(1)}%`;
+        badge.className = pct >= 0
+          ? 'text-[10px] font-bold font-mono px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800'
+          : 'text-[10px] font-bold font-mono px-2 py-0.5 rounded-full bg-rose-100 text-rose-800';
+      } else {
+        badge.textContent = 'Gain: 0.0%';
+        badge.className = 'text-[10px] font-bold font-mono px-2 py-0.5 rounded-full bg-slate-200 text-slate-700';
+      }
+    }
+
+    function handleMobilePdTrialResultChange(val) {
+      const okBox = document.getElementById('mobPdTrialOkDrawingBox');
+      const ngBox = document.getElementById('mobPdTrialNgReasonBox');
+      const otherBox = document.getElementById('mobPdTrialOtherReasonBox');
+
+      if (val === 'OK') {
+        if (okBox) okBox.classList.remove('hidden');
+        if (ngBox) ngBox.classList.add('hidden');
+        if (otherBox) otherBox.classList.add('hidden');
+      } else if (val === 'NG') {
+        if (okBox) okBox.classList.add('hidden');
+        if (ngBox) ngBox.classList.remove('hidden');
+        if (otherBox) otherBox.classList.add('hidden');
+      } else {
+        if (okBox) okBox.classList.add('hidden');
+        if (ngBox) ngBox.classList.add('hidden');
+        if (otherBox) otherBox.classList.remove('hidden');
+      }
+    }
+
+    async function handleMobilePdTrialSubmit(e) {
+      e.preventDefault();
+
+      // Read Part
+      const partSearchInput = document.getElementById('mobPdTrialPartSearchInput');
+      const partHiddenNo = document.getElementById('mobPdTrialPartNo');
+      const partHiddenName = document.getElementById('mobPdTrialPartName');
+      let partNoVal = (partHiddenNo && partHiddenNo.value.trim().toUpperCase()) || '';
+      let partNameVal = (partHiddenName && partHiddenName.value.trim()) || '';
+      if (!partNoVal && partSearchInput && partSearchInput.value.trim()) {
+        const raw = partSearchInput.value.trim();
+        if (raw.includes(' - ')) {
+          const parts = raw.split(' - ');
+          partNoVal = parts[0].trim().toUpperCase();
+          partNameVal = parts.slice(1).join(' - ').trim();
+        } else {
+          partNoVal = raw.toUpperCase();
+        }
+      }
+
+      // Read Machine
+      const machSearchInput = document.getElementById('mobPdTrialMachineSearchInput');
+      const machHiddenNo = document.getElementById('mobPdTrialMachineNo');
+      let machNoVal = (machHiddenNo && machHiddenNo.value.trim().toUpperCase()) || '';
+      if (!machNoVal && machSearchInput && machSearchInput.value.trim()) {
+        machNoVal = machSearchInput.value.trim().toUpperCase();
+      }
+
+      const detailDesc = (document.getElementById('mobPdTrialDetailDesc')?.value || '').trim();
+      const solutionDesc = (document.getElementById('mobPdTrialSolutionDesc')?.value || '').trim();
+
+      if (!partNoVal) {
+        showToast('กรุณาระบุรหัสหรือชื่อชิ้นงาน (Part No)', 'warning');
+        if (partSearchInput) partSearchInput.focus();
+        return;
+      }
+      if (!machNoVal) {
+        showToast('กรุณาระบุเครื่องจักร (Machine No)', 'warning');
+        if (machSearchInput) machSearchInput.focus();
+        return;
+      }
+      if (!detailDesc) {
+        showToast('กรุณาระบุรายละเอียดการทดลอง/จุดปรับปรุง', 'warning');
+        document.getElementById('mobPdTrialDetailDesc')?.focus();
+        return;
+      }
+      if (!solutionDesc) {
+        showToast('กรุณาระบุแนวทางแก้ไขหรือข้อสรุป', 'warning');
+        document.getElementById('mobPdTrialSolutionDesc')?.focus();
+        return;
+      }
+
+      const user = (state && state.currentUser) || {};
+      const callerEmpId = user.employeeCode || user.employeeId || user.empId || '';
+
+      const resultRadio = document.querySelector('input[name="mobPdTrialResult"]:checked');
+      const resultStatus = resultRadio ? resultRadio.value : 'OK';
+
+      const payload = {
+        TrialDate: document.getElementById('mobPdTrialDate')?.value || '',
+        Department: document.getElementById('mobPdTrialDepartment')?.value || 'FORGING',
+        TrialType: document.getElementById('mobPdTrialType')?.value || 'Tool',
+        TrialTime: document.getElementById('mobPdTrialTime')?.value || '1',
+        PartNo: partNoVal,
+        PartName: partNameVal,
+        MachineNo: machNoVal,
+        LotNo: (document.getElementById('mobPdTrialLotNo')?.value || '').trim(),
+        ImplementationPhase: (document.getElementById('mobPdTrialPhase')?.value || '').trim(),
+        ActionByEmpId: document.getElementById('mobPdTrialActionByEmpId')?.value || callerEmpId,
+        ActionByName: (document.getElementById('mobPdTrialActionByName')?.value || '').trim() || (user.fullName || user.name || ''),
+
+        DetailDesc: detailDesc,
+        DetailPhotoBase64: mobilePdTrialPhotos.detail || '',
+
+        TroubleDesc: (document.getElementById('mobPdTrialTroubleDesc')?.value || '').trim(),
+        TroublePhotoBase64: mobilePdTrialPhotos.trouble || '',
+
+        CauseDesc: (document.getElementById('mobPdTrialCauseDesc')?.value || '').trim(),
+        CausePhotoBase64: mobilePdTrialPhotos.cause || '',
+
+        SolutionDesc: solutionDesc,
+        SolutionPhotoBase64: mobilePdTrialPhotos.solution || '',
+
+        ToolLifeBefore: document.getElementById('mobPdTrialLifeBefore')?.value || '',
+        ToolLifeAfter: document.getElementById('mobPdTrialLifeAfter')?.value || '',
+
+        ResultStatus: resultStatus,
+        DrawingBy: (document.getElementById('mobPdTrialDrawingBy')?.value || '').trim(),
+        DrawingDate: document.getElementById('mobPdTrialDrawingDate')?.value || '',
+        NgReason: (document.getElementById('mobPdTrialNgReason')?.value || '').trim(),
+        OtherReason: (document.getElementById('mobPdTrialOtherReason')?.value || '').trim(),
+        Remarks: (document.getElementById('mobPdTrialRemarks')?.value || '').trim()
+      };
+
+      const btnSubmit = document.getElementById('mobPdTrialSubmitBtn');
+      const originalText = btnSubmit ? btnSubmit.innerHTML : '';
+      if (btnSubmit) {
+        btnSubmit.disabled = true;
+        btnSubmit.innerHTML = '<span>⏳ กำลังบันทึกและอัปโหลดรูป...</span>';
+      }
+
+      try {
+        const res = await jsonpRequest({
+          action: 'submitMobilePdTrialRecord',
+          payload: payload,
+          empId: callerEmpId
+        });
+
+        if (btnSubmit) {
+          btnSubmit.disabled = false;
+          btnSubmit.innerHTML = originalText;
+        }
+
+        if (res && (res.status === 'success' || res.success)) {
+          const trialNo = res.trialNo || (res.data && res.data.TrialNo) || '';
+          showToast(`บันทึกข้อมูลการทดลอง ${trialNo} สำเร็จเรียบร้อย`, 'success');
+          openView('dashboard');
+        } else {
+          showToast(`บันทึกไม่สำเร็จ: ${(res && res.message) || 'เกิดข้อผิดพลาด'}`, 'error');
+        }
+      } catch (err) {
+        if (btnSubmit) {
+          btnSubmit.disabled = false;
+          btnSubmit.innerHTML = originalText;
+        }
+        console.error('Submit Mobile Trial Record error:', err);
+        showToast('เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์', 'error');
+      }
+    }
+
+    // Auto-close trial search dropdowns on outside click
+    document.addEventListener('click', function(e) {
+      const partDrop = document.getElementById('mobPdTrialPartDropdown');
+      const partInput = document.getElementById('mobPdTrialPartSearchInput');
+      if (partDrop && !partDrop.classList.contains('hidden')) {
+        if (!partDrop.contains(e.target) && e.target !== partInput) {
+          partDrop.classList.add('hidden');
+        }
+      }
+      const machDrop = document.getElementById('mobPdTrialMachineDropdown');
+      const machInput = document.getElementById('mobPdTrialMachineSearchInput');
+      if (machDrop && !machDrop.classList.contains('hidden')) {
+        if (!machDrop.contains(e.target) && e.target !== machInput) {
+          machDrop.classList.add('hidden');
+        }
+      }
+    });
+
+    window.loadMobilePdTrialView = loadMobilePdTrialView;
+    window.handleMobilePdTrialDeptChange = handleMobilePdTrialDeptChange;
+    window.filterMobilePdTrialParts = filterMobilePdTrialParts;
+    window.selectMobilePdTrialPart = selectMobilePdTrialPart;
+    window.clearMobilePdTrialPartSelection = clearMobilePdTrialPartSelection;
+    window.filterMobilePdTrialMachines = filterMobilePdTrialMachines;
+    window.selectMobilePdTrialMachine = selectMobilePdTrialMachine;
+    window.clearMobilePdTrialMachineSelection = clearMobilePdTrialMachineSelection;
+    window.handleMobilePdTrialPhotoSelect = handleMobilePdTrialPhotoSelect;
+    window.removeMobilePdTrialPhoto = removeMobilePdTrialPhoto;
+    window.calculateMobilePdTrialGain = calculateMobilePdTrialGain;
+    window.handleMobilePdTrialResultChange = handleMobilePdTrialResultChange;
+    window.handleMobilePdTrialSubmit = handleMobilePdTrialSubmit;
+
+    // ==========================================
     // Run on Page Load
     // ==========================================
     window.addEventListener('DOMContentLoaded', initApp);

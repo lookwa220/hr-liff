@@ -554,7 +554,7 @@
         'viewPaySlip', 'viewShiftAtt', 'viewSwap', 'viewSafety',
         'viewPersonal', 'viewRoomBooking', 'viewVehicleBooking',
         'viewMnwRequest', 'viewMnwWorkbench', 'viewMnwRoutine', 'viewKaizen',
-        'viewBusinessCards', 'viewPartsRequest', 'viewPdRepair',
+        'viewBusinessCards', 'viewPartsRequest', 'viewPdRepair', 'viewPdTrial',
         'viewPcCoilReceive', 'viewPcCoilCheck'
       ];
       allViewIds.forEach(id => {
@@ -641,6 +641,10 @@
         const vpd = document.getElementById('viewPdRepair');
         if (vpd) vpd.classList.remove('hidden');
         loadMobilePdRepairView();
+      } else if (viewName === 'pdTrial') {
+        const vpt = document.getElementById('viewPdTrial');
+        if (vpt) vpt.classList.remove('hidden');
+        if (typeof loadMobilePdTrialView === 'function') loadMobilePdTrialView();
       } else if (viewName === 'pcCoilReceive') {
         const vcr = document.getElementById('viewPcCoilReceive');
         if (vcr) vcr.classList.remove('hidden');
@@ -664,7 +668,7 @@
         'viewPaySlip', 'viewShiftAtt', 'viewSwap', 'viewSafety',
         'viewPersonal', 'viewRoomBooking', 'viewVehicleBooking',
         'viewMnwRequest', 'viewMnwWorkbench', 'viewMnwRoutine', 'viewKaizen',
-        'viewBusinessCards', 'viewPartsRequest', 'viewPdRepair',
+        'viewBusinessCards', 'viewPartsRequest', 'viewPdRepair', 'viewPdTrial',
         'viewPcCoilReceive', 'viewPcCoilCheck'
       ];
       allViewIds.forEach(id => {
