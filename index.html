@@ -2700,7 +2700,7 @@
           
           <!-- TAB 1: คลังสต็อก (Catalog) -->
           <div id="mobPdPartTabCatalogContent" class="space-y-2.5">
-            <input type="text" id="mobPdSparePartSearchQuery" oninput="filterMobilePdSparePartCatalog(this.value)" placeholder="🔍 พิมพ์ค้นหารหัส, ชื่อ, สเปก เช่น SMC, 6204..." class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs bg-slate-50 focus:bg-white focus:ring-2 focus:ring-orange-500 outline-none font-medium">
+            <input type="text" id="mobPdSparePartSearchQuery" oninput="filterMobilePdSparePartCatalog(this.value)" placeholder="🔍 พิมพ์ค้นหารหัส, ชื่อ, สเปก, ยี่ห้อ, จุดจัดเก็บ เช่น ตู้ A, SMC..." class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs bg-slate-50 focus:bg-white focus:ring-2 focus:ring-orange-500 outline-none font-medium">
             <div id="mobPdSparePartCatalogList" class="max-h-72 overflow-y-auto divide-y divide-slate-100 border border-slate-200 rounded-xl bg-white">
               <!-- Catalog items rendered by JS -->
             </div>
@@ -2820,6 +2820,7 @@
               </div>
 
               <div class="p-2 bg-amber-100/60 rounded-lg border border-amber-200 text-[11px] space-y-1">
+                <div id="mobPdAiLocationBox" class="text-amber-950 font-medium"><span class="font-bold text-amber-900">📍 จุดจัดเก็บ:</span> <span id="mobPdAiLocationText" class="font-bold text-slate-800">-</span></div>
                 <div><span class="font-bold text-amber-900">🏪 ผู้ขายแนะนำ:</span> <span id="mobPdAiVendorText">-</span></div>
                 <div><span class="font-bold text-amber-900">🚚 ลีดไทม์:</span> <span id="mobPdAiLeadTimeText">-</span></div>
               </div>
@@ -3010,6 +3011,6 @@
   <script src="js/mobile-hr.js?v=3.1.1"></script>
   <script src="js/mobile-services.js?v=3.1.1"></script>
   <script src="js/mobile-iso-mnw.js?v=3.1.1"></script>
-  <script src="js/mobile-pd-pc.js?v=3.1.1"></script>
+  <script src="js/mobile-pd-pc.js?v=3.1.2"></script>
 </body>
 </html>

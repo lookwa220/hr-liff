@@ -517,7 +517,8 @@
       const rowId = 'pd_part_row_' + Date.now();
       let partOpts = '<option value="">-- เลือกอะไหล่หรือพิมพ์ใหม่ --</option>';
       mobilePdSparePartsCache.forEach(p => {
-        partOpts += `<option value="${p.PartId}" data-code="${p.PartCode}" data-name="${p.PartName}" data-price="${p.UnitPrice}" data-unit="${p.Unit}">${p.PartCode} - ${p.PartName} (คงเหลือ: ${p.InStockQty})</option>`;
+        const locText = p.Location ? ` [📍 ${p.Location}]` : '';
+        partOpts += `<option value="${p.PartId}" data-code="${p.PartCode}" data-name="${p.PartName}" data-price="${p.UnitPrice}" data-unit="${p.Unit}" data-location="${escapeHtml(p.Location || '')}">${p.PartCode} - ${p.PartName}${locText} (คงเหลือ: ${p.InStockQty})</option>`;
       });
 
       const rowHtml = `
@@ -526,12 +527,13 @@
             <select onchange="handleMobilePdPartSelect('${rowId}', this)" class="part-select flex-1 px-2 py-1 rounded-lg border border-slate-200 text-xs mr-2">
               ${partOpts}
             </select>
-            <button type="button" onclick="removeMobilePdPartRow('${rowId}')" class="text-rose-500 font-bold px-2 py-0.5 rounded hover:bg-rose-50">✕</button>
+            <button type="button" onclick="removeMobilePdPartRow('${rowId}')" class="text-rose-500 font-bold px-2 py-0.5 rounded hover:bg-rose-50 cursor-pointer">✕</button>
           </div>
+          <div class="part-location-badge text-[10px] text-sky-700 font-semibold pl-1 hidden"></div>
           <div class="grid grid-cols-3 gap-1.5">
             <input type="text" placeholder="ชื่อ/รหัสอะไหล่" class="part-custom-name px-2 py-1 rounded-lg border border-slate-200 text-xs">
-            <input type="number" step="1" value="1" min="1" placeholder="จำนวน" oninput="calcMobilePdPartsTotal()" class="part-qty px-2 py-1 rounded-lg border border-slate-200 text-xs text-center">
-            <input type="number" step="0.01" value="0" placeholder="ราคา/หน่วย" oninput="calcMobilePdPartsTotal()" class="part-price px-2 py-1 rounded-lg border border-slate-200 text-xs text-right">
+            <input type="number" step="1" value="1" min="1" placeholder="จำนวน" oninput="calcMobilePdPartsTotal()" class="part-qty px-2 py-1 rounded-lg border border-slate-200 text-xs text-center font-bold">
+            <input type="number" step="0.01" value="0" placeholder="ราคา/หน่วย" oninput="calcMobilePdPartsTotal()" class="part-price px-2 py-1 rounded-lg border border-slate-200 text-xs text-right font-mono">
           </div>
         </div>
       `;
@@ -586,7 +588,8 @@
             String(p.PartCode || '').toLowerCase().includes(q) ||
             String(p.PartName || '').toLowerCase().includes(q) ||
             String(p.Spec || '').toLowerCase().includes(q) ||
-            String(p.Brand || '').toLowerCase().includes(q)
+            String(p.Brand || '').toLowerCase().includes(q) ||
+            String(p.Location || '').toLowerCase().includes(q)
           )
         : mobilePdSparePartsCache;
 
@@ -603,12 +606,17 @@
         } else {
           stockBadge = `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800">สต็อก ${stock} (ติดลบ)</span>`;
         }
+        const locBadge = p.Location
+          ? `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-sky-100 text-sky-800 border border-sky-200">📍 ${escapeHtml(p.Location)}</span>`
+          : `<span class="px-2 py-0.5 rounded-full text-[10px] text-slate-400 bg-slate-100">📍 ไม่ระบุจุดเก็บ</span>`;
+
         return `
-          <div class="p-3 hover:bg-slate-50 transition flex items-center justify-between gap-2">
+          <div class="p-3 hover:bg-slate-50 transition flex items-center justify-between gap-2 border-b border-slate-100 last:border-b-0">
             <div class="flex-1 min-w-0">
               <div class="font-bold text-slate-800 truncate">${escapeHtml(p.PartCode || '')} &bull; ${escapeHtml(p.PartName || '')}</div>
               <div class="text-[11px] text-slate-500 truncate">${escapeHtml(p.Spec || '')} ${p.Brand ? `[${escapeHtml(p.Brand)}]` : ''}</div>
-              <div class="mt-1 flex items-center gap-2">
+              <div class="mt-1.5 flex items-center gap-1.5 flex-wrap">
+                ${locBadge}
                 ${stockBadge}
                 <span class="text-[11px] text-slate-700 font-semibold font-mono">฿${Number(p.UnitPrice || 0).toLocaleString()}</span>
               </div>
@@ -631,10 +639,20 @@
         const customName = row.querySelector('.part-custom-name');
         const price = row.querySelector('.part-price');
         const qty = row.querySelector('.part-qty');
+        const locBadge = row.querySelector('.part-location-badge');
         if (sel) sel.value = part.PartId;
         if (customName) customName.value = `${part.PartCode} ${part.PartName}`.trim();
         if (price) price.value = part.UnitPrice || 0;
         if (qty) qty.value = 1;
+        if (locBadge) {
+          if (part.Location) {
+            locBadge.innerHTML = `📍 <span class="font-bold">จุดจัดเก็บ:</span> ${escapeHtml(part.Location)}`;
+            locBadge.classList.remove('hidden');
+          } else {
+            locBadge.innerHTML = '';
+            locBadge.classList.add('hidden');
+          }
+        }
         calcMobilePdPartsTotal();
       }
       closeMobilePdSparePartPickerModal();
@@ -712,8 +730,15 @@
             if (isInternal) {
               const matchedCode = aiData.partCode || (aiData.matchedInternalPart ? aiData.matchedInternalPart.partCode : '');
               const matchedName = aiData.partName || (aiData.matchedInternalPart ? aiData.matchedInternalPart.partName : '');
-              banner.className = 'p-2 rounded-lg text-xs font-bold bg-emerald-100 text-emerald-800 flex items-center gap-1.5';
-              banner.innerHTML = `<span>✅ พบตรงกับอะไหล่ในระบบ:</span> <span class="font-mono">${escapeHtml(matchedCode)} - ${escapeHtml(matchedName)}</span>`;
+              const matchedLoc = aiData.location || (aiData.matchedInternalPart ? aiData.matchedInternalPart.location : '');
+              banner.className = 'p-2.5 rounded-xl text-xs font-bold bg-emerald-100 text-emerald-900 flex flex-col gap-1 border border-emerald-200';
+              banner.innerHTML = `
+                <div class="flex items-center gap-1.5 flex-wrap">
+                  <span>✅ พบตรงกับอะไหล่ในระบบ:</span>
+                  <span class="font-mono">${escapeHtml(matchedCode)} - ${escapeHtml(matchedName)}</span>
+                </div>
+                ${matchedLoc ? `<div class="inline-flex items-center gap-1 text-[11px] text-emerald-900 bg-white/80 px-2 py-0.5 rounded-lg border border-emerald-300 w-fit font-bold"><span>📍 จุดจัดเก็บ:</span> <span class="text-rose-700 font-black">${escapeHtml(matchedLoc)}</span></div>` : ''}
+              `;
             } else {
               banner.className = 'p-2 rounded-lg text-xs font-bold bg-amber-100 text-amber-800 flex items-center gap-1.5';
               banner.innerHTML = `<span>✨ อะไหล่ใหม่ (วิเคราะห์สเปกและร้านค้าจากเน็ต)</span>`;
@@ -727,6 +752,7 @@
           const priceInput = document.getElementById('mobPdAiUnitPrice');
           const vendorText = document.getElementById('mobPdAiVendorText');
           const leadTimeText = document.getElementById('mobPdAiLeadTimeText');
+          const locText = document.getElementById('mobPdAiLocationText');
 
           const codeVal = aiData.partCode || aiData.detectedPartCode || (aiData.matchedInternalPart ? aiData.matchedInternalPart.partCode : '') || '';
           const nameVal = aiData.partName || aiData.detectedPartName || (aiData.matchedInternalPart ? aiData.matchedInternalPart.partName : '') || '';
@@ -735,6 +761,7 @@
           const priceVal = Number(aiData.unitPrice !== undefined ? aiData.unitPrice : (aiData.estimatedPrice !== undefined ? aiData.estimatedPrice : (aiData.matchedInternalPart ? aiData.matchedInternalPart.unitPrice : 0))) || 0;
           const vendorVal = aiData.recommendedVendor || aiData.vendor || (aiData.matchedInternalPart ? aiData.matchedInternalPart.vendor : '') || '-';
           const leadTimeVal = aiData.estimatedLeadTime || aiData.leadTime || (aiData.matchedInternalPart ? aiData.matchedInternalPart.leadTime : '') || '-';
+          const locVal = aiData.location || (aiData.matchedInternalPart ? aiData.matchedInternalPart.location : '') || '';
 
           if (codeInput) codeInput.value = codeVal;
           if (nameInput) nameInput.value = nameVal;
@@ -743,6 +770,7 @@
           if (priceInput) priceInput.value = priceVal;
           if (vendorText) vendorText.innerText = vendorVal;
           if (leadTimeText) leadTimeText.innerText = leadTimeVal;
+          if (locText) locText.innerText = locVal ? `${locVal}` : '-';
 
           if (resultCard) resultCard.classList.remove('hidden');
           showToast(`วิเคราะห์อะไหล่สำเร็จ (${activeImages.length} ภาพ)`, 'success');
@@ -796,6 +824,19 @@
         if (customName) customName.value = displayName;
         if (price) price.value = priceVal;
         if (qty) qty.value = qtyVal;
+
+        const locBadge = row.querySelector('.part-location-badge');
+        const locVal = (mobilePdAiLastScanResult && (mobilePdAiLastScanResult.location || (mobilePdAiLastScanResult.matchedInternalPart && mobilePdAiLastScanResult.matchedInternalPart.location))) || '';
+        if (locBadge) {
+          if (locVal) {
+            locBadge.innerHTML = `📍 <span class="font-bold">จุดจัดเก็บ:</span> ${escapeHtml(locVal)}`;
+            locBadge.classList.remove('hidden');
+          } else {
+            locBadge.innerHTML = '';
+            locBadge.classList.add('hidden');
+          }
+        }
+
         calcMobilePdPartsTotal();
       }
 
@@ -813,11 +854,25 @@
       const row = document.getElementById(rowId);
       if (!row) return;
       const opt = select.selectedOptions[0];
+      const locBadge = row.querySelector('.part-location-badge');
       if (opt && opt.value) {
         const nameInput = row.querySelector('.part-custom-name');
         const priceInput = row.querySelector('.part-price');
         if (nameInput) nameInput.value = `${opt.dataset.code} ${opt.dataset.name}`.trim();
         if (priceInput) priceInput.value = opt.dataset.price || '0';
+        if (locBadge) {
+          const loc = opt.dataset.location;
+          if (loc) {
+            locBadge.innerHTML = `📍 <span class="font-bold">จุดจัดเก็บ:</span> ${escapeHtml(loc)}`;
+            locBadge.classList.remove('hidden');
+          } else {
+            locBadge.innerHTML = '';
+            locBadge.classList.add('hidden');
+          }
+        }
+      } else if (locBadge) {
+        locBadge.innerHTML = '';
+        locBadge.classList.add('hidden');
       }
       calcMobilePdPartsTotal();
     }
