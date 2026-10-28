@@ -1018,6 +1018,10 @@
     window.clearMobilePdAiSlot = clearMobilePdAiSlot;
     window.runMobilePdSparePartAiScan = runMobilePdSparePartAiScan;
     window.confirmMobilePdAiPart = confirmMobilePdAiPart;
+    window.handleMobilePdPhotoSelect = handleMobilePdPhotoSelect;
+    window.handleMobilePdReportFile = handleMobilePdReportFile;
+    window.handleMobilePdRepairSubmit = handleMobilePdRepairSubmit;
+    window.compressPdMobileImage = compressPdMobileImage;
 
     // ==========================================
     // MOBILE PC STORE CONTROLLER (Frontline Lean Hub)

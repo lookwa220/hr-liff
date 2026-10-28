@@ -1058,9 +1058,7 @@ JSON Format:
   "emails": ["string"],
   "website": "string",
   "lineId": "string",
-  "address": "string",
-  "suggestedTags": ["string"],
-  "notes": "string"
+  "address": "string"
 }
 
 Strict Rules:
@@ -1076,8 +1074,6 @@ Strict Rules:
 - website: Company website URL.
 - lineId: LINE ID if present (e.g. "@company" or "line_id").
 - address: Factory, office, or industrial estate address.
-- suggestedTags: 3 to 4 relevant industrial hashtags starting with # (e.g. #ลูกค้า, #ซัพพลายเออร์, #คู่ค้าญี่ปุ่น, #ชิ้นส่วน/ทูลลิ่ง, #นิคมปิ่นทอง, #นิคมบางปะอิน, #งานกลึงCNC, etc.).
-- notes: 1-sentence executive summary in Thai describing this business/contact (e.g. 'ผู้ติดต่อฝ่ายขาย บริษัท... ผลิตชิ้นส่วนยานยนต์ นิคมปิ่นทอง').
 `;
 
       const payload = {
@@ -1177,12 +1173,9 @@ Strict Rules:
             document.getElementById('mobBcFormWebsite').value = 'Line: ' + parsed.lineId;
           }
           if (parsed.address) document.getElementById('mobBcFormAddress').value = parsed.address;
-          if (parsed.notes && !document.getElementById('mobBcFormNotes').value) {
-            document.getElementById('mobBcFormNotes').value = parsed.notes;
-          }
-          if (parsed.suggestedTags && Array.isArray(parsed.suggestedTags)) {
-            parsed.suggestedTags.forEach(t => addMobileBcFormTag(t));
-          }
+
+          // หมายเหตุ: ปล่อยเป็นช่องว่างไว้ ไม่ให้ AI ใส่ข้อความ (ผู้ใช้จะใส่เองหากต้องการ)
+          // แฮชแท็ก: ไม่ให้ AI ช่วยใส่ (ผู้ใช้จะพิมพ์แฮชแท็กเองตามความเหมาะสม)
 
           // ตรวจสอบนามบัตรซ้ำทันทีหลัง AI สแกน (Instant Duplicate Check on Mobile)
           if (!mobileBusinessCards || mobileBusinessCards.length === 0) {
@@ -1212,10 +1205,15 @@ Strict Rules:
           const duplicate = (mobileBusinessCards || []).find(c => {
             const cName = (c.contactName || '').trim().toLowerCase();
             const cComp = (c.companyName || '').trim().toLowerCase();
-            // 1. Phone match (>= 8 digits)
+            // 1. Phone match (หากชื่อต่างกัน จะไม่นำเบอร์สำนักงานมาตัดสินว่าซ้ำ)
             if (normPhones.length > 0) {
               const cPhones = (c.phones || []).map(p => String(p).replace(/\D/g, '')).filter(p => p.length >= 8);
-              if (normPhones.some(np => cPhones.includes(np))) return true;
+              const matchingDigits = normPhones.filter(np => cPhones.includes(np));
+              if (matchingDigits.length > 0) {
+                if (!normName || !cName || normName === cName) return true;
+                const hasMobile = matchingDigits.some(d => d.length === 10 && (d.startsWith('06') || d.startsWith('08') || d.startsWith('09')));
+                if (hasMobile && (!normComp || !cComp || normComp === cComp)) return true;
+              }
             }
             // 2. Email match
             if (normEmails.length > 0) {
