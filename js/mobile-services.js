@@ -1205,28 +1205,30 @@ Strict Rules:
           const duplicate = (mobileBusinessCards || []).find(c => {
             const cName = (c.contactName || '').trim().toLowerCase();
             const cComp = (c.companyName || '').trim().toLowerCase();
-            // 1. Phone match (หากชื่อต่างกัน จะไม่นำเบอร์สำนักงานมาตัดสินว่าซ้ำ)
-            if (normPhones.length > 0) {
-              const cPhones = (c.phones || []).map(p => String(p).replace(/\D/g, '')).filter(p => p.length >= 8);
-              const matchingDigits = normPhones.filter(np => cPhones.includes(np));
-              if (matchingDigits.length > 0) {
-                if (!normName || !cName || normName === cName) return true;
+
+            // กรณีที่ 1: มีการระบุชื่อบุคคลไว้ทั้ง 2 ฝั่ง
+            if (normName && cName) {
+              if (normName === cName || (normName.length >= 4 && cName.includes(normName)) || (cName.length >= 4 && normName.includes(cName))) {
+                if (!normComp || !cComp || normComp === cComp || normComp.includes(cComp) || cComp.includes(normComp)) return true;
+              }
+              if (normPhones.length > 0) {
+                const cPhones = (c.phones || []).map(p => String(p).replace(/\D/g, '')).filter(p => p.length >= 8);
+                const matchingDigits = normPhones.filter(np => cPhones.includes(np));
                 const hasMobile = matchingDigits.some(d => d.length === 10 && (d.startsWith('06') || d.startsWith('08') || d.startsWith('09')));
                 if (hasMobile && (!normComp || !cComp || normComp === cComp)) return true;
               }
+              return false;
             }
-            // 2. Email match
-            if (normEmails.length > 0) {
-              const cEmails = (c.emails || []).map(e => String(e).trim().toLowerCase()).filter(Boolean);
-              if (normEmails.some(ne => cEmails.includes(ne))) return true;
-            }
-            // 3. Name & Company match (exact or partial)
-            if (normName && cName) {
-              const isNameMatch = (normName === cName) || 
-                (normName.length >= 4 && cName.includes(normName)) || 
-                (cName.length >= 4 && normName.includes(cName));
-              if (isNameMatch) {
-                if (!normComp || !cComp || normComp === cComp || normComp.includes(cComp) || cComp.includes(normComp)) return true;
+
+            // กรณีที่ 2: ใบใดใบหนึ่งไม่ได้ระบุชื่อบุคคล
+            if (!normName || !cName) {
+              if (normEmails.length > 0) {
+                const cEmails = (c.emails || []).map(e => String(e).trim().toLowerCase()).filter(Boolean);
+                if (normEmails.some(ne => cEmails.includes(ne))) return true;
+              }
+              if (normComp && cComp && normComp === cComp && normPhones.length > 0) {
+                const cPhones = (c.phones || []).map(p => String(p).replace(/\D/g, '')).filter(p => p.length >= 8);
+                if (normPhones.some(np => cPhones.includes(np))) return true;
               }
             }
             return false;
