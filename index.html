@@ -2610,8 +2610,11 @@
               <label class="block font-bold text-slate-700">1. สิ่งผิดปกติที่พบ (Abnormal)</label>
               <textarea id="mobPdAbnormalDesc" rows="2" placeholder="อธิบายอาการผิดปกติ..." class="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 text-xs"></textarea>
               <div class="flex items-center gap-2">
-                <input type="file" accept="image/*" onchange="handleMobilePdPhotoSelect(this, 'abnormal')" class="text-[11px] flex-1">
-                <img id="mobPdPreviewAbnormal" class="hidden w-12 h-12 rounded-lg object-cover border border-slate-300">
+                <input type="file" id="mobPdPhotoFileAbnormal" accept="image/*" onchange="handleMobilePdPhotoSelect(this, 'abnormal')" class="text-[11px] flex-1">
+                <div id="mobPdPreviewBoxAbnormal" class="hidden relative shrink-0">
+                  <img id="mobPdPreviewAbnormal" class="w-12 h-12 rounded-lg object-cover border border-slate-300">
+                  <button type="button" onclick="removeMobilePdRepairPhoto('abnormal')" class="absolute -top-1 -right-1 bg-rose-500 text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px] shadow-sm">✕</button>
+                </div>
               </div>
             </div>
 
@@ -2620,8 +2623,11 @@
               <label class="block font-bold text-slate-700">2. สาเหตุของปัญหา (Root Cause)</label>
               <textarea id="mobPdCauseDesc" rows="2" placeholder="ระบุสาเหตุ..." class="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 text-xs"></textarea>
               <div class="flex items-center gap-2">
-                <input type="file" accept="image/*" onchange="handleMobilePdPhotoSelect(this, 'cause')" class="text-[11px] flex-1">
-                <img id="mobPdPreviewCause" class="hidden w-12 h-12 rounded-lg object-cover border border-slate-300">
+                <input type="file" id="mobPdPhotoFileCause" accept="image/*" onchange="handleMobilePdPhotoSelect(this, 'cause')" class="text-[11px] flex-1">
+                <div id="mobPdPreviewBoxCause" class="hidden relative shrink-0">
+                  <img id="mobPdPreviewCause" class="w-12 h-12 rounded-lg object-cover border border-slate-300">
+                  <button type="button" onclick="removeMobilePdRepairPhoto('cause')" class="absolute -top-1 -right-1 bg-rose-500 text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px] shadow-sm">✕</button>
+                </div>
               </div>
             </div>
 
@@ -2630,8 +2636,11 @@
               <label class="block font-bold text-slate-700">3. ผลกระทบต่อชิ้นงาน (Workpiece Defect)</label>
               <textarea id="mobPdDefectDesc" rows="2" placeholder="รอยขีดข่วน, มิติเพี้ยน หรือไม่มี..." class="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 text-xs"></textarea>
               <div class="flex items-center gap-2">
-                <input type="file" accept="image/*" onchange="handleMobilePdPhotoSelect(this, 'defect')" class="text-[11px] flex-1">
-                <img id="mobPdPreviewDefect" class="hidden w-12 h-12 rounded-lg object-cover border border-slate-300">
+                <input type="file" id="mobPdPhotoFileDefect" accept="image/*" onchange="handleMobilePdPhotoSelect(this, 'defect')" class="text-[11px] flex-1">
+                <div id="mobPdPreviewBoxDefect" class="hidden relative shrink-0">
+                  <img id="mobPdPreviewDefect" class="w-12 h-12 rounded-lg object-cover border border-slate-300">
+                  <button type="button" onclick="removeMobilePdRepairPhoto('defect')" class="absolute -top-1 -right-1 bg-rose-500 text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px] shadow-sm">✕</button>
+                </div>
               </div>
             </div>
 
@@ -2640,8 +2649,11 @@
               <label class="block font-bold text-slate-700">4. รายละเอียดการซ่อม (Repair Details) <span class="text-rose-500">*</span></label>
               <textarea id="mobPdRepairDesc" rows="2" placeholder="อธิบายวิธีแก้ไขหรือซ่อมแซม..." class="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 text-xs" required></textarea>
               <div class="flex items-center gap-2">
-                <input type="file" accept="image/*" onchange="handleMobilePdPhotoSelect(this, 'repair')" class="text-[11px] flex-1">
-                <img id="mobPdPreviewRepair" class="hidden w-12 h-12 rounded-lg object-cover border border-slate-300">
+                <input type="file" id="mobPdPhotoFileRepair" accept="image/*" onchange="handleMobilePdPhotoSelect(this, 'repair')" class="text-[11px] flex-1">
+                <div id="mobPdPreviewBoxRepair" class="hidden relative shrink-0">
+                  <img id="mobPdPreviewRepair" class="w-12 h-12 rounded-lg object-cover border border-slate-300">
+                  <button type="button" onclick="removeMobilePdRepairPhoto('repair')" class="absolute -top-1 -right-1 bg-rose-500 text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px] shadow-sm">✕</button>
+                </div>
               </div>
             </div>
           </div>

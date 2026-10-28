@@ -465,31 +465,47 @@
     }
 
     async function handleMobilePdPhotoSelect(input, targetKey) {
-      const file = input.files && input.files[0];
+      const file = input && input.files && input.files[0];
       if (!file) return;
+
+      const submitBtn = document.getElementById('mobPdSubmitBtn');
+      const origBtnHtml = submitBtn ? submitBtn.innerHTML : '';
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<span class="inline-block animate-spin mr-1">⏳</span> กำลังประมวลผลรูปถ่าย...';
+      }
 
       try {
         const compressedBase64 = await compressPdMobileImage(file);
         mobilePdRepairPhotos[targetKey] = compressedBase64;
 
-        const previewMap = {
-          abnormal: 'mobPdPreviewAbnormal',
-          cause: 'mobPdPreviewCause',
-          defect: 'mobPdPreviewDefect',
-          repair: 'mobPdPreviewRepair'
-        };
-        const prevId = previewMap[targetKey];
-        if (prevId) {
-          const prevEl = document.getElementById(prevId);
-          if (prevEl) {
-            prevEl.src = compressedBase64;
-            prevEl.classList.remove('hidden');
-          }
-        }
+        const capitalizedKey = targetKey.charAt(0).toUpperCase() + targetKey.slice(1);
+        const box = document.getElementById(`mobPdPreviewBox${capitalizedKey}`);
+        const img = document.getElementById(`mobPdPreview${capitalizedKey}`);
+        if (img) img.src = compressedBase64;
+        if (box) box.classList.remove('hidden');
+        showToast('✓ ประมวลผลรูปถ่ายสำเร็จ', 'success');
       } catch (err) {
         console.error('Image compression error:', err);
         showToast('บีบอัดรูปภาพล้มเหลว กรุณาลองใหม่อีกครั้ง', 'error');
+      } finally {
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = origBtnHtml || '<span>✓ บันทึกประวัติการซ่อม</span>';
+        }
       }
+    }
+
+    function removeMobilePdRepairPhoto(targetKey) {
+      if (!targetKey) return;
+      mobilePdRepairPhotos[targetKey] = '';
+      const capitalizedKey = targetKey.charAt(0).toUpperCase() + targetKey.slice(1);
+      const box = document.getElementById(`mobPdPreviewBox${capitalizedKey}`);
+      const img = document.getElementById(`mobPdPreview${capitalizedKey}`);
+      const fileInput = document.getElementById(`mobPdPhotoFile${capitalizedKey}`);
+      if (box) box.classList.add('hidden');
+      if (img) img.src = '';
+      if (fileInput) fileInput.value = '';
     }
 
     async function handleMobilePdReportFile(input) {
@@ -982,9 +998,11 @@
           document.getElementById('mobPdPartsList').innerHTML = '';
           calcMobilePdPartsTotal();
           mobilePdRepairPhotos = { abnormal: '', cause: '', defect: '', repair: '', makerReport: '' };
-          ['mobPdPreviewAbnormal', 'mobPdPreviewCause', 'mobPdPreviewDefect', 'mobPdPreviewRepair'].forEach(id => {
-            const el = document.getElementById(id);
-            if (el) el.classList.add('hidden');
+          ['Abnormal', 'Cause', 'Defect', 'Repair'].forEach(key => {
+            const box = document.getElementById(`mobPdPreviewBox${key}`);
+            const img = document.getElementById(`mobPdPreview${key}`);
+            if (box) box.classList.add('hidden');
+            if (img) img.src = '';
           });
           const hintBox = document.getElementById('mobPdMachineLastRepairHint');
           if (hintBox) { hintBox.innerHTML = ''; hintBox.classList.add('hidden'); }
@@ -1019,6 +1037,7 @@
     window.runMobilePdSparePartAiScan = runMobilePdSparePartAiScan;
     window.confirmMobilePdAiPart = confirmMobilePdAiPart;
     window.handleMobilePdPhotoSelect = handleMobilePdPhotoSelect;
+    window.removeMobilePdRepairPhoto = removeMobilePdRepairPhoto;
     window.handleMobilePdReportFile = handleMobilePdReportFile;
     window.handleMobilePdRepairSubmit = handleMobilePdRepairSubmit;
     window.compressPdMobileImage = compressPdMobileImage;
