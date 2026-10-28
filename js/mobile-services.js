@@ -370,9 +370,9 @@
         let s = String(p).trim();
         if (!s) return;
         
-        // แปลงรหัสประเทศ +66 เป็น 0
-        s = s.replace(/\+66\s*\(?0\)?\s*/g, '0');
-        s = s.replace(/^\+66\s*/g, '0');
+        // แปลงรหัสประเทศ +66, 66 เป็น 0
+        s = s.replace(/^\+?66[-.\s]*\(?0\)?[-.\s]*/g, '0');
+        s = s.replace(/^\+?66[-.\s]*/g, '0');
         
         const digits = s.replace(/\D/g, '');
         

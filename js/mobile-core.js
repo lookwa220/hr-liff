@@ -337,8 +337,8 @@
     function renderQuotas(quota) {
       const sick = quota.sickRemaining ?? '30';
       const annual = quota.annualRemaining ?? '6';
-      const paid = quota.personalPaidRemaining ?? '6';
-      const unpaid = quota.personalUnpaidUsedDays ?? '0';
+      const paid = quota.personalPaidRemaining ?? '3';
+      const unpaid = quota.personalUnpaidRemaining ?? (quota.personalUnpaidUsedDays ?? '0');
 
       const s1 = document.getElementById('quotaSickRemain');
       if (s1) s1.innerText = sick;
