@@ -5,50 +5,103 @@
     // Leave Module Logic
     // ==========================================
     function setLeaveDurationPreset(preset) {
-      const fullBtn = document.getElementById('btnPresetFull');
-      const halfBtn = document.getElementById('btnPresetHalf');
-      const hourlyBtn = document.getElementById('btnPresetHourly');
-      const timeBox = document.getElementById('timeRangeBox');
-
-      [fullBtn, halfBtn, hourlyBtn].forEach(b => {
-        b.className = 'py-2 text-xs font-medium rounded-lg border border-slate-200 bg-white text-slate-600';
-      });
-
-      if (preset === 'FULL') {
-        fullBtn.className = 'py-2 text-xs font-bold rounded-lg border border-emerald-600 bg-emerald-50 text-emerald-700';
-        document.getElementById('leaveStartTime').value = '08:00';
-        document.getElementById('leaveEndTime').value = '17:00';
-      } else if (preset === 'HALF') {
-        halfBtn.className = 'py-2 text-xs font-bold rounded-lg border border-emerald-600 bg-emerald-50 text-emerald-700';
-        document.getElementById('leaveStartTime').value = '08:00';
-        document.getElementById('leaveEndTime').value = '12:00';
-      } else {
-        hourlyBtn.className = 'py-2 text-xs font-bold rounded-lg border border-emerald-600 bg-emerald-50 text-emerald-700';
-      }
-      calcLeaveHours();
+      // Preset buttons removed for cleaner UI, kept as dummy to avoid runtime exceptions
     }
 
     function calcLeaveHours() {
-      const start = document.getElementById('leaveStartTime').value;
-      const end = document.getElementById('leaveEndTime').value;
       const startDate = document.getElementById('leaveStartDate').value;
       const endDate = document.getElementById('leaveEndDate').value;
+      const startTime = document.getElementById('leaveStartTime').value || '08:00';
+      const endTime = document.getElementById('leaveEndTime').value || '17:00';
 
       if (!startDate || !endDate) return;
 
-      const [sH, sM] = start.split(':').map(Number);
-      const [eH, eM] = end.split(':').map(Number);
-      let diffMinutes = (eH * 60 + eM) - (sH * 60 + sM);
+      const overrides = (window.state && window.state.calendarOverrides) ? window.state.calendarOverrides : {};
 
-      // หักเวลาพักเที่ยง 1 ชม. (ถ้าคลุมช่วง 12:00-13:00)
-      if (sH <= 12 && eH >= 13) {
-        diffMinutes -= 60;
+      function isWorkDay(dateStr) {
+        if (overrides[dateStr] !== undefined) {
+          return overrides[dateStr] === true || String(overrides[dateStr]).toUpperCase() === 'TRUE';
+        }
+        const d = new Date(dateStr);
+        const day = d.getDay();
+        return (day !== 0 && day !== 6); // 0=Sun, 6=Sat
       }
-      if (diffMinutes < 0) diffMinutes = 0;
 
-      const hours = +(diffMinutes / 60).toFixed(2);
-      document.getElementById('lblTotalHours').innerText = hours;
-      document.getElementById('lblTotalDays').innerText = +(hours / 8).toFixed(2);
+      function calcDayHours(sTime, eTime) {
+        const [sH, sM] = (sTime || '08:00').split(':').map(Number);
+        const [eH, eM] = (eTime || '17:00').split(':').map(Number);
+        let diffMinutes = (eH * 60 + eM) - (sH * 60 + sM);
+        if (sH <= 12 && eH >= 13) {
+          diffMinutes -= 60;
+        }
+        if (diffMinutes < 0) diffMinutes = 0;
+        return +(diffMinutes / 60).toFixed(2);
+      }
+
+      const startD = new Date(startDate);
+      const endD = new Date(endDate);
+
+      if (endD < startD) {
+        document.getElementById('lblTotalHours').innerText = '0';
+        document.getElementById('lblTotalDays').innerText = '0';
+        const note = document.getElementById('lblHolidayNote');
+        if (note) {
+          note.innerText = '⚠️ วันที่สิ้นสุดต้องไม่น้อยกว่าวันที่เริ่มต้น';
+          note.classList.remove('hidden');
+        }
+        return;
+      }
+
+      let totalHours = 0;
+      let workDaysCount = 0;
+      let holidayCount = 0;
+
+      if (startDate === endDate) {
+        if (isWorkDay(startDate)) {
+          workDaysCount = 1;
+          totalHours = calcDayHours(startTime, endTime);
+        } else {
+          holidayCount = 1;
+          totalHours = 0;
+        }
+      } else {
+        const cur = new Date(startD);
+        while (cur <= endD) {
+          const y = cur.getFullYear();
+          const m = String(cur.getMonth() + 1).padStart(2, '0');
+          const d = String(cur.getDate()).padStart(2, '0');
+          const curDateStr = `${y}-${m}-${d}`;
+
+          if (isWorkDay(curDateStr)) {
+            workDaysCount++;
+            if (curDateStr === startDate) {
+              totalHours += calcDayHours(startTime, '17:00');
+            } else if (curDateStr === endDate) {
+              totalHours += calcDayHours('08:00', endTime);
+            } else {
+              totalHours += 8;
+            }
+          } else {
+            holidayCount++;
+          }
+          cur.setDate(cur.getDate() + 1);
+        }
+      }
+
+      const totalDays = +(totalHours / 8).toFixed(2);
+      document.getElementById('lblTotalHours').innerText = totalHours;
+      document.getElementById('lblTotalDays').innerText = totalDays;
+
+      const note = document.getElementById('lblHolidayNote');
+      if (note) {
+        if (holidayCount > 0) {
+          note.innerText = `💡 มีวันหยุดตามปฏิทินบริษัท ${holidayCount} วัน (ระบบตัดออก ไม่นับเป็นวันลา)`;
+          note.classList.remove('hidden');
+        } else {
+          note.innerText = '';
+          note.classList.add('hidden');
+        }
+      }
     }
 
     // Form Attachment State (สำหรับก่อนลา)
@@ -112,7 +165,7 @@
     async function submitLeave(e) {
       e.preventDefault();
       const btn = document.getElementById('btnSubmitLeave');
-      const shift = document.querySelector('input[name="leaveShift"]:checked').value;
+      const shift = (window.state && window.state.currentUser && window.state.currentUser.shift) ? window.state.currentUser.shift : 'กะกลางวัน (Day)';
 
       const payload = {
         action: 'requestLeave',

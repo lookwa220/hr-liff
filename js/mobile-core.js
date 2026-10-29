@@ -147,6 +147,7 @@
         const res = await jsonpRequest({ action: 'getConfig' });
         if (res && res.success) {
           state.config = res;
+          state.calendarOverrides = res.calendarOverrides || {};
           populateTimeOptions();
           populateLeaveTypes(res.leaveTypes);
         }
@@ -335,26 +336,53 @@
     }
 
     function renderQuotas(quota) {
-      const sick = quota.sickRemaining ?? '30';
-      const annual = quota.annualRemaining ?? '6';
-      const paid = quota.personalPaidRemaining ?? '3';
-      const unpaid = quota.personalUnpaidRemaining ?? (quota.personalUnpaidUsedDays ?? '0');
+      if (!quota) return;
 
-      const s1 = document.getElementById('quotaSickRemain');
-      if (s1) s1.innerText = sick;
+      const annualUsed = quota.annualUsedDays !== undefined ? quota.annualUsedDays : 0;
+      const annualTotal = quota.annualTotal !== undefined ? quota.annualTotal : 6;
+      const annualRemain = quota.annualRemaining !== undefined ? quota.annualRemaining : Math.max(0, annualTotal - annualUsed);
+
+      const paidUsed = quota.personalPaidUsedDays !== undefined ? quota.personalPaidUsedDays : 0;
+      const paidTotal = quota.personalPaidTotal !== undefined ? quota.personalPaidTotal : 3;
+      const paidRemain = quota.personalPaidRemaining !== undefined ? quota.personalPaidRemaining : Math.max(0, paidTotal - paidUsed);
+
+      const unpaidUsed = quota.personalUnpaidUsedDays !== undefined ? quota.personalUnpaidUsedDays : 0;
+      const unpaidTotal = quota.personalUnpaidTotal !== undefined ? quota.personalUnpaidTotal : 2;
+      const unpaidRemain = quota.personalUnpaidRemaining !== undefined ? quota.personalUnpaidRemaining : Math.max(0, unpaidTotal - unpaidUsed);
+
+      // Card 1: พักร้อน (Annual Leave)
       const a1 = document.getElementById('quotaAnnualRemain');
-      if (a1) a1.innerText = annual;
-      const p1 = document.getElementById('quotaPaidRemain');
-      if (p1) p1.innerText = paid;
-      const u1 = document.getElementById('quotaUnpaidUsed');
-      if (u1) u1.innerText = unpaid;
+      if (a1) a1.innerText = `${annualUsed} / ${annualTotal}`;
+      const aSub1 = document.getElementById('quotaAnnualSubtext');
+      if (aSub1) aSub1.innerText = `ใช้ไป ${annualUsed}/${annualTotal} (เหลือ ${annualRemain} วัน)`;
 
-      const s2 = document.getElementById('quotaSickRemainUnified');
-      if (s2) s2.innerText = sick;
+      // Card 2: ลากิจ (ได้เงิน) (Personal Paid)
+      const p1 = document.getElementById('quotaPaidRemain');
+      if (p1) p1.innerText = `${paidUsed} / ${paidTotal}`;
+      const pSub1 = document.getElementById('quotaPaidSubtext');
+      if (pSub1) pSub1.innerText = `ใช้ไป ${paidUsed}/${paidTotal} (เหลือ ${paidRemain} วัน)`;
+
+      // Card 3: ลากิจ (หักเงิน) (Personal Unpaid)
+      const u1 = document.getElementById('quotaUnpaidUsed');
+      if (u1) u1.innerText = `${unpaidUsed} / ${unpaidTotal}`;
+      const uSub1 = document.getElementById('quotaUnpaidSubtext');
+      if (uSub1) uSub1.innerText = `ใช้ไป ${unpaidUsed}/${unpaidTotal} (เหลือ ${unpaidRemain} วัน)`;
+
+      // Top Unified Cards
       const a2 = document.getElementById('quotaAnnualRemainUnified');
-      if (a2) a2.innerText = annual;
+      if (a2) a2.innerText = `${annualUsed} / ${annualTotal}`;
+      const aSub2 = document.getElementById('quotaAnnualSubtextUnified');
+      if (aSub2) aSub2.innerText = `เหลือ ${annualRemain} วัน`;
+
       const p2 = document.getElementById('quotaPaidRemainUnified');
-      if (p2) p2.innerText = paid;
+      if (p2) p2.innerText = `${paidUsed} / ${paidTotal}`;
+      const pSub2 = document.getElementById('quotaPaidSubtextUnified');
+      if (pSub2) pSub2.innerText = `เหลือ ${paidRemain} วัน`;
+
+      const u2 = document.getElementById('quotaUnpaidRemainUnified');
+      if (u2) u2.innerText = `${unpaidUsed} / ${unpaidTotal}`;
+      const uSub2 = document.getElementById('quotaUnpaidSubtextUnified');
+      if (uSub2) uSub2.innerText = `เหลือ ${unpaidRemain} วัน`;
     }
 
     function renderHostVisitors(visitors) {
