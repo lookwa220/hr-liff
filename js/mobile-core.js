@@ -186,7 +186,7 @@
       const select = document.getElementById('leaveType');
       if (!types || types.length === 0) return;
       select.innerHTML = '<option value="">-- เลือกประเภทการลา --</option>' +
-        types.map(t => `<option value="${t.name}">${t.name} (${t.desc})</option>`).join('');
+        types.map(t => `<option value="${t.name}">${t.name}</option>`).join('');
     }
 
     // ==========================================
