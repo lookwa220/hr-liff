@@ -345,6 +345,7 @@
     let currentMobileBcBackExistingUrl = '';
     let mobileBcFormTags = [];
     let currentEditingMobileBcId = null;
+    let detectedMobileBcDuplicate = null;
     let currentMobileBcViewingCard = null;
 
     /**
@@ -432,6 +433,55 @@
       }
       return s.replace(/\D/g, '');
     }
+
+    /**
+     * จัดลำดับและคัดกรองอีเมล (แยก comma/space, อีเมลส่วนบุคคลมาก่อน, อีเมลแผนกกลางตามหลัง)
+     */
+    function normalizeAndPrioritizeEmails(rawEmails) {
+      if (!rawEmails) return [];
+      let flatList = [];
+      if (Array.isArray(rawEmails)) {
+        rawEmails.forEach(item => {
+          if (typeof item === 'string') {
+            item.split(/[,;\s]+/).forEach(s => {
+              const clean = s.trim();
+              if (clean && clean.includes('@')) flatList.push(clean);
+            });
+          } else if (item) {
+            flatList.push(String(item).trim());
+          }
+        });
+      } else if (typeof rawEmails === 'string') {
+        rawEmails.split(/[,;\s]+/).forEach(s => {
+          const clean = s.trim();
+          if (clean && clean.includes('@')) flatList.push(clean);
+        });
+      }
+
+      const seen = new Set();
+      const deduped = [];
+      flatList.forEach(em => {
+        const lower = em.toLowerCase();
+        if (!seen.has(lower)) {
+          seen.add(lower);
+          deduped.push(em);
+        }
+      });
+
+      const deptRegex = /(?:^|[-_.])(sales|info|contact|support|admin|service|office|mail|center|marketing|order|customer)/i;
+      deduped.sort((a, b) => {
+        const aPrefix = (a.split('@')[0] || '').toLowerCase();
+        const bPrefix = (b.split('@')[0] || '').toLowerCase();
+        const aIsDept = deptRegex.test(aPrefix);
+        const bIsDept = deptRegex.test(bPrefix);
+        if (!aIsDept && bIsDept) return -1;
+        if (aIsDept && !bIsDept) return 1;
+        return 0;
+      });
+
+      return deduped;
+    }
+    window.normalizeAndPrioritizeEmails = normalizeAndPrioritizeEmails;
 
     async function loadMobileBusinessCards(silent = false) {
       const container = document.getElementById('mobBcListContainer');
@@ -658,12 +708,16 @@
       const modal = document.getElementById('modalAddMobileBc');
       if (!modal) return;
       currentEditingMobileBcId = null;
+      detectedMobileBcDuplicate = null;
       currentMobileBcFrontExistingUrl = '';
       currentMobileBcBackExistingUrl = '';
       const titleEl = document.getElementById('mobAddBcModalTitle');
       if (titleEl) titleEl.innerText = 'เพิ่มนามบัตรใหม่';
       const submitBtn = document.getElementById('mobBcSubmitBtn');
       if (submitBtn) submitBtn.innerHTML = '<span>บันทึกนามบัตร</span>';
+
+      const compareBanner = document.getElementById('mobBcDuplicateCompareBanner');
+      if (compareBanner) compareBanner.classList.add('hidden');
 
       document.getElementById('formAddMobileBc').reset();
       clearMobileBcPhoto('front');
@@ -672,6 +726,38 @@
       renderMobileBcFormTags();
       modal.classList.remove('hidden');
     }
+
+    function chooseMobileCardSaveMode(mode) {
+      const compareBanner = document.getElementById('mobBcDuplicateCompareBanner');
+      const titleEl = document.getElementById('mobAddBcModalTitle');
+      const submitBtn = document.getElementById('mobBcSubmitBtn');
+      const duplicate = detectedMobileBcDuplicate;
+
+      if (mode === 'new') {
+        currentEditingMobileBcId = null;
+        if (titleEl) titleEl.innerText = 'เพิ่มนามบัตรใหม่';
+        if (submitBtn) submitBtn.innerHTML = '<span>บันทึกนามบัตร</span>';
+        if (compareBanner) compareBanner.classList.add('hidden');
+        showToast('ตั้งค่าเป็น: บันทึกเป็นผู้ติดต่อใหม่เรียบร้อยแล้ว', 'info');
+      } else if (mode === 'update' && duplicate) {
+        currentEditingMobileBcId = duplicate.cardId;
+        if (titleEl) titleEl.innerHTML = `<span class="text-amber-600 font-bold">⚡ พบนามบัตรเดิม (${duplicate.cardId})</span>`;
+        if (submitBtn) submitBtn.innerHTML = `<span>อัปเดตนามบัตรเดิม (${duplicate.cardId})</span>`;
+
+        // Merge existing tags
+        const existingTags = Array.isArray(duplicate.tags) ? duplicate.tags : [];
+        existingTags.forEach(t => addMobileBcFormTag(t));
+
+        // Merge notes if empty
+        if (duplicate.notes) {
+          const notesEl = document.getElementById('mobBcFormNotes');
+          if (notesEl && !notesEl.value) notesEl.value = duplicate.notes;
+        }
+        if (compareBanner) compareBanner.classList.add('hidden');
+        showToast(`สลับเป็นโหมดอัปเดตนามบัตรเดิม (${duplicate.cardId}) เรียบร้อยแล้ว`, 'info');
+      }
+    }
+    window.chooseMobileCardSaveMode = chooseMobileCardSaveMode;
 
     function closeAddMobileBcModal() {
       const modal = document.getElementById('modalAddMobileBc');
@@ -1166,7 +1252,10 @@ Strict Rules:
             const sortedPhones = normalizeAndPrioritizePhones(parsed.phones);
             document.getElementById('mobBcFormPhone').value = sortedPhones.join(', ');
           }
-          if (parsed.emails && parsed.emails.length > 0) document.getElementById('mobBcFormEmail').value = parsed.emails.join(', ');
+          if (parsed.emails && parsed.emails.length > 0) {
+            const sortedEmails = normalizeAndPrioritizeEmails(parsed.emails);
+            document.getElementById('mobBcFormEmail').value = sortedEmails.join(', ');
+          }
           if (parsed.website) {
             document.getElementById('mobBcFormWebsite').value = parsed.website;
           } else if (parsed.lineId) {
@@ -1235,31 +1324,37 @@ Strict Rules:
           });
 
           if (duplicate) {
-            currentEditingMobileBcId = duplicate.cardId;
+            detectedMobileBcDuplicate = duplicate;
+
+            // คงสถานะเป็น "บันทึกนามบัตรใหม่" เสมอเป็นค่าเริ่มต้น (ไม่ Auto-switch อัปเดตทับข้อมูลเดิมโดยพลการ)
+            currentEditingMobileBcId = null;
             const titleEl = document.getElementById('mobAddBcModalTitle');
-            if (titleEl) titleEl.innerHTML = `<span class="text-amber-600 font-bold">⚡ พบนามบัตรเดิม (${duplicate.cardId})</span>`;
+            if (titleEl) titleEl.innerText = 'เพิ่มนามบัตรใหม่';
             const submitBtn = document.getElementById('mobBcSubmitBtn');
-            if (submitBtn) submitBtn.innerHTML = `<span>อัปเดตนามบัตรเดิม (${duplicate.cardId})</span>`;
+            if (submitBtn) submitBtn.innerHTML = '<span>บันทึกนามบัตร</span>';
 
-            // ดึงแฮชแท็กเดิมมารวมให้เรียบร้อย
-            const existingTags = Array.isArray(duplicate.tags) ? duplicate.tags : [];
-            existingTags.forEach(t => addMobileBcFormTag(t));
-
-            // ดึงโน้ตเดิมมารวม (ไม่ต่อท้าย [AI สรุป] ซ้ำซ้อน)
-            if (duplicate.notes) {
-              const notesEl = document.getElementById('mobBcFormNotes');
-              if (notesEl) {
-                notesEl.value = duplicate.notes;
+            // แสดงแผงเปรียบเทียบข้อมูลที่สะดุดตา
+            const compareBanner = document.getElementById('mobBcDuplicateCompareBanner');
+            if (compareBanner) {
+              compareBanner.classList.remove('hidden');
+              const reasonBadge = document.getElementById('mobBcCompareReasonBadge');
+              if (reasonBadge) {
+                reasonBadge.innerText = (normName && duplicate.contactName && normName !== duplicate.contactName.trim().toLowerCase()) 
+                  ? 'แชร์เบอร์หรืออีเมลร่วมกัน' 
+                  : 'ข้อมูลคล้ายกัน';
               }
+              const newInfo = document.getElementById('mobBcCompareNewInfo');
+              if (newInfo) newInfo.innerText = `${parsed.contactName || '-'} (${parsed.companyName || '-'})`;
+              const oldInfo = document.getElementById('mobBcCompareOldInfo');
+              if (oldInfo) oldInfo.innerText = `${duplicate.contactName || '-'} (${duplicate.companyName || '-'}) [${duplicate.cardId}]`;
+              const btnUpdateText = document.getElementById('mobBtnChooseUpdateText');
+              if (btnUpdateText) btnUpdateText.innerText = `🔄 อัปเดตทับข้อมูลเดิม (${duplicate.cardId})`;
             }
 
-            showToast(`พบนามบัตรของ "${duplicate.contactName || duplicate.companyName}" ในระบบแล้ว (${duplicate.cardId}) ระบบสลับเป็นโหมดอัปเดตและรวมแท็กให้แล้ว สามารถพิมพ์เพิ่มแท็กใหม่ได้ทันที`, 'info');
-
-            setTimeout(() => {
-              const tagInput = document.getElementById('mobBcTagInput');
-              if (tagInput) tagInput.focus();
-            }, 300);
+            showToast('⚡ AI สแกนเรียบร้อยแล้ว (ตรวจพบข้อมูลใกล้เคียงในระบบ โปรดตรวจสอบแผงเปรียบเทียบ)', 'info');
           } else {
+            const compareBanner = document.getElementById('mobBcDuplicateCompareBanner');
+            if (compareBanner) compareBanner.classList.add('hidden');
             showToast('⚡ AI Gemini สแกนและกรอกข้อมูลเรียบร้อยแล้ว!', 'success');
           }
         }
@@ -1313,6 +1408,7 @@ Strict Rules:
           position: position,
           phone: phone,
           email: email,
+          emails: email ? email.split(/[,;\s]+/).map(s => s.trim()).filter(e => e && e.includes('@')) : [],
           website: website,
           address: address,
           notes: notes,
