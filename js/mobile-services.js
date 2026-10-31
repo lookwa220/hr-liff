@@ -847,6 +847,7 @@
         if (backPreviewBox) backPreviewBox.classList.add('hidden');
       }
 
+      updateMobileCardScanButtonVisibility();
       closeMobileBcDetailModal();
       modal.classList.remove('hidden');
     }
@@ -904,6 +905,27 @@
       container.innerHTML = html;
     }
 
+    function updateMobileCardScanButtonVisibility() {
+      const hasFront = Boolean(currentMobileBcFrontBase64 || currentMobileBcFrontExistingUrl);
+      const hasBack = Boolean(currentMobileBcBackBase64 || currentMobileBcBackExistingUrl);
+      const scanBtn = document.getElementById('mobBtnScanCardFrontOcr');
+      const btnText = document.getElementById('mobBtnScanCardFrontOcrText');
+      if (scanBtn) {
+        if (hasFront || hasBack) {
+          scanBtn.classList.remove('hidden');
+          if (btnText) {
+            if (hasFront && hasBack) {
+              btnText.innerText = '⚡ สแกนอ่านข้อมูลจากภาพนามบัตรทั้ง 2 ด้าน (หน้า + หลัง)';
+            } else {
+              btnText.innerText = 'สแกนอ่านข้อมูลจากรูปภาพอัตโนมัติ (AI OCR)';
+            }
+          }
+        } else {
+          scanBtn.classList.add('hidden');
+        }
+      }
+    }
+
     function handleMobileBcPhotoSelect(e, side) {
       const file = e.target.files && e.target.files[0];
       if (!file) return;
@@ -935,8 +957,6 @@
             const previewBox = document.getElementById('mobBcFrontPreviewBox');
             if (previewEl) previewEl.src = base64;
             if (previewBox) previewBox.classList.remove('hidden');
-            const scanBtn = document.getElementById('mobBtnScanCardFrontOcr');
-            if (scanBtn) scanBtn.classList.remove('hidden');
           } else {
             currentMobileBcBackBase64 = base64;
             const previewEl = document.getElementById('mobBcBackPreview');
@@ -944,6 +964,7 @@
             if (previewEl) previewEl.src = base64;
             if (previewBox) previewBox.classList.remove('hidden');
           }
+          updateMobileCardScanButtonVisibility();
         };
         img.src = evt.target.result;
       };
@@ -956,14 +977,13 @@
         currentMobileBcFrontExistingUrl = '';
         const previewBox = document.getElementById('mobBcFrontPreviewBox');
         if (previewBox) previewBox.classList.add('hidden');
-        const scanBtn = document.getElementById('mobBtnScanCardFrontOcr');
-        if (scanBtn) scanBtn.classList.add('hidden');
       } else {
         currentMobileBcBackBase64 = '';
         currentMobileBcBackExistingUrl = '';
         const previewBox = document.getElementById('mobBcBackPreviewBox');
         if (previewBox) previewBox.classList.add('hidden');
       }
+      updateMobileCardScanButtonVisibility();
     }
 
     // Dynamic loader for Tesseract.js (Client-side free OCR on Mobile)
@@ -1125,15 +1145,39 @@
     }
 
     // เรียก Gemini REST API ตรงจากเบราว์เซอร์มือถือ (ผ่าน CORS ได้ 100% โดยไม่ต้องขอ Scope Apps Script)
-    async function callMobileGeminiApiDirectly(apiKey, base64Image) {
-      const cleanBase64 = base64Image.replace(/^data:image\/[a-zA-Z0-9.+-]+;base64,/, '').trim();
-      const mimeMatch = base64Image.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,/);
-      const mimeType = mimeMatch ? mimeMatch[1] : 'image/jpeg';
+    // รองรับการส่งทั้งรูปหน้าบัตรและหลังบัตรพร้อมกัน (Dual-Side Multimodal Scan)
+    async function callMobileGeminiApiDirectly(apiKey, frontImage, backImage) {
+      const parts = [];
+
+      function appendImagePart(imgData) {
+        if (!imgData || typeof imgData !== 'string') return;
+        const clean = imgData.replace(/^data:image\/[a-zA-Z0-9.+-]+;base64,/, '').trim();
+        if (!clean || clean.startsWith('http')) return;
+        const mimeMatch = imgData.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,/);
+        const mimeType = mimeMatch ? mimeMatch[1] : 'image/jpeg';
+        parts.push({
+          inline_data: {
+            mime_type: mimeType,
+            data: clean
+          }
+        });
+      }
+
+      appendImagePart(frontImage);
+      appendImagePart(backImage);
+
+      if (parts.length === 0) {
+        throw new Error('ไม่พบข้อมูลรูปภาพสำหรับวิเคราะห์');
+      }
 
       const prompt = `You are an expert OCR and data extraction AI specializing in business cards (Thai, English, Japanese).
-Analyze this business card image with high precision:
-1. Note that the image might be rotated (90 degrees, 180 degrees, sideways, or upside down) or taken at an angle. Mentally rotate and orient it properly before extracting.
-2. Extract all contact and company details strictly into the JSON format specified below.
+Analyze this business card image(s) with high precision (which may contain FRONT side, BACK side, or BOTH):
+1. Note that images might be rotated (90 degrees, 180 degrees, sideways, or upside down) or taken at an angle. Mentally rotate and orient each image properly before extracting.
+2. SYNTHESIZE ALL PROVIDED SIDES/IMAGES:
+   - Personal details (contact name, position/title, personal email) usually appear on the front.
+   - Company details, addresses, websites, and especially TELEPHONE & MOBILE NUMBERS often appear on the back or bottom.
+   - Extract and merge all details from all provided images into one complete record.
+3. Extract all contact and company details strictly into the JSON format specified below.
 
 JSON Format:
 {
@@ -1149,31 +1193,24 @@ JSON Format:
 
 Strict Rules:
 - contactName: The person's personal name only. (CRITICAL: Do NOT put company name or company logo text here).
-- companyName: The full legal company name (e.g. Minamida (Thailand) Co., Ltd., บริษัท ... จำกัด, 株式会社...).
-- position: Job title / department (e.g. Manager Sales, Managing Director, 代表取締役, ผู้จัดการ).
+- companyName: The full legal company name (e.g. Minamida (Thailand) Co., Ltd., Somboon Advance Technology, etc.).
+- position: Job title / department (e.g. Assistant General Manager, Sales Manager, etc.).
 - phones: CRITICAL PHONE EXTRACTION RULE:
-  1. PRIORITIZE MOBILE PHONE: If a personal mobile phone (เบอร์มือถือ เช่น 08x, 09x, 06x) is found on the card, place the mobile phone number FIRST in the array.
-  2. OFFICE / LANDLINE FALLBACK: Only include the office/company landline (e.g. 02-xxx-xxxx, 038-xxx-xxxx) if NO mobile phone is present, or put it after mobile phones. Do NOT include fax numbers.
-  3. READY-TO-CALL FORMAT: Convert international country codes (+66) to standard ready-to-call local format (e.g. convert '+66 81 234 5678' or '+66(0)81-234-5678' into '081-234-5678', and '+66 2 123 4567' into '02-123-4567'). For international cards outside Thailand (e.g. Japan +81), keep in '+81-xx-xxx-xxxx'.
-  4. CRITICAL: Do NOT include Tax ID / Tax number / เลขประจำตัวผู้เสียภาษี.
+  1. Extract ALL telephone and mobile numbers visible on any side of the card. Look for icons (telephone icon, mobile phone icon) as well as text labels (Tel, Phone, Mobile, Direct, Call, etc.).
+  2. PRIORITIZE MOBILE PHONE: If a personal mobile phone (เบอร์มือถือ เช่น 08x, 09x, 06x) is found on the card, place it FIRST in the array.
+  3. Include office/company landlines (e.g. 02-xxx-xxxx, 038-xxx-xxxx) as well.
+  4. READY-TO-CALL FORMAT: Convert international country codes (+66) to standard ready-to-call local format (e.g. convert '+66 61 267 8524' into '061-267-8524', and '+66 2 080 8202' into '02-080-8202'). For international cards outside Thailand (e.g. Japan +81), keep in '+81-xx-xxx-xxxx'.
+  5. CRITICAL: Do NOT include Tax ID / Tax number / เลขประจำตัวผู้เสียภาษี.
 - emails: Email address(es).
-- website: Company website URL.
+- website: Company website URL (check both front and back sides).
 - lineId: LINE ID if present (e.g. "@company" or "line_id").
-- address: Factory, office, or industrial estate address.
+- address: Factory, office, or industrial estate address (often found on the back side).
 `;
 
       const payload = {
         contents: [
           {
-            parts: [
-              {
-                inline_data: {
-                  mime_type: mimeType,
-                  data: cleanBase64
-                }
-              },
-              { text: prompt }
-            ]
+            parts: parts
           }
         ],
         generationConfig: {
@@ -1188,7 +1225,7 @@ Strict Rules:
 
       for (const model of models) {
         try {
-          const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey.trim()}`;
+          const endpoint = `https:\x2f\x2fgenerativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey.trim()}`;
           const response = await fetch(endpoint, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -1218,11 +1255,12 @@ Strict Rules:
       throw new Error(lastErr || 'ไม่สามารถวิเคราะห์ข้อมูลจากภาพได้');
     }
 
-    // ⚡ Instant Photo Auto-Scan using Gemini 2.5 Flash (Mobile LIFF)
+    // ⚡ Instant Photo Auto-Scan using Gemini 2.5 Flash (Mobile LIFF - รองรับทั้งหน้าและหลัง)
     async function triggerMobileCardAutoScan() {
-      const imageSrc = currentMobileBcFrontBase64;
-      if (!imageSrc) {
-        showToast('กรุณาถ่ายรูปหรือเลือกรูปหน้าบัตรก่อนกดสแกน', 'warning');
+      const frontSrc = currentMobileBcFrontBase64 || currentMobileBcFrontExistingUrl;
+      const backSrc = currentMobileBcBackBase64 || currentMobileBcBackExistingUrl;
+      if (!frontSrc && !backSrc) {
+        showToast('กรุณาถ่ายรูปหรือเลือกรูปนามบัตรก่อนกดสแกน', 'warning');
         return;
       }
 
@@ -1240,9 +1278,13 @@ Strict Rules:
           return;
         }
 
-        if (btnText) btnText.innerHTML = '⚡ Gemini AI กำลังวิเคราะห์รูปภาพนามบัตร...';
+        if (btnText) {
+          btnText.innerHTML = (frontSrc && backSrc) 
+            ? '⚡ Gemini AI กำลังวิเคราะห์รูปภาพนามบัตรทั้ง 2 ด้าน...' 
+            : '⚡ Gemini AI กำลังวิเคราะห์รูปภาพนามบัตร...';
+        }
 
-        const parsed = await callMobileGeminiApiDirectly(apiKey, imageSrc);
+        const parsed = await callMobileGeminiApiDirectly(apiKey, frontSrc, backSrc);
 
         if (parsed) {
           if (parsed.companyName) document.getElementById('mobBcFormCompanyName').value = parsed.companyName;
