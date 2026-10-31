@@ -1110,11 +1110,8 @@
       return { companyName, contactName, position, phones, emails, lineId, website, address, suggestedTags };
     }
 
-    // ดึง API Key จาก localStorage หรือจาก Script Properties หลังบ้าน
-    async function getEffectiveMobileGeminiApiKey() {
-      let key = localStorage.getItem('MINAMIDA_GEMINI_API_KEY');
-      if (key && key.trim()) return key.trim();
-
+    // ดึง API Key จาก Central AI Gateway หลังบ้านเป็นอันดับแรก (และซิงค์ลง localStorage เพื่อไม่ให้ติดคีย์เก่าที่หมดอายุ)
+    async function getEffectiveMobileGeminiApiKey(forceRefresh) {
       const myEmpId = state.currentUser ? (state.currentUser.employeeId || state.currentUser.employeeCode || '') : '';
       try {
         const res = await postApiRequest({
@@ -1122,17 +1119,22 @@
           callerEmpId: myEmpId
         });
         if (res && res.status === 'success' && res.apiKey) {
-          key = res.apiKey.trim();
-          localStorage.setItem('MINAMIDA_GEMINI_API_KEY', key);
-          return key;
+          const serverKey = res.apiKey.trim();
+          localStorage.setItem('MINAMIDA_GEMINI_API_KEY', serverKey);
+          return serverKey;
         }
       } catch (e) {
         console.warn('getGeminiApiKey mobile fetch failed:', e);
       }
 
+      if (!forceRefresh) {
+        let cachedKey = localStorage.getItem('MINAMIDA_GEMINI_API_KEY');
+        if (cachedKey && cachedKey.trim()) return cachedKey.trim();
+      }
+
       const entered = prompt('ระบบสแกนนามบัตรทำงานด้วย Gemini AI (ฟรี 100%)\nกรุณาวาง API Key ที่ได้รับจาก Google AI Studio (aistudio.google.com):');
       if (entered && entered.trim()) {
-        key = entered.trim();
+        const key = entered.trim();
         localStorage.setItem('MINAMIDA_GEMINI_API_KEY', key);
         postApiRequest({
           action: 'saveGeminiApiKey',
@@ -1207,6 +1209,8 @@ Strict Rules:
 - address: Factory, office, or industrial estate address (often found on the back side).
 `;
 
+      parts.push({ text: prompt });
+
       const payload = {
         contents: [
           {
@@ -1220,7 +1224,7 @@ Strict Rules:
         }
       };
 
-      const models = ['gemini-3.5-flash-lite', 'gemini-3.1-flash-lite', 'gemini-3.8-flash', 'gemini-2.5-flash', 'gemini-2.5-flash-lite'];
+      const models = ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-2.0-flash', 'gemini-3.5-flash-lite', 'gemini-3.1-flash-lite', 'gemini-3.8-flash'];
       let lastErr = null;
 
       for (const model of models) {
@@ -1241,7 +1245,7 @@ Strict Rules:
                             resJson.candidates[0].content.parts[0] &&
                             resJson.candidates[0].content.parts[0].text;
             if (rawText) {
-              const cleanJson = rawText.replace(/^```json\s*/i, '').replace(/```\s*$/, '').trim();
+              const cleanJson = rawText.replace(/^```json\s*/i, '').replace(/```\s*$/, '').replace(/,\s*([}\]])/g, '$1').trim();
               return JSON.parse(cleanJson);
             }
           } else {
