@@ -66,17 +66,148 @@
       ).join('');
     }
 
-    function onMobilePartCodeChange() {
+    let mobCurrentAvailableLots = [];
+    let isMobCustomLotMode = false;
+
+    function resetMobilePartsLotField() {
+      isMobCustomLotMode = false;
+      mobCurrentAvailableLots = [];
+      const lotInput = document.getElementById('mobPartsLot');
+      const lotCustom = document.getElementById('mobPartsLotCustom');
+      const lotSelect = document.getElementById('mobPartsLotSelect');
+      const selectWrapper = document.getElementById('mobPartsLotSelectWrapper');
+      const inputWrapper = document.getElementById('mobPartsLotInputWrapper');
+      const toggleBtn = document.getElementById('btnToggleMobCustomLot');
+      const fifoBadge = document.getElementById('mobPartsFifoBadge');
+      const hintEl = document.getElementById('mobPartsLotHint');
+
+      if (lotInput) lotInput.value = '';
+      if (lotCustom) lotCustom.value = '';
+      if (lotSelect) {
+        lotSelect.innerHTML = '<option value="">-- เลือกสินค้าก่อน --</option>';
+        lotSelect.value = '';
+      }
+      if (selectWrapper) selectWrapper.classList.remove('hidden');
+      if (inputWrapper) inputWrapper.classList.add('hidden');
+      if (toggleBtn) {
+        toggleBtn.classList.add('hidden');
+        toggleBtn.textContent = 'พิมพ์เอง';
+      }
+      if (fifoBadge) fifoBadge.classList.add('hidden');
+      if (hintEl) hintEl.textContent = 'เลือกสินค้าเพื่อดู Lot สต็อก';
+    }
+    window.resetMobilePartsLotField = resetMobilePartsLotField;
+
+    function onMobileLotSelectChange() {
+      const lotSelect = document.getElementById('mobPartsLotSelect');
+      const lotInput = document.getElementById('mobPartsLot');
+      const fifoBadge = document.getElementById('mobPartsFifoBadge');
+      const hintEl = document.getElementById('mobPartsLotHint');
+      if (!lotSelect || !lotInput) return;
+
+      const val = lotSelect.value;
+      if (val === '__custom__') {
+        toggleMobileCustomLot(true);
+        return;
+      }
+
+      lotInput.value = val;
+      const found = (mobCurrentAvailableLots || []).find(l => l.lotNo === val);
+      if (found) {
+        if (fifoBadge) {
+          if (found.isFifoRecommended) {
+            fifoBadge.classList.remove('hidden');
+            fifoBadge.textContent = '★ FIFO';
+          } else {
+            fifoBadge.classList.add('hidden');
+          }
+        }
+        if (hintEl) hintEl.textContent = `คงเหลือ ${Number(found.balanceQty || 0).toLocaleString()} ชิ้น (รับเข้า: ${found.receivedDate || '-'})`;
+      }
+    }
+    window.onMobileLotSelectChange = onMobileLotSelectChange;
+
+    function onMobileLotCustomInput() {
+      const lotCustom = document.getElementById('mobPartsLotCustom');
+      const lotInput = document.getElementById('mobPartsLot');
+      if (lotCustom && lotInput) {
+        lotInput.value = lotCustom.value.trim();
+      }
+    }
+    window.onMobileLotCustomInput = onMobileLotCustomInput;
+
+    function toggleMobileCustomLot(forceCustom) {
+      const selectWrapper = document.getElementById('mobPartsLotSelectWrapper');
+      const inputWrapper = document.getElementById('mobPartsLotInputWrapper');
+      const lotSelect = document.getElementById('mobPartsLotSelect');
+      const lotCustom = document.getElementById('mobPartsLotCustom');
+      const lotInput = document.getElementById('mobPartsLot');
+      const toggleBtn = document.getElementById('btnToggleMobCustomLot');
+      const fifoBadge = document.getElementById('mobPartsFifoBadge');
+      const hintEl = document.getElementById('mobPartsLotHint');
+
+      if (typeof forceCustom === 'boolean') {
+        isMobCustomLotMode = forceCustom;
+      } else {
+        isMobCustomLotMode = !isMobCustomLotMode;
+      }
+
+      if (isMobCustomLotMode) {
+        if (selectWrapper) selectWrapper.classList.add('hidden');
+        if (inputWrapper) inputWrapper.classList.remove('hidden');
+        if (toggleBtn) {
+          toggleBtn.classList.remove('hidden');
+          toggleBtn.textContent = 'เลือกจากสต็อก';
+        }
+        if (fifoBadge) fifoBadge.classList.add('hidden');
+        if (hintEl) hintEl.textContent = 'พิมพ์ระบุ Lot เอง';
+        if (lotCustom) {
+          lotCustom.value = (lotInput && lotInput.value !== '__custom__') ? lotInput.value : '';
+          lotCustom.focus();
+        }
+      } else {
+        if (selectWrapper) selectWrapper.classList.remove('hidden');
+        if (inputWrapper) inputWrapper.classList.add('hidden');
+        if (toggleBtn) {
+          toggleBtn.classList.remove('hidden');
+          toggleBtn.textContent = 'พิมพ์เอง';
+        }
+        if (lotSelect) {
+          if (lotSelect.value === '__custom__') {
+            lotSelect.selectedIndex = 0;
+          }
+          onMobileLotSelectChange();
+        }
+      }
+    }
+    window.toggleMobileCustomLot = toggleMobileCustomLot;
+
+    async function onMobilePartCodeChange() {
       const codeInput = document.getElementById('mobPartsCode');
       if (!codeInput) return;
       const val = codeInput.value.trim().toLowerCase();
 
-      const item = (mobilePartsProductsList || []).find(p => String(p.partCode).trim().toLowerCase() === val);
+      const item = (mobilePartsProductsList || []).find(p => {
+        const pCode = String(p.partCode || '').trim().toLowerCase();
+        const pNo = String(p.partNo || '').trim().toLowerCase();
+        return pCode === val || 
+               (pNo && pNo === val) ||
+               (val.length >= 6 && (pCode.startsWith(val) || val.startsWith(pCode)));
+      });
       const nameEl = document.getElementById('mobPartsName');
       const noEl = document.getElementById('mobPartsNo');
       const stockEl = document.getElementById('mobPartsStockType');
       const procEl = document.getElementById('mobPartsProcess');
       const areaEl = document.getElementById('mobPartsArea');
+
+      const lotInput = document.getElementById('mobPartsLot');
+      const lotCustom = document.getElementById('mobPartsLotCustom');
+      const lotSelect = document.getElementById('mobPartsLotSelect');
+      const selectWrapper = document.getElementById('mobPartsLotSelectWrapper');
+      const inputWrapper = document.getElementById('mobPartsLotInputWrapper');
+      const toggleBtn = document.getElementById('btnToggleMobCustomLot');
+      const fifoBadge = document.getElementById('mobPartsFifoBadge');
+      const hintEl = document.getElementById('mobPartsLotHint');
 
       if (item) {
         if (nameEl) nameEl.value = item.partName || '';
@@ -88,6 +219,66 @@
         if (nameEl) nameEl.value = '';
         if (noEl) noEl.value = '';
         if (stockEl) stockEl.value = '';
+      }
+
+      // ดึง Lot สต็อก PC สำหรับ Mobile LIFF
+      if (codeInput.value.trim()) {
+        if (hintEl) hintEl.textContent = 'กำลังโหลด Lot สต็อก...';
+        try {
+          const res = await postApiRequest({
+            action: 'getMobileAvailableLotsByPart',
+            query: item ? item.partCode : codeInput.value.trim(),
+            partCode: item ? item.partCode : codeInput.value.trim(),
+            partNo: item ? item.partNo : '',
+            partName: item ? item.partName : ''
+          });
+
+          if (res && res.status === 'success' && Array.isArray(res.data) && res.data.length > 0) {
+            mobCurrentAvailableLots = res.data;
+            isMobCustomLotMode = false;
+            if (selectWrapper) selectWrapper.classList.remove('hidden');
+            if (inputWrapper) inputWrapper.classList.add('hidden');
+            if (toggleBtn) {
+              toggleBtn.classList.remove('hidden');
+              toggleBtn.textContent = 'พิมพ์เอง';
+            }
+
+            if (lotSelect) {
+              lotSelect.innerHTML = res.data.map(l => {
+                const fifoStar = l.isFifoRecommended ? ' [★ FIFO]' : '';
+                return `<option value="${l.lotNo}">${l.lotNo} (เหลือ ${Number(l.balanceQty || 0).toLocaleString()})${fifoStar}</option>`;
+              }).join('') + '<option value="__custom__">✏️ พิมพ์ระบุ Lot อื่นๆ เอง...</option>';
+
+              lotSelect.selectedIndex = 0;
+            }
+
+            const topFifo = res.data[0];
+            if (lotInput) lotInput.value = topFifo.lotNo;
+            if (fifoBadge) {
+              fifoBadge.classList.remove('hidden');
+              fifoBadge.textContent = '★ FIFO';
+            }
+            if (hintEl) hintEl.textContent = `พบ ${res.data.length} Lots (คงเหลือ ${Number(topFifo.balanceQty || 0).toLocaleString()} ชิ้น)`;
+          } else {
+            mobCurrentAvailableLots = [];
+            isMobCustomLotMode = true;
+            if (selectWrapper) selectWrapper.classList.add('hidden');
+            if (inputWrapper) inputWrapper.classList.remove('hidden');
+            if (toggleBtn) toggleBtn.classList.add('hidden');
+            if (fifoBadge) fifoBadge.classList.add('hidden');
+            if (hintEl) hintEl.textContent = 'ไม่พบ Lot ในสต็อก (พิมพ์ระบุเองได้)';
+            if (lotInput) lotInput.value = '';
+            if (lotCustom) lotCustom.value = '';
+          }
+        } catch (err) {
+          isMobCustomLotMode = true;
+          if (selectWrapper) selectWrapper.classList.add('hidden');
+          if (inputWrapper) inputWrapper.classList.remove('hidden');
+          if (toggleBtn) toggleBtn.classList.add('hidden');
+          if (hintEl) hintEl.textContent = 'พิมพ์ระบุ Lot เองได้';
+        }
+      } else {
+        resetMobilePartsLotField();
       }
     }
 
@@ -132,6 +323,7 @@
         if (res && res.status === 'success') {
           showToast(res.message || 'บันทึกคำขอเบิกสินค้าสำเร็จ');
           document.getElementById('mobPartsRequestForm').reset();
+          resetMobilePartsLotField();
           const user = state.currentUser;
           if (user) {
             document.getElementById('mobPartsRequester').value = user.fullName || user.name || user.employeeCode || '';
