@@ -60,10 +60,79 @@
 
     function populateMobilePartsDatalist(products) {
       const dl = document.getElementById('mobPartsDatalist');
-      if (!dl) return;
-      dl.innerHTML = (products || []).map(p => 
-        `<option value="${p.partCode}">${p.partCode} - ${p.partName} (PN: ${p.partNo || '-'})</option>`
-      ).join('');
+      if (dl) {
+        dl.innerHTML = (products || []).map(p => 
+          `<option value="${p.partCode}">${p.partCode} - ${p.partName} (PN: ${p.partNo || '-'})</option>`
+        ).join('');
+      }
+    }
+
+    function handleMobilePartSearch(query) {
+      const dropdown = document.getElementById('mobPartsSearchDropdown');
+      const clearBtn = document.getElementById('mobPartsCodeClearBtn');
+      if (!dropdown) return;
+
+      const q = String(query || '').trim().toLowerCase();
+      if (clearBtn) {
+        if (q.length > 0) clearBtn.classList.remove('hidden');
+        else clearBtn.classList.add('hidden');
+      }
+
+      if (!q) {
+        dropdown.classList.add('hidden');
+        dropdown.innerHTML = '';
+        return;
+      }
+
+      const matches = (mobilePartsProductsList || []).filter(p => {
+        const c = String(p.partCode || '').toLowerCase();
+        const n = String(p.partName || '').toLowerCase();
+        const no = String(p.partNo || '').toLowerCase();
+        return c.includes(q) || n.includes(q) || no.includes(q);
+      }).slice(0, 30);
+
+      if (matches.length === 0) {
+        dropdown.innerHTML = '<div class="p-3 text-center text-xs text-slate-400 bg-white">ไม่พบชิ้นงานที่ตรงกับคำค้นหา</div>';
+        dropdown.classList.remove('hidden');
+        return;
+      }
+
+      dropdown.innerHTML = matches.map(item => `
+        <div onclick="selectMobilePartProduct('${escapeHtml(item.partCode || '')}')" class="p-2.5 hover:bg-cyan-50 active:bg-cyan-100 cursor-pointer bg-white transition">
+          <div class="flex items-center justify-between">
+            <span class="font-bold text-xs text-cyan-800">${escapeHtml(item.partCode || '')}</span>
+            ${item.stockType ? `<span class="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 font-semibold">${escapeHtml(item.stockType)}</span>` : ''}
+          </div>
+          <div class="text-[11px] text-slate-700 font-medium truncate">${escapeHtml(item.partName || '-')}</div>
+          ${item.partNo ? `<div class="text-[10px] text-slate-400 font-mono">PN: ${escapeHtml(item.partNo)}</div>` : ''}
+        </div>
+      `).join('');
+      dropdown.classList.remove('hidden');
+    }
+
+    function selectMobilePartProduct(partCode) {
+      const codeInput = document.getElementById('mobPartsCode');
+      const dropdown = document.getElementById('mobPartsSearchDropdown');
+      const clearBtn = document.getElementById('mobPartsCodeClearBtn');
+      if (codeInput) {
+        codeInput.value = partCode;
+      }
+      if (dropdown) dropdown.classList.add('hidden');
+      if (clearBtn) clearBtn.classList.remove('hidden');
+      onMobilePartCodeChange();
+    }
+
+    function clearMobilePartSearch() {
+      const codeInput = document.getElementById('mobPartsCode');
+      const dropdown = document.getElementById('mobPartsSearchDropdown');
+      const clearBtn = document.getElementById('mobPartsCodeClearBtn');
+      if (codeInput) {
+        codeInput.value = '';
+        codeInput.focus();
+      }
+      if (dropdown) dropdown.classList.add('hidden');
+      if (clearBtn) clearBtn.classList.add('hidden');
+      onMobilePartCodeChange();
     }
 
     let mobCurrentAvailableLots = [];
@@ -2182,6 +2251,13 @@
 
     // Auto-close trial search dropdowns on outside click
     document.addEventListener('click', function(e) {
+      const partsDrop = document.getElementById('mobPartsSearchDropdown');
+      const partsInput = document.getElementById('mobPartsCode');
+      if (partsDrop && !partsDrop.classList.contains('hidden')) {
+        if (!partsDrop.contains(e.target) && e.target !== partsInput) {
+          partsDrop.classList.add('hidden');
+        }
+      }
       const partDrop = document.getElementById('mobPdTrialPartDropdown');
       const partInput = document.getElementById('mobPdTrialPartSearchInput');
       if (partDrop && !partDrop.classList.contains('hidden')) {
@@ -2197,6 +2273,10 @@
         }
       }
     });
+
+    window.handleMobilePartSearch = handleMobilePartSearch;
+    window.selectMobilePartProduct = selectMobilePartProduct;
+    window.clearMobilePartSearch = clearMobilePartSearch;
 
     window.loadMobilePdTrialView = loadMobilePdTrialView;
     window.handleMobilePdTrialDeptChange = handleMobilePdTrialDeptChange;
