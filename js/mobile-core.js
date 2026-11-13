@@ -759,3 +759,15 @@
       }
     }
 
+    // ==========================================
+    // External Link Shortcut (Supervisor Menu)
+    // ==========================================
+    function openPlanFollowUpLink() {
+      const url = 'https://script.google.com/a/macros/minamida.co.th/s/AKfycbzmlHYqeH96n-ZGBJ4gOCHB_fXvHsGl-e4pIxrbebY7F2MD0DiZsbya2yiP-5q1KNAT/exec';
+      if (typeof liff !== 'undefined' && typeof liff.isInClient === 'function' && liff.isInClient() && typeof liff.openWindow === 'function') {
+        liff.openWindow({ url: url, external: true });
+      } else {
+        window.open(url, '_blank', 'noopener,noreferrer');
+      }
+    }
+
