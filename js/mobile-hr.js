@@ -979,16 +979,74 @@
       }
     }
 
+    function resolveShiftForDate(dateStr, currentShift, timeline) {
+      const normalize = s => (String(s || '').toLowerCase() === 'night' || String(s || '').includes('กลางคืน')) ? 'Night' : 'Day';
+      const baseShift = normalize(currentShift);
+      if (!dateStr || !Array.isArray(timeline) || timeline.length === 0) return baseShift;
+
+      const todayIso = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Bangkok' });
+      const target = String(dateStr).slice(0, 10);
+
+      if (target > todayIso) {
+        let shift = baseShift;
+        timeline.forEach(item => {
+          const eff = String(item.effectiveDate || '').slice(0, 10);
+          if (eff && eff <= target && (item.status === 'SCHEDULED' || eff > todayIso)) {
+            shift = normalize(item.newShift);
+          }
+        });
+        return shift;
+      }
+
+      const applied = timeline.filter(item => item.status !== 'SCHEDULED' && String(item.effectiveDate || '').slice(0, 10) <= todayIso);
+      if (applied.length === 0) return baseShift;
+
+      let matched = null;
+      applied.forEach(item => {
+        const eff = String(item.effectiveDate || '').slice(0, 10);
+        if (eff && eff <= target) matched = item;
+      });
+      if (matched) return normalize(matched.newShift);
+      return applied[0].oldShift ? normalize(applied[0].oldShift) : baseShift;
+    }
+
     function renderShiftAndAttendanceData(data) {
       const emp = data.employee;
-      const curShift = (emp.currentShift === 'Night' || String(emp.currentShift).includes('กลางคืน')) ? '🌙 กะกลางคืน (20:00 - 05:00)' : '☀️ กะกลางวัน (08:00 - 17:00)';
+      const isCurNight = (emp.currentShift === 'Night' || String(emp.currentShift).includes('กลางคืน'));
+      const curShift = isCurNight ? '🌙 กะกลางคืน (20:00 - 05:00)' : '☀️ กะกลางวัน (08:00 - 17:00)';
       document.getElementById('shiftCurrentTitle').innerText = curShift;
+
+      // Scheduled Shift Announcement Banner
+      const schedBanner = document.getElementById('shiftScheduledBanner');
+      if (schedBanner) {
+        const schedList = Array.isArray(data.scheduledShifts) ? data.scheduledShifts : [];
+        if (schedList.length > 0) {
+          schedBanner.classList.remove('hidden');
+          schedBanner.innerHTML = schedList.map(s => {
+            const isN = String(s.newShift || '').toLowerCase() === 'night';
+            const dParts = String(s.effectiveDate || '').slice(0, 10).split('-');
+            const dShow = dParts.length === 3 ? `${dParts[2]}/${dParts[1]}/${dParts[0]}` : s.effectiveDate;
+            return `
+              <div class="flex items-start gap-2">
+                <span class="text-sm">📢</span>
+                <div>
+                  <span class="font-bold">ประกาศตารางกะล่วงหน้า:</span>
+                  <span>เปลี่ยนเป็น <b>${isN ? '🌙 กะกลางคืน (20:00 - 05:00)' : '☀️ กะกลางวัน (08:00 - 17:00)'}</b> มีผลวันที่ <b>${dShow}</b></span>
+                  ${s.reason ? `<div class="text-[11px] text-violet-700 mt-0.5">หมายเหตุ: ${s.reason}</div>` : ''}
+                </div>
+              </div>
+            `;
+          }).join('<hr class="my-1.5 border-violet-200">');
+        } else {
+          schedBanner.classList.add('hidden');
+          schedBanner.innerHTML = '';
+        }
+      }
 
       // Calendar
       const cal = data.calendar;
+      const timeline = Array.isArray(data.shiftTimeline) ? data.shiftTimeline : [];
       document.getElementById('shiftCalendarMonth').innerText = `เดือน ${cal.month || '-'}/${cal.year || '-'}`;
-      document.getElementById('calWorkDaysCnt').innerText = cal.workDaysCount || 0;
-      document.getElementById('calHolidayCnt').innerText = cal.holidaysCount || 0;
 
       const daysGrid = document.getElementById('calDaysGrid');
       if (cal.days && cal.days.length > 0) {
@@ -1006,29 +1064,50 @@
           blankCellsHtml += '<div class="p-1 rounded border border-transparent bg-slate-50/20 opacity-30 h-10"></div>';
         }
 
-        const daysHtml = cal.days.map(d => {
-          const isWork = d.isWorkDay;
-          const isSunday = d.dayOfWeek === 0;
-          const isSaturday = d.dayOfWeek === 6;
-          let bgClass = isWork ? 'bg-emerald-50 text-emerald-800 border-emerald-200 hover:border-emerald-400' : 'bg-red-50 text-red-600 border-red-200 font-bold hover:border-red-400';
-          if (!isWork && isSunday) bgClass = 'bg-red-50 text-red-600 border-red-200 font-bold';
-          if (isWork && isSaturday) bgClass = 'bg-blue-50 text-blue-700 border-blue-200 font-bold';
+        let empWorkCount = 0;
+        let empHolidayCount = 0;
 
-          const tagLabel = isWork ? (isSaturday ? 'ทำงาน' : 'ปกติ') : (d.dayType === 'HOLIDAY' ? 'วันหยุด' : 'หยุด');
+        const daysHtml = cal.days.map(d => {
+          const empShiftOnDay = resolveShiftForDate(d.dateStr, emp.currentShift, timeline);
+          let isEmpWorking = Boolean(d.isWorkDay);
+          if (d.dayType === 'SPECIAL_SWAP_NIGHT') {
+            isEmpWorking = (empShiftOnDay === 'Night');
+          } else if (d.dayType === 'SPECIAL_SWAP_DAY') {
+            isEmpWorking = (empShiftOnDay === 'Day');
+          }
+
+          if (isEmpWorking) empWorkCount++;
+          else empHolidayCount++;
+
+          let bgClass = 'bg-red-50 text-red-600 border-red-200 font-bold hover:border-red-400';
+          let tagLabel = 'หยุด';
+          if (isEmpWorking) {
+            if (empShiftOnDay === 'Night') {
+              bgClass = 'bg-indigo-50 text-indigo-800 border-indigo-200 hover:border-indigo-400';
+              tagLabel = '🌙 ดึก';
+            } else {
+              bgClass = 'bg-amber-50 text-amber-800 border-amber-200 hover:border-amber-400';
+              tagLabel = '☀️ เช้า';
+            }
+          }
 
           return `
             <div class="p-1 rounded-lg border ${bgClass} flex flex-col justify-between h-10 transition shadow-2xs">
               <div class="flex items-center justify-between">
                 <span class="font-bold text-xs leading-none">${d.day}</span>
-                <span class="text-[8px] opacity-75 font-normal">${tagLabel}</span>
+                <span class="text-[8px] opacity-85 font-semibold">${tagLabel}</span>
               </div>
               <div class="text-[8px] truncate leading-tight opacity-80" title="${d.title || ''}">${d.title ? d.title.replace('วันหยุดประจำสัปดาห์ (วันอาทิตย์)', 'หยุดอาทิตย์').replace('วันเสาร์หยุดประจำงวด', 'หยุดเสาร์').replace('วันทำงานปกติ', '') : ''}</div>
             </div>
           `;
         }).join('');
 
+        document.getElementById('calWorkDaysCnt').innerText = empWorkCount;
+        document.getElementById('calHolidayCnt').innerText = empHolidayCount;
         daysGrid.innerHTML = headerHtml + blankCellsHtml + daysHtml;
       } else {
+        document.getElementById('calWorkDaysCnt').innerText = cal.workDaysCount || 0;
+        document.getElementById('calHolidayCnt').innerText = cal.holidaysCount || 0;
         daysGrid.innerHTML = '<p class="col-span-7 text-slate-400 py-2">ไม่มีข้อมูลปฏิทิน</p>';
       }
 
