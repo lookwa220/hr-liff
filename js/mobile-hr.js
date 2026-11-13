@@ -958,6 +958,31 @@
     // ==========================================
     // 6. Shift & Attendance Logic
     // ==========================================
+    let currentLiffCalYear = null;
+    let currentLiffCalMonth = null;
+    const LIFF_THAI_MONTHS = [
+      'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
+      'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'
+    ];
+
+    function changeLiffCalendarMonth(delta) {
+      const now = new Date();
+      let y = currentLiffCalYear || now.getFullYear();
+      let m = (currentLiffCalMonth || (now.getMonth() + 1)) + delta;
+      if (m < 1) { m = 12; y -= 1; }
+      else if (m > 12) { m = 1; y += 1; }
+      const grid = document.getElementById('calDaysGrid');
+      if (grid) grid.innerHTML = '<p class="col-span-7 text-slate-400 py-4 text-center">กำลังโหลดปฏิทิน...</p>';
+      loadShiftAndAttendance(y, m);
+    }
+
+    function resetLiffCalendarMonth() {
+      const now = new Date();
+      const grid = document.getElementById('calDaysGrid');
+      if (grid) grid.innerHTML = '<p class="col-span-7 text-slate-400 py-4 text-center">กำลังโหลดปฏิทิน...</p>';
+      loadShiftAndAttendance(now.getFullYear(), now.getMonth() + 1);
+    }
+
     async function loadShiftAndAttendance(targetYear = null, targetMonth = null) {
       if (!state.currentUser) return;
       try {
@@ -1046,7 +1071,14 @@
       // Calendar
       const cal = data.calendar;
       const timeline = Array.isArray(data.shiftTimeline) ? data.shiftTimeline : [];
-      document.getElementById('shiftCalendarMonth').innerText = `เดือน ${cal.month || '-'}/${cal.year || '-'}`;
+      if (cal && cal.year && cal.month) {
+        currentLiffCalYear = parseInt(cal.year, 10);
+        currentLiffCalMonth = parseInt(cal.month, 10);
+        const mName = LIFF_THAI_MONTHS[currentLiffCalMonth - 1] || `เดือน ${currentLiffCalMonth}`;
+        document.getElementById('shiftCalendarMonth').innerText = `${mName} ${currentLiffCalYear + 543}`;
+      } else {
+        document.getElementById('shiftCalendarMonth').innerText = `เดือน ${cal.month || '-'}/${cal.year || '-'}`;
+      }
 
       const daysGrid = document.getElementById('calDaysGrid');
       if (cal.days && cal.days.length > 0) {
