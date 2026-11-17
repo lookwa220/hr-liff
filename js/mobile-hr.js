@@ -594,12 +594,18 @@
           if (res.leaves.length > 0) {
             leavesCont.innerHTML = res.leaves.map(l => {
               const hasAttachment = !!(l.attachmentUrl && l.attachmentUrl.trim());
+              const stageLabel = l.actionRole || '';
               return `
               <div id="card-app-${l.docNo}" class="p-3.5 bg-white rounded-xl border border-slate-200 shadow-sm text-xs space-y-2">
-                <div class="flex justify-between items-center">
+                <div class="flex justify-between items-center gap-2">
                   <span class="font-bold text-slate-800 text-sm">${l.fullName} (${l.department})</span>
-                  <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800">${l.leaveType}</span>
+                  <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 shrink-0">${l.leaveType}</span>
                 </div>
+                ${stageLabel ? `
+                  <div class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                    <span>⏳ ${stageLabel}</span>
+                  </div>
+                ` : ''}
                 <p class="text-slate-600">
                   📅 ${formatCleanDate(l.startDate)} ${formatCleanTime(l.startTime)} ถึง ${formatCleanDate(l.endDate)} ${formatCleanTime(l.endTime)} (${l.totalHours} ชม. ${formatCleanShift(l.shift)})
                 </p>
