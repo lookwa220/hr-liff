@@ -1776,3 +1776,593 @@ Strict Rules:
       if (modal) modal.classList.add('hidden');
     }
 
+    // ============================================================================
+    // SUPPORT THREAD & AI KNOWLEDGE BASE HUB (LINE LIFF MOBILE)
+    // ============================================================================
+    const mobileSupportState = {
+      activeTab: 'kb',
+      threads: [],
+      knowledgeBase: [],
+      isStaff: false,
+      isSystemAdmin: false,
+      selectedThreadId: null,
+      newImageBase64: '',
+      newImageName: '',
+      replyImageBase64: '',
+      replyImageName: ''
+    };
+
+    function escapeMobSupportHtml(str) {
+      if (str === null || str === undefined) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function getMobSupportCatLabel(cat) {
+      return String(cat || '').toUpperCase() === 'SYSTEM_IT'
+        ? { text: '🛠️ ระบบ & สิทธิ์', cls: 'bg-indigo-100 text-indigo-800' }
+        : { text: '👩‍💼 บุคคล & ธุรการ', cls: 'bg-sky-100 text-sky-800' };
+    }
+
+    function getMobSupportStatusBadge(st) {
+      const s = String(st || 'OPEN').toUpperCase();
+      if (s === 'ANSWERED') return { text: '🟢 ตอบกลับแล้ว', cls: 'bg-emerald-100 text-emerald-800' };
+      if (s === 'CLOSED') return { text: '🔒 ปิดแล้ว', cls: 'bg-slate-200 text-slate-700' };
+      return { text: '🟡 รอเจ้าหน้าที่ตอบ', cls: 'bg-amber-100 text-amber-800' };
+    }
+
+    function initMobileSupportView() {
+      switchMobileSupportTab(mobileSupportState.activeTab || 'kb');
+      loadMobileSupportData();
+    }
+
+    function switchMobileSupportTab(tab) {
+      mobileSupportState.activeTab = tab === 'threads' ? 'threads' : 'kb';
+      const btnKb = document.getElementById('mobSupportTabKb');
+      const btnTh = document.getElementById('mobSupportTabThreads');
+      const pKb = document.getElementById('mobSupportPanelKb');
+      const pTh = document.getElementById('mobSupportPanelThreads');
+
+      if (mobileSupportState.activeTab === 'kb') {
+        if (btnKb) btnKb.className = 'py-2 rounded-lg bg-white text-sky-700 shadow-sm font-bold text-center transition';
+        if (btnTh) btnTh.className = 'py-2 rounded-lg text-slate-600 font-medium text-center transition';
+        if (pKb) pKb.classList.remove('hidden');
+        if (pTh) pTh.classList.add('hidden');
+      } else {
+        if (btnTh) btnTh.className = 'py-2 rounded-lg bg-white text-sky-700 shadow-sm font-bold text-center transition';
+        if (btnKb) btnKb.className = 'py-2 rounded-lg text-slate-600 font-medium text-center transition';
+        if (pTh) pTh.classList.remove('hidden');
+        if (pKb) pKb.classList.add('hidden');
+      }
+    }
+
+    async function loadMobileSupportData() {
+      const empId = state.currentUser ? (state.currentUser.employeeCode || state.currentUser.employeeId || '') : '';
+      try {
+        const res = await jsonpRequest({ action: 'getSupportHubData', empId: empId, callerEmpId: empId });
+        if (!res || !res.success || !res.data) {
+          showToast((res && (res.error || res.message)) || 'โหลดข้อมูลไม่สำเร็จ', 'error');
+          return;
+        }
+        const d = res.data;
+        mobileSupportState.threads = Array.isArray(d.threads) ? d.threads : [];
+        mobileSupportState.knowledgeBase = Array.isArray(d.knowledgeBase) ? d.knowledgeBase : [];
+        mobileSupportState.isStaff = d.isStaff === true;
+        mobileSupportState.isSystemAdmin = d.isSystemAdmin === true;
+
+        const hintEl = document.getElementById('mobSupportRoleHint');
+        if (hintEl) {
+          hintEl.innerText = mobileSupportState.isSystemAdmin
+            ? 'โหมดผู้ดูแลระบบ (ตอบได้ทุกหมวด)'
+            : (mobileSupportState.isStaff ? 'โหมดเจ้าหน้าที่ HR/ธุรการ' : 'คำถามพบบ่อย & กระทู้ถึงเจ้าหน้าที่');
+        }
+
+        const addKbBtn = document.getElementById('btnMobSupportAddKb');
+        if (addKbBtn) {
+          if (mobileSupportState.isStaff) addKbBtn.classList.remove('hidden');
+          else addKbBtn.classList.add('hidden');
+        }
+
+        const kbCountEl = document.getElementById('mobSupportKbCount');
+        if (kbCountEl) kbCountEl.innerText = mobileSupportState.knowledgeBase.length;
+        const openCount = mobileSupportState.threads.filter(t => t.status === 'OPEN').length;
+        const openCountEl = document.getElementById('mobSupportOpenCount');
+        if (openCountEl) openCountEl.innerText = openCount;
+
+        renderMobileSupportKb();
+        renderMobileSupportThreads();
+
+        if (mobileSupportState.selectedThreadId) {
+          const detailModal = document.getElementById('modalMobileSupportDetail');
+          if (detailModal && !detailModal.classList.contains('hidden')) {
+            openMobileSupportThreadDetail(mobileSupportState.selectedThreadId);
+          }
+        }
+      } catch (err) {
+        showToast('เชื่อมต่อศูนย์ช่วยเหลือล้มเหลว: ' + err.message, 'error');
+      }
+    }
+
+    function renderMobileSupportKb() {
+      const container = document.getElementById('mobSupportKbList');
+      if (!container) return;
+      const q = String((document.getElementById('mobSupportKbSearch') || {}).value || '').trim().toLowerCase();
+      const items = mobileSupportState.knowledgeBase.filter(k => {
+        if (!q) return true;
+        return `${k.kbId} ${k.question} ${k.answer} ${k.keywords}`.toLowerCase().includes(q);
+      });
+
+      if (items.length === 0) {
+        container.innerHTML = `
+          <div class="p-6 text-center rounded-2xl border border-dashed border-slate-200 bg-slate-50 space-y-2">
+            <p class="text-xs font-bold text-slate-600">ไม่พบหัวข้อที่ค้นหา</p>
+            <button type="button" onclick="openMobileSupportNewModal()" class="px-3 py-1.5 rounded-xl bg-sky-600 text-white text-xs font-bold">+ ตั้งกระทู้สอบถามเจ้าหน้าที่</button>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = items.map(k => {
+        const cat = getMobSupportCatLabel(k.category);
+        const staffOps = mobileSupportState.isStaff ? `
+          <div class="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+            <button type="button" onclick="openMobileSupportStarKbModal(null, '${escapeMobSupportHtml(k.kbId)}')" class="px-2 py-1 rounded-lg bg-slate-100 text-slate-700 text-[10px] font-bold">✏️ แก้ไข</button>
+            <button type="button" onclick="handleMobileSupportDeleteKb('${escapeMobSupportHtml(k.kbId)}')" class="px-2 py-1 rounded-lg bg-rose-50 text-rose-600 text-[10px] font-bold">🗑️ ลบ</button>
+          </div>
+        ` : '';
+        return `
+          <details class="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-2xs">
+            <summary class="p-3 cursor-pointer flex items-start justify-between gap-2 list-none">
+              <div class="space-y-1 min-w-0">
+                <div class="flex items-center gap-1.5">
+                  <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${cat.cls}">${cat.text}</span>
+                  <span class="text-[10px] font-mono text-slate-400">${escapeMobSupportHtml(k.kbId)}</span>
+                </div>
+                <div class="text-xs font-bold text-slate-800">${escapeMobSupportHtml(k.question)}</div>
+              </div>
+              <span class="text-slate-400 text-xs mt-1">▾</span>
+            </summary>
+            <div class="px-3 pb-3 pt-2 border-t border-slate-100 bg-slate-50/70 space-y-2">
+              <p class="text-xs text-slate-700 whitespace-pre-line leading-relaxed">${escapeMobSupportHtml(k.answer)}</p>
+              ${staffOps}
+            </div>
+          </details>
+        `;
+      }).join('');
+    }
+
+    function renderMobileSupportThreads() {
+      const container = document.getElementById('mobSupportThreadList');
+      if (!container) return;
+      const stFilter = String((document.getElementById('mobSupportThreadStatus') || {}).value || 'ALL').toUpperCase();
+      const items = mobileSupportState.threads.filter(t => stFilter === 'ALL' || t.status === stFilter);
+
+      if (items.length === 0) {
+        container.innerHTML = `
+          <div class="p-6 text-center rounded-2xl border border-dashed border-slate-200 bg-slate-50 space-y-2">
+            <p class="text-xs font-bold text-slate-600">ยังไม่มีกระทู้ในสถานะนี้</p>
+            <button type="button" onclick="openMobileSupportNewModal()" class="px-3 py-1.5 rounded-xl bg-sky-600 text-white text-xs font-bold">+ ตั้งกระทู้ใหม่</button>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = items.map(t => {
+        const cat = getMobSupportCatLabel(t.category);
+        const st = getMobSupportStatusBadge(t.status);
+        return `
+          <div onclick="openMobileSupportThreadDetail('${escapeMobSupportHtml(t.threadId)}')" class="p-3 bg-white rounded-xl border border-slate-200 hover:border-sky-400 shadow-xs space-y-1.5 cursor-pointer active:scale-99 transition">
+            <div class="flex items-center justify-between gap-2">
+              <span class="text-[10px] font-mono font-bold text-sky-700">${escapeMobSupportHtml(t.threadId)}</span>
+              <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${st.cls}">${st.text}</span>
+            </div>
+            <div class="text-xs font-bold text-slate-800">${escapeMobSupportHtml(t.title)}</div>
+            <div class="flex items-center justify-between gap-2 text-[10px] text-slate-500">
+              <span class="truncate">👤 ${escapeMobSupportHtml(t.requesterName)}</span>
+              <span class="px-1.5 py-0.5 rounded font-bold ${cat.cls} shrink-0">${cat.text}</span>
+            </div>
+            <div class="flex items-center justify-between text-[10px] text-slate-400 pt-1 border-t border-slate-100">
+              <span>💬 ${t.messageCount} ข้อความ ${t.isStarredToKb ? '• ⭐ เข้าคลังความรู้แล้ว' : ''}</span>
+              <span>${escapeMobSupportHtml((t.updatedAt || t.createdAt || '').slice(0, 16))}</span>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function openMobileSupportNewModal() {
+      const modal = document.getElementById('modalMobileSupportNew');
+      if (!modal) return;
+      document.getElementById('mobSupportNewTitle').value = '';
+      document.getElementById('mobSupportNewContent').value = '';
+      clearMobileSupportImage('new');
+      modal.classList.remove('hidden');
+    }
+
+    function closeMobileSupportNewModal() {
+      const modal = document.getElementById('modalMobileSupportNew');
+      if (modal) modal.classList.add('hidden');
+    }
+
+    function handleMobileSupportImageSelect(e, target) {
+      const file = e.target && e.target.files && e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(evt) {
+        const img = new Image();
+        img.onload = function() {
+          const maxDim = 1024;
+          let width = img.width;
+          let height = img.height;
+          if (width > maxDim || height > maxDim) {
+            if (width > height) {
+              height = Math.round((height * maxDim) / width);
+              width = maxDim;
+            } else {
+              width = Math.round((width * maxDim) / height);
+              height = maxDim;
+            }
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+          if (target === 'reply') {
+            mobileSupportState.replyImageBase64 = dataUrl;
+            mobileSupportState.replyImageName = file.name || 'reply.jpg';
+            const badge = document.getElementById('mobSupportReplyImgBadge');
+            if (badge) {
+              badge.innerText = '📎 ' + mobileSupportState.replyImageName;
+              badge.classList.remove('hidden');
+            }
+          } else {
+            mobileSupportState.newImageBase64 = dataUrl;
+            mobileSupportState.newImageName = file.name || 'support.jpg';
+            const prevImg = document.getElementById('mobSupportNewImgPreview');
+            const prevWrap = document.getElementById('mobSupportNewImgPreviewWrap');
+            if (prevImg) prevImg.src = dataUrl;
+            if (prevWrap) prevWrap.classList.remove('hidden');
+          }
+        };
+        img.src = evt.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function clearMobileSupportImage(target) {
+      if (target === 'reply') {
+        mobileSupportState.replyImageBase64 = '';
+        mobileSupportState.replyImageName = '';
+        const inp = document.getElementById('mobSupportReplyImageInput');
+        if (inp) inp.value = '';
+        const badge = document.getElementById('mobSupportReplyImgBadge');
+        if (badge) badge.classList.add('hidden');
+      } else {
+        mobileSupportState.newImageBase64 = '';
+        mobileSupportState.newImageName = '';
+        const inp = document.getElementById('mobSupportNewImageInput');
+        if (inp) inp.value = '';
+        const wrap = document.getElementById('mobSupportNewImgPreviewWrap');
+        if (wrap) wrap.classList.add('hidden');
+      }
+    }
+
+    async function submitMobileSupportThread(e) {
+      e.preventDefault();
+      const catEl = document.querySelector('input[name="mobSupportCat"]:checked');
+      const category = catEl ? catEl.value : 'HR_ADMIN';
+      const title = document.getElementById('mobSupportNewTitle').value.trim();
+      const content = document.getElementById('mobSupportNewContent').value.trim();
+      if (!title || !content) {
+        showToast('กรุณากรอกหัวข้อและรายละเอียด', 'error');
+        return;
+      }
+
+      const empId = state.currentUser ? (state.currentUser.employeeCode || state.currentUser.employeeId || '') : '';
+      const btn = document.getElementById('btnMobSubmitSupportNew');
+      if (btn) { btn.disabled = true; btn.innerText = 'กำลังส่ง...'; }
+
+      try {
+        const res = await postApiRequest({
+          action: 'createSupportThread',
+          callerEmpId: empId,
+          category: category,
+          title: title,
+          content: content,
+          deviceSource: 'LIFF',
+          attachmentBase64: mobileSupportState.newImageBase64 || '',
+          attachmentName: mobileSupportState.newImageName || '',
+          attachmentMimeType: 'image/jpeg'
+        });
+        if (res && (res.status === 'success' || res.success)) {
+          showToast(res.message || 'ตั้งกระทู้เรียบร้อยแล้ว');
+          closeMobileSupportNewModal();
+          switchMobileSupportTab('threads');
+          await loadMobileSupportData();
+        } else {
+          showToast((res && (res.error || res.message)) || 'ส่งกระทู้ไม่สำเร็จ', 'error');
+        }
+      } catch (err) {
+        showToast('เกิดข้อผิดพลาด: ' + err.message, 'error');
+      } finally {
+        if (btn) { btn.disabled = false; btn.innerText = 'ส่งกระทู้'; }
+      }
+    }
+
+    function openMobileSupportThreadDetail(threadId) {
+      const t = mobileSupportState.threads.find(x => x.threadId === threadId);
+      if (!t) return;
+      mobileSupportState.selectedThreadId = threadId;
+      clearMobileSupportImage('reply');
+
+      const modal = document.getElementById('modalMobileSupportDetail');
+      document.getElementById('mobSupportDetailId').innerText = t.threadId;
+      document.getElementById('mobSupportDetailTitle').innerText = t.title;
+
+      const cat = getMobSupportCatLabel(t.category);
+      const st = getMobSupportStatusBadge(t.status);
+      document.getElementById('mobSupportDetailMeta').innerHTML = `
+        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${cat.cls}">${cat.text}</span>
+        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${st.cls}">${st.text}</span>
+        <span>👤 ${escapeMobSupportHtml(t.requesterName)} (${escapeMobSupportHtml(t.requesterDept || '-')})</span>
+      `;
+
+      const msgBox = document.getElementById('mobSupportDetailMessages');
+      msgBox.innerHTML = (t.messages || []).map(m => {
+        const isStaffMsg = String(m.senderRole || '').toUpperCase() === 'STAFF';
+        const imgHtml = m.attachmentUrl ? `<a href="${escapeMobSupportHtml(m.attachmentUrl)}" target="_blank" class="block mt-1.5"><img src="${escapeMobSupportHtml(m.attachmentUrl)}" class="max-h-36 rounded-xl border border-slate-200 object-cover"></a>` : '';
+        return `
+          <div class="p-2.5 rounded-xl border text-xs space-y-1 ${isStaffMsg ? 'bg-sky-50 border-sky-200 ml-3' : 'bg-slate-50 border-slate-200 mr-3'}">
+            <div class="flex items-center justify-between text-[10px]">
+              <span class="font-bold ${isStaffMsg ? 'text-sky-800' : 'text-slate-700'}">
+                ${isStaffMsg ? '🛡️ เจ้าหน้าที่: ' : '👤 ผู้ถาม: '}${escapeMobSupportHtml(m.senderName || m.senderId)}
+              </span>
+              <span class="text-slate-400">${escapeMobSupportHtml((m.createdAt || '').slice(0, 16))}</span>
+            </div>
+            <div class="text-slate-800 whitespace-pre-line">${escapeMobSupportHtml(m.text)}</div>
+            ${imgHtml}
+          </div>
+        `;
+      }).join('');
+
+      const footer = document.getElementById('mobSupportDetailFooter');
+      let footerHtml = '';
+      if (t.status !== 'CLOSED') {
+        footerHtml += `
+          <form onsubmit="submitMobileSupportReply(event, '${escapeMobSupportHtml(t.threadId)}')" class="space-y-2">
+            <textarea id="mobSupportReplyInput" rows="2" required placeholder="พิมพ์ข้อความตอบกลับหรือถามเพิ่มเติม..." class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs outline-none focus:ring-2 focus:ring-sky-500"></textarea>
+            <div class="flex items-center justify-between gap-2">
+              <label class="cursor-pointer px-2.5 py-1.5 rounded-lg bg-slate-100 text-slate-700 text-[11px] font-bold">
+                📎 รูปภาพ
+                <input type="file" id="mobSupportReplyImageInput" accept="image/*" onchange="handleMobileSupportImageSelect(event, 'reply')" class="hidden">
+              </label>
+              <span id="mobSupportReplyImgBadge" class="hidden text-[10px] text-sky-700 font-bold truncate"></span>
+              <button type="submit" id="btnMobSubmitSupportReply" class="px-4 py-1.5 rounded-xl bg-sky-600 text-white text-xs font-bold shadow-xs ml-auto">ส่งข้อความ</button>
+            </div>
+          </form>
+        `;
+      } else {
+        footerHtml += `<div class="p-2 rounded-xl bg-slate-100 text-center text-[11px] text-slate-500 font-semibold">🔒 กระทู้นี้ถูกปิดแล้ว ${t.kbId ? '(คลังความรู้ ' + escapeMobSupportHtml(t.kbId) + ')' : ''}</div>`;
+      }
+
+      if (mobileSupportState.isStaff) {
+        footerHtml += `
+          <div class="flex flex-wrap items-center gap-1.5 pt-1">
+            ${t.status !== 'CLOSED' ? `<button type="button" onclick="handleMobileSupportCloseThread('${escapeMobSupportHtml(t.threadId)}')" class="px-2.5 py-1.5 rounded-xl bg-slate-700 text-white text-[11px] font-bold">🔒 ปิดส่วนตัว</button>` : ''}
+            <button type="button" onclick="openMobileSupportStarKbModal('${escapeMobSupportHtml(t.threadId)}')" class="px-2.5 py-1.5 rounded-xl bg-amber-500 text-white text-[11px] font-bold">⭐ เข้าคลัง AI</button>
+            <button type="button" onclick="handleMobileSupportDeleteThread('${escapeMobSupportHtml(t.threadId)}')" class="px-2.5 py-1.5 rounded-xl bg-rose-50 text-rose-600 text-[11px] font-bold ml-auto">🗑️ ลบ</button>
+          </div>
+        `;
+      } else if (t.status !== 'CLOSED') {
+        footerHtml += `
+          <div class="flex justify-end pt-1">
+            <button type="button" onclick="handleMobileSupportCloseThread('${escapeMobSupportHtml(t.threadId)}')" class="px-3 py-1.5 rounded-xl bg-slate-100 text-slate-700 text-[11px] font-bold">🔒 ปิดกระทู้ (ได้คำตอบแล้ว)</button>
+          </div>
+        `;
+      }
+
+      footer.innerHTML = footerHtml;
+      if (modal) modal.classList.remove('hidden');
+    }
+
+    function closeMobileSupportDetailModal() {
+      const modal = document.getElementById('modalMobileSupportDetail');
+      if (modal) modal.classList.add('hidden');
+    }
+
+    async function submitMobileSupportReply(e, threadId) {
+      e.preventDefault();
+      const inp = document.getElementById('mobSupportReplyInput');
+      const text = inp ? inp.value.trim() : '';
+      if (!text) return;
+
+      const empId = state.currentUser ? (state.currentUser.employeeCode || state.currentUser.employeeId || '') : '';
+      const btn = document.getElementById('btnMobSubmitSupportReply');
+      if (btn) { btn.disabled = true; btn.innerText = 'กำลังส่ง...'; }
+
+      try {
+        const res = await postApiRequest({
+          action: 'replySupportThread',
+          threadId: threadId,
+          callerEmpId: empId,
+          message: text,
+          attachmentBase64: mobileSupportState.replyImageBase64 || '',
+          attachmentName: mobileSupportState.replyImageName || '',
+          attachmentMimeType: 'image/jpeg'
+        });
+        if (res && (res.status === 'success' || res.success)) {
+          showToast(res.message || 'ส่งข้อความเรียบร้อยแล้ว');
+          clearMobileSupportImage('reply');
+          await loadMobileSupportData();
+        } else {
+          showToast((res && (res.error || res.message)) || 'ส่งไม่สำเร็จ', 'error');
+        }
+      } catch (err) {
+        showToast('เกิดข้อผิดพลาด: ' + err.message, 'error');
+      } finally {
+        if (btn) { btn.disabled = false; btn.innerText = 'ส่งข้อความ'; }
+      }
+    }
+
+    async function handleMobileSupportCloseThread(threadId) {
+      if (!confirm(`ยืนยันปิดกระทู้ ${threadId} และเก็บเป็นประวัติส่วนตัว?`)) return;
+      const empId = state.currentUser ? (state.currentUser.employeeCode || state.currentUser.employeeId || '') : '';
+      try {
+        const res = await postApiRequest({
+          action: 'closeSupportThread',
+          threadId: threadId,
+          callerEmpId: empId,
+          saveToKb: false
+        });
+        if (res && (res.status === 'success' || res.success)) {
+          showToast(res.message || 'ปิดกระทู้เรียบร้อยแล้ว');
+          await loadMobileSupportData();
+        } else {
+          showToast((res && (res.error || res.message)) || 'ปิดกระทู้ไม่สำเร็จ', 'error');
+        }
+      } catch (err) {
+        showToast('เกิดข้อผิดพลาด: ' + err.message, 'error');
+      }
+    }
+
+    function openMobileSupportStarKbModal(threadId, kbId) {
+      const modal = document.getElementById('modalMobileSupportStarKb');
+      if (!modal) return;
+      const editIdEl = document.getElementById('mobSupportKbEditId');
+      const threadIdEl = document.getElementById('mobSupportKbThreadId');
+      const catEl = document.getElementById('mobSupportKbCat');
+      const qEl = document.getElementById('mobSupportKbQuestion');
+      const aEl = document.getElementById('mobSupportKbAnswer');
+      const kwEl = document.getElementById('mobSupportKbKeywords');
+
+      editIdEl.value = '';
+      threadIdEl.value = '';
+      catEl.value = 'HR_ADMIN';
+      qEl.value = '';
+      aEl.value = '';
+      kwEl.value = '';
+
+      if (kbId) {
+        const kb = mobileSupportState.knowledgeBase.find(k => k.kbId === kbId);
+        if (kb) {
+          editIdEl.value = kb.kbId;
+          catEl.value = kb.category || 'HR_ADMIN';
+          qEl.value = kb.question || '';
+          aEl.value = kb.answer || '';
+          kwEl.value = kb.keywords || '';
+        }
+      } else if (threadId) {
+        const t = mobileSupportState.threads.find(x => x.threadId === threadId);
+        if (t) {
+          threadIdEl.value = t.threadId;
+          editIdEl.value = t.kbId || '';
+          catEl.value = t.category || 'HR_ADMIN';
+          qEl.value = t.title || '';
+          const staffMsgs = (t.messages || []).filter(m => String(m.senderRole || '').toUpperCase() === 'STAFF');
+          aEl.value = staffMsgs.length > 0 ? staffMsgs[staffMsgs.length - 1].text : '';
+        }
+      }
+      modal.classList.remove('hidden');
+    }
+
+    function closeMobileSupportStarKbModal() {
+      const modal = document.getElementById('modalMobileSupportStarKb');
+      if (modal) modal.classList.add('hidden');
+    }
+
+    async function submitMobileSupportKbModal(e) {
+      e.preventDefault();
+      const kbId = document.getElementById('mobSupportKbEditId').value.trim();
+      const threadId = document.getElementById('mobSupportKbThreadId').value.trim();
+      const category = document.getElementById('mobSupportKbCat').value;
+      const question = document.getElementById('mobSupportKbQuestion').value.trim();
+      const answer = document.getElementById('mobSupportKbAnswer').value.trim();
+      const keywords = document.getElementById('mobSupportKbKeywords').value.trim();
+      const empId = state.currentUser ? (state.currentUser.employeeCode || state.currentUser.employeeId || '') : '';
+
+      const btn = document.getElementById('btnMobSubmitSupportKb');
+      if (btn) { btn.disabled = true; btn.innerText = 'กำลังบันทึก...'; }
+
+      try {
+        const payload = threadId ? {
+          action: 'closeSupportThread',
+          threadId: threadId,
+          callerEmpId: empId,
+          saveToKb: true,
+          kbCategory: category,
+          kbQuestion: question,
+          kbAnswer: answer,
+          kbKeywords: keywords
+        } : {
+          action: 'saveSupportKbItem',
+          kbId: kbId,
+          callerEmpId: empId,
+          category: category,
+          question: question,
+          answer: answer,
+          keywords: keywords
+        };
+        const res = await postApiRequest(payload);
+        if (res && (res.status === 'success' || res.success)) {
+          showToast(res.message || 'บันทึกเข้าคลังความรู้เรียบร้อยแล้ว');
+          closeMobileSupportStarKbModal();
+          await loadMobileSupportData();
+        } else {
+          showToast((res && (res.error || res.message)) || 'บันทึกไม่สำเร็จ', 'error');
+        }
+      } catch (err) {
+        showToast('เกิดข้อผิดพลาด: ' + err.message, 'error');
+      } finally {
+        if (btn) { btn.disabled = false; btn.innerText = '⭐ บันทึกความรู้'; }
+      }
+    }
+    const confirmMobileSupportStarKb = submitMobileSupportKbModal;
+
+    async function handleMobileSupportDeleteThread(threadId) {
+      if (!confirm(`ยืนยันลบกระทู้ขยะ ${threadId}?`)) return;
+      const empId = state.currentUser ? (state.currentUser.employeeCode || state.currentUser.employeeId || '') : '';
+      try {
+        const res = await postApiRequest({
+          action: 'deleteSupportThread',
+          threadId: threadId,
+          callerEmpId: empId
+        });
+        if (res && (res.status === 'success' || res.success)) {
+          showToast(res.message || 'ลบกระทู้เรียบร้อยแล้ว');
+          closeMobileSupportDetailModal();
+          mobileSupportState.selectedThreadId = null;
+          await loadMobileSupportData();
+        } else {
+          showToast((res && (res.error || res.message)) || 'ลบไม่สำเร็จ', 'error');
+        }
+      } catch (err) {
+        showToast('เกิดข้อผิดพลาด: ' + err.message, 'error');
+      }
+    }
+
+    async function handleMobileSupportDeleteKb(kbId) {
+      if (!confirm(`ยืนยันลบรายการคลังความรู้ ${kbId}?`)) return;
+      const empId = state.currentUser ? (state.currentUser.employeeCode || state.currentUser.employeeId || '') : '';
+      try {
+        const res = await postApiRequest({
+          action: 'deleteSupportKbItem',
+          kbId: kbId,
+          callerEmpId: empId
+        });
+        if (res && (res.status === 'success' || res.success)) {
+          showToast(res.message || 'ลบคลังความรู้เรียบร้อยแล้ว');
+          await loadMobileSupportData();
+        } else {
+          showToast((res && (res.error || res.message)) || 'ลบไม่สำเร็จ', 'error');
+        }
+      } catch (err) {
+        showToast('เกิดข้อผิดพลาด: ' + err.message, 'error');
+      }
+    }
+

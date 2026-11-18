@@ -583,7 +583,7 @@
         'viewPersonal', 'viewRoomBooking', 'viewVehicleBooking',
         'viewMnwRequest', 'viewMnwWorkbench', 'viewMnwRoutine', 'viewKaizen',
         'viewBusinessCards', 'viewPartsRequest', 'viewPdRepair', 'viewPdTrial',
-        'viewPcCoilReceive', 'viewPcCoilCheck'
+        'viewPcCoilReceive', 'viewPcCoilCheck', 'viewSupport'
       ];
       allViewIds.forEach(id => {
         const el = document.getElementById(id);
@@ -681,6 +681,10 @@
         const vcc = document.getElementById('viewPcCoilCheck');
         if (vcc) vcc.classList.remove('hidden');
         if (typeof initMobilePcCoilCheck === 'function') initMobilePcCoilCheck();
+      } else if (viewName === 'support') {
+        const vsup = document.getElementById('viewSupport');
+        if (vsup) vsup.classList.remove('hidden');
+        if (typeof initMobileSupportView === 'function') initMobileSupportView();
       }
       state.currentView = viewName;
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -697,7 +701,7 @@
         'viewPersonal', 'viewRoomBooking', 'viewVehicleBooking',
         'viewMnwRequest', 'viewMnwWorkbench', 'viewMnwRoutine', 'viewKaizen',
         'viewBusinessCards', 'viewPartsRequest', 'viewPdRepair', 'viewPdTrial',
-        'viewPcCoilReceive', 'viewPcCoilCheck'
+        'viewPcCoilReceive', 'viewPcCoilCheck', 'viewSupport'
       ];
       allViewIds.forEach(id => {
         const el = document.getElementById(id);

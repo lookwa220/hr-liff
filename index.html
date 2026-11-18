@@ -193,6 +193,20 @@
               <p class="text-[11px] text-emerald-700 mt-0.5">เสนอแนวคิดปรับปรุง</p>
             </div>
           </button>
+
+          <!-- 5. ศูนย์ช่วยเหลือ & กระทู้แจ้งปัญหา (Support Thread & FAQ) -->
+          <button id="cardSupportHub" onclick="openView('support')" class="col-span-2 glass-card p-3.5 rounded-2xl border border-sky-200 bg-sky-50/40 text-left hover:border-sky-400 hover:shadow-md transition-all flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+              <div class="w-10 h-10 rounded-xl bg-sky-600 text-white flex items-center justify-center text-xl shadow-sm flex-shrink-0">
+                💬
+              </div>
+              <div>
+                <h3 class="text-sm font-bold text-slate-800">สอบถาม / แจ้งปัญหา</h3>
+                <p class="text-[11px] text-sky-700 mt-0.5">คำถามพบบ่อย & ตั้งกระทู้ถึงเจ้าหน้าที่</p>
+              </div>
+            </div>
+            <span class="text-sky-500 font-bold text-sm">➔</span>
+          </button>
         </div>
       </section>
 
@@ -3330,7 +3344,187 @@
       </div>
     </section>
 
+    <!-- ======================================================== -->
+    <!-- VIEW: ศูนย์ช่วยเหลือ & กระทู้แจ้งปัญหา (Support Hub)        -->
+    <!-- ======================================================== -->
+    <section id="viewSupport" class="hidden space-y-4 animate-fadeIn text-left">
+      <div class="glass-card rounded-2xl p-4 shadow-sm border border-slate-200 space-y-3">
+        <!-- Header -->
+        <div class="flex items-center justify-between pb-3 border-b border-slate-200">
+          <div class="flex items-center space-x-2.5">
+            <button type="button" onclick="closeCurrentView()" class="p-2 -ml-2 rounded-xl text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition cursor-pointer">
+              <span class="text-lg">←</span>
+            </button>
+            <div>
+              <h2 class="text-base font-bold text-slate-800 leading-tight">สอบถาม / แจ้งปัญหา</h2>
+              <p id="mobSupportRoleHint" class="text-[11px] text-slate-500">คำถามพบบ่อย & กระทู้ถึงเจ้าหน้าที่</p>
+            </div>
+          </div>
+          <button type="button" onclick="openMobileSupportNewModal()" class="px-3 py-1.5 rounded-xl bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold shadow-sm active:scale-95 transition">
+            + ตั้งกระทู้
+          </button>
+        </div>
+
+        <!-- Tabs -->
+        <div class="grid grid-cols-2 gap-1.5 p-1 bg-slate-100 rounded-xl text-xs">
+          <button type="button" id="mobSupportTabKb" onclick="switchMobileSupportTab('kb')" class="py-2 rounded-lg bg-white text-sky-700 shadow-sm font-bold text-center transition">
+            📚 คำถามพบบ่อย (<span id="mobSupportKbCount">0</span>)
+          </button>
+          <button type="button" id="mobSupportTabThreads" onclick="switchMobileSupportTab('threads')" class="py-2 rounded-lg text-slate-600 font-medium text-center transition">
+            💬 กระทู้ (<span id="mobSupportOpenCount">0</span>)
+          </button>
+        </div>
+
+        <!-- TAB 1: FAQ / Knowledge Base -->
+        <div id="mobSupportPanelKb" class="space-y-3">
+          <div class="flex items-center gap-2">
+            <input type="text" id="mobSupportKbSearch" oninput="renderMobileSupportKb()" placeholder="🔍 ค้นหาคำถาม เช่น วันลา 3 วัน, โควตา, PIN..." class="flex-1 px-3 py-2 text-xs bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-sky-500 outline-none">
+            <button type="button" id="btnMobSupportAddKb" onclick="openMobileSupportStarKbModal()" class="hidden px-2.5 py-2 rounded-xl bg-amber-500 text-white text-xs font-bold shrink-0">+ เพิ่ม</button>
+          </div>
+
+          <!-- Quick Shortcuts -->
+          <div class="p-2.5 rounded-xl bg-sky-50 border border-sky-200 flex items-center justify-between gap-2 text-[11px]">
+            <span class="text-sky-900 font-semibold">แจ้งเรื่องหน้างานด่วน:</span>
+            <div class="flex items-center gap-1.5">
+              <button type="button" onclick="openView('mnwRequest')" class="px-2 py-1 rounded-lg bg-amber-600 text-white font-bold">🛠️ แจ้งซ่อม MNW</button>
+              <button type="button" onclick="openView('safety')" class="px-2 py-1 rounded-lg bg-rose-600 text-white font-bold">🦺 แจ้งเหตุ จป.</button>
+            </div>
+          </div>
+
+          <div id="mobSupportKbList" class="space-y-2">
+            <div class="text-center py-6 text-xs text-slate-400">กำลังโหลดคำถามพบบ่อย...</div>
+          </div>
+        </div>
+
+        <!-- TAB 2: Threads -->
+        <div id="mobSupportPanelThreads" class="hidden space-y-3">
+          <div class="flex items-center gap-2">
+            <select id="mobSupportThreadStatus" onchange="renderMobileSupportThreads()" class="flex-1 px-3 py-2 text-xs bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-sky-500">
+              <option value="ALL">ทุกสถานะ</option>
+              <option value="OPEN">🟡 รอเจ้าหน้าที่ตอบ</option>
+              <option value="ANSWERED">🟢 ตอบกลับแล้ว</option>
+              <option value="CLOSED">🔒 ปิดกระทู้แล้ว</option>
+            </select>
+            <button type="button" onclick="loadMobileSupportData()" class="px-3 py-2 rounded-xl bg-slate-100 text-slate-600 text-xs font-bold">🔄 รีเฟรช</button>
+          </div>
+          <div class="text-[11px] text-slate-500 bg-slate-50 p-2 rounded-xl border border-slate-200">
+            🔒 กระทู้เป็นแบบส่วนตัว เห็นเฉพาะผู้ถามกับเจ้าหน้าที่ที่รับผิดชอบโดยตรง
+          </div>
+          <div id="mobSupportThreadList" class="space-y-2.5">
+            <div class="text-center py-6 text-xs text-slate-400">กำลังโหลดรายการกระทู้...</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
   </main>
+
+  <!-- Modal: ตั้งกระทู้สอบถามใหม่ (Mobile Support New Thread) -->
+  <div id="modalMobileSupportNew" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3">
+    <div class="bg-white rounded-2xl max-w-md w-full p-4 shadow-xl border border-slate-200 max-h-[90vh] overflow-y-auto space-y-3">
+      <div class="flex items-center justify-between pb-2 border-b border-slate-200">
+        <h3 class="text-sm font-bold text-slate-800">💬 ตั้งกระทู้สอบถาม / แจ้งปัญหา</h3>
+        <button type="button" onclick="closeMobileSupportNewModal()" class="p-1 rounded-lg text-slate-400 hover:text-slate-700 text-sm">✕</button>
+      </div>
+      <form onsubmit="submitMobileSupportThread(event)" class="space-y-3 text-xs">
+        <div>
+          <label class="block font-bold text-slate-700 mb-1.5">หมวดหมู่เรื่องที่ติดต่อ <span class="text-rose-500">*</span></label>
+          <div class="space-y-1.5">
+            <label class="flex items-start gap-2 p-2.5 rounded-xl border border-slate-200 bg-slate-50 cursor-pointer">
+              <input type="radio" name="mobSupportCat" value="HR_ADMIN" checked class="mt-0.5 text-sky-600">
+              <div>
+                <div class="font-bold text-slate-800">👩‍💼 งานบุคคล & ธุรการ</div>
+                <div class="text-[10px] text-slate-500">วันลา, กะ, เงินเดือน, จองรถ, ห้องประชุม (ถึง คุณอ๋อย & คุณแอมป์)</div>
+              </div>
+            </label>
+            <label class="flex items-start gap-2 p-2.5 rounded-xl border border-slate-200 bg-slate-50 cursor-pointer">
+              <input type="radio" name="mobSupportCat" value="SYSTEM_IT" class="mt-0.5 text-indigo-600">
+              <div>
+                <div class="font-bold text-slate-800">🛠️ ปัญหาระบบ & ขอสิทธิ์</div>
+                <div class="text-[10px] text-slate-500">หน้าจอ Error, กดไม่ติด, ขอเปิดสิทธิ์เมนู (ถึง คุณสไปร์ท & คุณอ๋อย)</div>
+              </div>
+            </label>
+          </div>
+        </div>
+        <div>
+          <label class="block font-bold text-slate-700 mb-1">หัวข้อเรื่อง <span class="text-rose-500">*</span></label>
+          <input type="text" id="mobSupportNewTitle" required maxlength="150" placeholder="เช่น ยื่นลาพักร้อนไม่ได้ / ลืมรหัส" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-sky-500 outline-none">
+        </div>
+        <div>
+          <label class="block font-bold text-slate-700 mb-1">รายละเอียด <span class="text-rose-500">*</span></label>
+          <textarea id="mobSupportNewContent" required rows="3" placeholder="อธิบายรายละเอียดปัญหาหรือสิ่งที่ต้องการสอบถาม..." class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-sky-500 outline-none"></textarea>
+        </div>
+        <div>
+          <label class="block font-bold text-slate-700 mb-1">แนบรูปหน้าจอประกอบ (ถ้ามี)</label>
+          <input type="file" id="mobSupportNewImageInput" accept="image/*" onchange="handleMobileSupportImageSelect(event, 'new')" class="w-full text-[11px] text-slate-500">
+          <div id="mobSupportNewImgPreviewWrap" class="hidden mt-2 relative inline-block">
+            <img id="mobSupportNewImgPreview" src="" alt="Preview" class="max-h-28 rounded-xl border border-slate-200">
+            <button type="button" onclick="clearMobileSupportImage('new')" class="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-rose-600 text-white text-[10px] font-bold">✕</button>
+          </div>
+        </div>
+        <div class="flex items-center gap-2 pt-1">
+          <button type="button" onclick="closeMobileSupportNewModal()" class="flex-1 py-2.5 rounded-xl bg-slate-100 text-slate-700 font-bold text-xs">ยกเลิก</button>
+          <button type="submit" id="btnMobSubmitSupportNew" class="flex-1 py-2.5 rounded-xl bg-sky-600 text-white font-bold text-xs shadow-sm">ส่งกระทู้</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: ดูรายละเอียด & ตอบกระทู้ (Mobile Support Thread Detail) -->
+  <div id="modalMobileSupportDetail" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3">
+    <div class="bg-white rounded-2xl max-w-md w-full p-4 shadow-xl border border-slate-200 max-h-[90vh] flex flex-col space-y-3">
+      <div class="flex items-center justify-between pb-2 border-b border-slate-200 flex-shrink-0">
+        <div>
+          <span id="mobSupportDetailId" class="text-[11px] font-mono font-bold text-sky-700">SUP-...</span>
+          <h3 id="mobSupportDetailTitle" class="text-sm font-bold text-slate-800 leading-tight mt-0.5">-</h3>
+        </div>
+        <button type="button" onclick="closeMobileSupportDetailModal()" class="p-1 rounded-lg text-slate-400 hover:text-slate-700 text-sm">✕</button>
+      </div>
+      <div id="mobSupportDetailMeta" class="text-[11px] text-slate-500 flex flex-wrap items-center gap-2 flex-shrink-0"></div>
+      <div id="mobSupportDetailMessages" class="flex-1 overflow-y-auto space-y-2 pr-1"></div>
+      <div id="mobSupportDetailFooter" class="pt-2 border-t border-slate-200 space-y-2 flex-shrink-0"></div>
+    </div>
+  </div>
+
+  <!-- Modal: บันทึกเข้าคลังความรู้ AI (Mobile Support Star to KB) -->
+  <div id="modalMobileSupportStarKb" class="hidden fixed inset-0 z-[60] bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3">
+    <div class="bg-white rounded-2xl max-w-md w-full p-4 shadow-xl border border-slate-200 max-h-[90vh] overflow-y-auto space-y-3">
+      <div class="flex items-center justify-between pb-2 border-b border-slate-200">
+        <h3 class="text-sm font-bold text-slate-800">⭐ บันทึกเข้าคลังความรู้กลาง (AI)</h3>
+        <button type="button" onclick="closeMobileSupportStarKbModal()" class="p-1 rounded-lg text-slate-400 hover:text-slate-700 text-sm">✕</button>
+      </div>
+      <form onsubmit="submitMobileSupportKbModal(event)" class="space-y-2.5 text-xs">
+        <input type="hidden" id="mobSupportKbEditId" value="">
+        <input type="hidden" id="mobSupportKbThreadId" value="">
+        <div class="p-2 rounded-xl bg-amber-50 border border-amber-200 text-[10px] text-amber-900">
+          🛡️ ระบบจะไม่บันทึกชื่อหรือรหัสผู้ถามเข้าสู่คลังความรู้ ปรับข้อความให้เป็นมาตรฐานกลางก่อนบันทึก
+        </div>
+        <div>
+          <label class="block font-bold text-slate-700 mb-1">หมวดหมู่</label>
+          <select id="mobSupportKbCat" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs bg-white outline-none">
+            <option value="HR_ADMIN">👩‍💼 งานบุคคล & ธุรการ</option>
+            <option value="SYSTEM_IT">🛠️ ปัญหาระบบ & ขอสิทธิ์</option>
+          </select>
+        </div>
+        <div>
+          <label class="block font-bold text-slate-700 mb-1">คำถามมาตรฐาน <span class="text-rose-500">*</span></label>
+          <input type="text" id="mobSupportKbQuestion" required class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs outline-none">
+        </div>
+        <div>
+          <label class="block font-bold text-slate-700 mb-1">คำตอบมาตรฐาน <span class="text-rose-500">*</span></label>
+          <textarea id="mobSupportKbAnswer" required rows="3" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs outline-none"></textarea>
+        </div>
+        <div>
+          <label class="block font-bold text-slate-700 mb-1">คำค้นหา (Keywords)</label>
+          <input type="text" id="mobSupportKbKeywords" placeholder="เช่น วันลา โควตา รหัส PIN" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs outline-none">
+        </div>
+        <div class="flex items-center gap-2 pt-1">
+          <button type="button" onclick="closeMobileSupportStarKbModal()" class="flex-1 py-2 rounded-xl bg-slate-100 text-slate-700 font-bold text-xs">ยกเลิก</button>
+          <button type="submit" id="btnMobSubmitSupportKb" class="flex-1 py-2 rounded-xl bg-amber-500 text-white font-bold text-xs shadow-sm">⭐ บันทึกความรู้</button>
+        </div>
+      </form>
+    </div>
+  </div>
 
   <!-- Modal: ดูป้ายชี้บ่งขดลวด Minamida Coil Tag (FM-PC-RM-001) -->
   <div id="mobPcCoilTagModal" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 animate-in fade-in duration-150">
@@ -3359,10 +3553,10 @@
   </div>
 
   <!-- Application Logic -->
-  <!-- Modular Mobile JS Architecture (v3.1.5) -->
-  <script src="js/mobile-core.js?v=3.1.5"></script>
+  <!-- Modular Mobile JS Architecture (v3.1.6) -->
+  <script src="js/mobile-core.js?v=3.1.6"></script>
   <script src="js/mobile-hr.js?v=3.1.4"></script>
-  <script src="js/mobile-services.js?v=3.1.4"></script>
+  <script src="js/mobile-services.js?v=3.1.5"></script>
   <script src="js/mobile-iso-mnw.js?v=3.1.4"></script>
   <script src="js/mobile-pd-pc.js?v=3.1.4"></script>
 </body>
