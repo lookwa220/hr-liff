@@ -2140,7 +2140,7 @@ Strict Rules:
             <div class="flex items-center justify-between gap-2">
               <label class="cursor-pointer px-2.5 py-1.5 rounded-lg bg-slate-100 text-slate-700 text-[11px] font-bold">
                 📎 รูปภาพ
-                <input type="file" id="mobSupportReplyImageInput" accept="image/*" onchange="handleMobileSupportImageSelect(event, 'reply')" class="hidden">
+                <input type="file" id="mobSupportReplyImageInput" accept="image/jpeg,image/png,image/webp,image/gif" onchange="handleMobileSupportImageSelect(event, 'reply')" class="hidden">
               </label>
               <span id="mobSupportReplyImgBadge" class="hidden text-[10px] text-sky-700 font-bold truncate"></span>
               <button type="submit" id="btnMobSubmitSupportReply" class="px-4 py-1.5 rounded-xl bg-sky-600 text-white text-xs font-bold shadow-xs ml-auto">ส่งข้อความ</button>
@@ -2365,4 +2365,25 @@ Strict Rules:
         showToast('เกิดข้อผิดพลาด: ' + err.message, 'error');
       }
     }
+
+    window.initMobileSupportView = initMobileSupportView;
+    window.switchMobileSupportTab = switchMobileSupportTab;
+    window.loadMobileSupportData = loadMobileSupportData;
+    window.renderMobileSupportKb = renderMobileSupportKb;
+    window.renderMobileSupportThreads = renderMobileSupportThreads;
+    window.openMobileSupportNewModal = openMobileSupportNewModal;
+    window.closeMobileSupportNewModal = closeMobileSupportNewModal;
+    window.handleMobileSupportImageSelect = handleMobileSupportImageSelect;
+    window.clearMobileSupportImage = clearMobileSupportImage;
+    window.submitMobileSupportThread = submitMobileSupportThread;
+    window.openMobileSupportThreadDetail = openMobileSupportThreadDetail;
+    window.closeMobileSupportDetailModal = closeMobileSupportDetailModal;
+    window.submitMobileSupportReply = submitMobileSupportReply;
+    window.handleMobileSupportCloseThread = handleMobileSupportCloseThread;
+    window.openMobileSupportStarKbModal = openMobileSupportStarKbModal;
+    window.closeMobileSupportStarKbModal = closeMobileSupportStarKbModal;
+    window.submitMobileSupportKbModal = submitMobileSupportKbModal;
+    window.confirmMobileSupportStarKb = confirmMobileSupportStarKb;
+    window.handleMobileSupportDeleteThread = handleMobileSupportDeleteThread;
+    window.handleMobileSupportDeleteKb = handleMobileSupportDeleteKb;
 
