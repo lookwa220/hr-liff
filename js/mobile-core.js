@@ -341,48 +341,48 @@
       const annualUsed = quota.annualUsedDays !== undefined ? quota.annualUsedDays : 0;
       const annualTotal = quota.annualTotal !== undefined ? quota.annualTotal : 6;
       const annualRemain = quota.annualRemaining !== undefined ? quota.annualRemaining : Math.max(0, annualTotal - annualUsed);
-
+      const sickUsed = quota.sickUsedDays !== undefined ? quota.sickUsedDays : 0;
       const paidUsed = quota.personalPaidUsedDays !== undefined ? quota.personalPaidUsedDays : 0;
-      const paidTotal = quota.personalPaidTotal !== undefined ? quota.personalPaidTotal : 3;
-      const paidRemain = quota.personalPaidRemaining !== undefined ? quota.personalPaidRemaining : Math.max(0, paidTotal - paidUsed);
-
       const unpaidUsed = quota.personalUnpaidUsedDays !== undefined ? quota.personalUnpaidUsedDays : 0;
-      const unpaidTotal = quota.personalUnpaidTotal !== undefined ? quota.personalUnpaidTotal : 2;
-      const unpaidRemain = quota.personalUnpaidRemaining !== undefined ? quota.personalUnpaidRemaining : Math.max(0, unpaidTotal - unpaidUsed);
 
-      // Card 1: พักร้อน (Annual Leave)
+      // Card 1: พักร้อน (แสดงคงเหลือ / สิทธิ์ทั้งหมด)
       const a1 = document.getElementById('quotaAnnualRemain');
-      if (a1) a1.innerText = `${annualUsed} / ${annualTotal}`;
+      if (a1) a1.innerText = `${annualRemain} วัน`;
       const aSub1 = document.getElementById('quotaAnnualSubtext');
-      if (aSub1) aSub1.innerText = `ใช้ไป ${annualUsed}/${annualTotal} (เหลือ ${annualRemain} วัน)`;
+      if (aSub1) aSub1.innerText = `จากสิทธิ์ ${annualTotal} (ใช้ไป ${annualUsed})`;
 
-      // Card 2: ลากิจ (ได้เงิน) (Personal Paid)
+      // Card 2-4: แสดงเฉพาะสถิติที่ลาไปแล้ว (ไม่แสดงสิทธิ์ทั้งหมด/คงเหลือ)
+      const s1 = document.getElementById('quotaSickUsed');
+      if (s1) s1.innerText = `${sickUsed} วัน`;
+
       const p1 = document.getElementById('quotaPaidRemain');
-      if (p1) p1.innerText = `${paidUsed} / ${paidTotal}`;
+      if (p1) p1.innerText = `${paidUsed} วัน`;
       const pSub1 = document.getElementById('quotaPaidSubtext');
-      if (pSub1) pSub1.innerText = `ใช้ไป ${paidUsed}/${paidTotal} (เหลือ ${paidRemain} วัน)`;
+      if (pSub1) pSub1.innerText = 'สะสมที่ลาแล้ว';
 
-      // Card 3: ลากิจ (หักเงิน) (Personal Unpaid)
       const u1 = document.getElementById('quotaUnpaidUsed');
-      if (u1) u1.innerText = `${unpaidUsed} / ${unpaidTotal}`;
+      if (u1) u1.innerText = `${unpaidUsed} วัน`;
       const uSub1 = document.getElementById('quotaUnpaidSubtext');
-      if (uSub1) uSub1.innerText = `ใช้ไป ${unpaidUsed}/${unpaidTotal} (เหลือ ${unpaidRemain} วัน)`;
+      if (uSub1) uSub1.innerText = 'สะสมที่ลาแล้ว';
 
       // Top Unified Cards
       const a2 = document.getElementById('quotaAnnualRemainUnified');
-      if (a2) a2.innerText = `${annualUsed} / ${annualTotal}`;
+      if (a2) a2.innerText = `${annualRemain} วัน`;
       const aSub2 = document.getElementById('quotaAnnualSubtextUnified');
-      if (aSub2) aSub2.innerText = `เหลือ ${annualRemain} วัน`;
+      if (aSub2) aSub2.innerText = `จากสิทธิ์ ${annualTotal} (ใช้ไป ${annualUsed})`;
+
+      const s2 = document.getElementById('quotaSickUsedUnified');
+      if (s2) s2.innerText = `${sickUsed} วัน`;
 
       const p2 = document.getElementById('quotaPaidRemainUnified');
-      if (p2) p2.innerText = `${paidUsed} / ${paidTotal}`;
+      if (p2) p2.innerText = `${paidUsed} วัน`;
       const pSub2 = document.getElementById('quotaPaidSubtextUnified');
-      if (pSub2) pSub2.innerText = `เหลือ ${paidRemain} วัน`;
+      if (pSub2) pSub2.innerText = 'สะสมที่ลาแล้ว';
 
       const u2 = document.getElementById('quotaUnpaidRemainUnified');
-      if (u2) u2.innerText = `${unpaidUsed} / ${unpaidTotal}`;
+      if (u2) u2.innerText = `${unpaidUsed} วัน`;
       const uSub2 = document.getElementById('quotaUnpaidSubtextUnified');
-      if (uSub2) uSub2.innerText = `เหลือ ${unpaidRemain} วัน`;
+      if (uSub2) uSub2.innerText = 'สะสมที่ลาแล้ว';
     }
 
     function renderHostVisitors(visitors) {

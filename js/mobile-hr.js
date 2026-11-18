@@ -8,12 +8,67 @@
       // Preset buttons removed for cleaner UI, kept as dummy to avoid runtime exceptions
     }
 
+    function checkClientLeaveAdvanceNotice(startDateStr) {
+      const alertEl = document.getElementById('leaveAdvanceNoticeAlert');
+      const submitBtn = document.getElementById('btnSubmitLeave');
+      const leaveType = (document.getElementById('leaveType')?.value || '').trim();
+      if (!alertEl) return true;
+
+      if (!startDateStr || !leaveType || leaveType.includes('ป่วย') || leaveType.includes('กะทันหัน') || leaveType.includes('คลอด') || leaveType.includes('กิจพิเศษ')) {
+        alertEl.classList.add('hidden');
+        if (submitBtn) submitBtn.disabled = false;
+        return true;
+      }
+      if (!leaveType.includes('พักร้อน') && !leaveType.includes('กิจ')) {
+        alertEl.classList.add('hidden');
+        if (submitBtn) submitBtn.disabled = false;
+        return true;
+      }
+
+      const overrides = (window.state && window.state.calendarOverrides) ? window.state.calendarOverrides : {};
+      const isCalWork = (iso, dow) => {
+        if (overrides[iso] !== undefined) return overrides[iso] === true || String(overrides[iso]).toUpperCase() === 'TRUE';
+        return dow !== 0;
+      };
+      const fmtIso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      const todayIso = fmtIso(new Date());
+
+      let workdays = 0;
+      if (startDateStr > todayIso) {
+        const cur = new Date(`${todayIso}T00:00:00`);
+        const tgtMs = new Date(`${startDateStr}T00:00:00`).getTime();
+        while (cur.getTime() < tgtMs && workdays < 30) {
+          if (isCalWork(fmtIso(cur), cur.getDay())) workdays++;
+          cur.setDate(cur.getDate() + 1);
+        }
+      }
+
+      if (workdays < 3) {
+        const cur = new Date(`${todayIso}T00:00:00`);
+        let c = 0;
+        for (let i = 0; i < 45 && c < 3; i++) {
+          if (isCalWork(fmtIso(cur), cur.getDay())) c++;
+          cur.setDate(cur.getDate() + 1);
+        }
+        const [ey, em, ed] = fmtIso(cur).split('-');
+        alertEl.innerText = `⚠️ ${leaveType} ต้องแจ้งล่วงหน้าอย่างน้อย 3 วันทำงาน (วันที่เร็วที่สุดที่สามารถเริ่มลาได้คือ ${ed}/${em}/${ey})`;
+        alertEl.classList.remove('hidden');
+        if (submitBtn) submitBtn.disabled = true;
+        return false;
+      }
+
+      alertEl.classList.add('hidden');
+      if (submitBtn) submitBtn.disabled = false;
+      return true;
+    }
+
     function calcLeaveHours() {
       const startDate = document.getElementById('leaveStartDate').value;
       const endDate = document.getElementById('leaveEndDate').value;
       const startTime = document.getElementById('leaveStartTime').value || '08:00';
       const endTime = document.getElementById('leaveEndTime').value || '17:00';
 
+      checkClientLeaveAdvanceNotice(startDate);
       if (!startDate || !endDate) return;
 
       const overrides = (window.state && window.state.calendarOverrides) ? window.state.calendarOverrides : {};
