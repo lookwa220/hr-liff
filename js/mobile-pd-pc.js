@@ -497,6 +497,7 @@
           mobilePdMachinesCache = res.data.machines || [];
           mobilePdSparePartsCache = res.data.spareParts || [];
           mobilePdRepairsCache = res.data.repairs || [];
+          refreshMobilePdLocationSuggestions();
 
           // Populate machines select
           filterMobilePdMachines('');
@@ -787,6 +788,34 @@
       }
     }
 
+    function isMobilePdWaitingLocation(loc) {
+      const v = String(loc || '').trim().toUpperCase();
+      return !v || v === 'WAITING_PO';
+    }
+
+    function renderMobilePdLocationBadge(loc) {
+      if (isMobilePdWaitingLocation(loc)) {
+        return '<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200">🏷️ รอจัดเก็บ / รอสั่งซื้อ</span>';
+      }
+      return `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-sky-100 text-sky-800 border border-sky-200">📍 ${escapeHtml(String(loc).trim())}</span>`;
+    }
+
+    function refreshMobilePdLocationSuggestions() {
+      const dl = document.getElementById('mobPdLocationSuggestions');
+      if (!dl) return;
+      const seen = new Set();
+      const locs = [];
+      (mobilePdSparePartsCache || []).forEach(p => {
+        const loc = String((p && p.Location) || '').trim();
+        if (!isMobilePdWaitingLocation(loc) && !seen.has(loc.toUpperCase())) {
+          seen.add(loc.toUpperCase());
+          locs.push(loc);
+        }
+      });
+      locs.sort((a, b) => a.localeCompare(b, 'th'));
+      dl.innerHTML = locs.map(l => `<option value="${escapeHtml(l)}"></option>`).join('');
+    }
+
     function addMobilePdPartRow() {
       const container = document.getElementById('mobPdPartsList');
       if (!container) return;
@@ -794,8 +823,8 @@
       const rowId = 'pd_part_row_' + Date.now();
       let partOpts = '<option value="">-- เลือกอะไหล่หรือพิมพ์ใหม่ --</option>';
       mobilePdSparePartsCache.forEach(p => {
-        const locText = p.Location ? ` [📍 ${p.Location}]` : '';
-        partOpts += `<option value="${p.PartId}" data-code="${p.PartCode}" data-name="${p.PartName}" data-price="${p.UnitPrice}" data-unit="${p.Unit}" data-location="${escapeHtml(p.Location || '')}">${p.PartCode} - ${p.PartName}${locText} (คงเหลือ: ${p.InStockQty})</option>`;
+        const locText = isMobilePdWaitingLocation(p.Location) ? ' [🏷️ รอจัดเก็บ]' : ` [📍 ${p.Location}]`;
+        partOpts += `<option value="${p.PartId}" data-code="${escapeHtml(p.PartCode || '')}" data-name="${escapeHtml(p.PartName || '')}" data-spec="${escapeHtml(p.Spec || '')}" data-brand="${escapeHtml(p.Brand || '')}" data-price="${p.UnitPrice}" data-unit="${escapeHtml(p.Unit || 'ชิ้น')}" data-location="${escapeHtml(p.Location || '')}">${escapeHtml(p.PartCode || '')} - ${escapeHtml(p.PartName || '')}${escapeHtml(locText)} (คงเหลือ: ${p.InStockQty})</option>`;
       });
 
       const rowHtml = `
@@ -827,6 +856,7 @@
     function openMobilePdSparePartPickerModal(tab) {
       const modal = document.getElementById('mobPdSparePartPickerModal');
       if (!modal) return;
+      refreshMobilePdLocationSuggestions();
       modal.classList.remove('hidden');
       switchMobilePdSparePartTab(tab || 'catalog');
     }
@@ -866,7 +896,8 @@
             String(p.PartName || '').toLowerCase().includes(q) ||
             String(p.Spec || '').toLowerCase().includes(q) ||
             String(p.Brand || '').toLowerCase().includes(q) ||
-            String(p.Location || '').toLowerCase().includes(q)
+            String(p.Location || '').toLowerCase().includes(q) ||
+            (isMobilePdWaitingLocation(p.Location) && ('รอจัดเก็บ รอสั่งซื้อ waiting_po'.includes(q) || q.includes('รอจัดเก็บ') || q.includes('รอสั่งซื้อ')))
           )
         : mobilePdSparePartsCache;
 
@@ -883,9 +914,7 @@
         } else {
           stockBadge = `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800">สต็อก ${stock} (ติดลบ)</span>`;
         }
-        const locBadge = p.Location
-          ? `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-sky-100 text-sky-800 border border-sky-200">📍 ${escapeHtml(p.Location)}</span>`
-          : `<span class="px-2 py-0.5 rounded-full text-[10px] text-slate-400 bg-slate-100">📍 ไม่ระบุจุดเก็บ</span>`;
+        const locBadge = renderMobilePdLocationBadge(p.Location);
 
         return `
           <div class="p-3 hover:bg-slate-50 transition flex items-center justify-between gap-2 border-b border-slate-100 last:border-b-0">
@@ -922,13 +951,8 @@
         if (price) price.value = part.UnitPrice || 0;
         if (qty) qty.value = 1;
         if (locBadge) {
-          if (part.Location) {
-            locBadge.innerHTML = `📍 <span class="font-bold">จุดจัดเก็บ:</span> ${escapeHtml(part.Location)}`;
-            locBadge.classList.remove('hidden');
-          } else {
-            locBadge.innerHTML = '';
-            locBadge.classList.add('hidden');
-          }
+          locBadge.innerHTML = renderMobilePdLocationBadge(part.Location);
+          locBadge.classList.remove('hidden');
         }
         calcMobilePdPartsTotal();
       }
@@ -1014,7 +1038,7 @@
                   <span>✅ พบตรงกับอะไหล่ในระบบ:</span>
                   <span class="font-mono">${escapeHtml(matchedCode)} - ${escapeHtml(matchedName)}</span>
                 </div>
-                ${matchedLoc ? `<div class="inline-flex items-center gap-1 text-[11px] text-emerald-900 bg-white/80 px-2 py-0.5 rounded-lg border border-emerald-300 w-fit font-bold"><span>📍 จุดจัดเก็บ:</span> <span class="text-rose-700 font-black">${escapeHtml(matchedLoc)}</span></div>` : ''}
+                <div>${renderMobilePdLocationBadge(matchedLoc)}</div>
               `;
             } else {
               banner.className = 'p-2 rounded-lg text-xs font-bold bg-amber-100 text-amber-800 flex items-center gap-1.5';
@@ -1029,7 +1053,7 @@
           const priceInput = document.getElementById('mobPdAiUnitPrice');
           const vendorText = document.getElementById('mobPdAiVendorText');
           const leadTimeText = document.getElementById('mobPdAiLeadTimeText');
-          const locText = document.getElementById('mobPdAiLocationText');
+          const locInput = document.getElementById('mobPdAiLocation');
 
           const codeVal = aiData.partCode || aiData.detectedPartCode || (aiData.matchedInternalPart ? aiData.matchedInternalPart.partCode : '') || '';
           const nameVal = aiData.partName || aiData.detectedPartName || (aiData.matchedInternalPart ? aiData.matchedInternalPart.partName : '') || '';
@@ -1047,7 +1071,7 @@
           if (priceInput) priceInput.value = priceVal;
           if (vendorText) vendorText.innerText = vendorVal;
           if (leadTimeText) leadTimeText.innerText = leadTimeVal;
-          if (locText) locText.innerText = locVal ? `${locVal}` : '-';
+          if (locInput) locInput.value = !isMobilePdWaitingLocation(locVal) ? locVal : '';
 
           if (resultCard) resultCard.classList.remove('hidden');
           showToast(`วิเคราะห์อะไหล่สำเร็จ (${activeImages.length} ภาพ)`, 'success');
@@ -1070,6 +1094,7 @@
       const qtyInput = document.getElementById('mobPdAiUsedQty');
       const specInput = document.getElementById('mobPdAiSpec');
       const brandInput = document.getElementById('mobPdAiBrand');
+      const locInput = document.getElementById('mobPdAiLocation');
 
       const codeVal = codeInput ? codeInput.value.trim() : '';
       const nameVal = nameInput ? nameInput.value.trim() : '';
@@ -1077,6 +1102,7 @@
       const qtyVal = Number(qtyInput ? qtyInput.value : 1) || 1;
       const specVal = specInput ? specInput.value.trim() : '';
       const brandVal = brandInput ? brandInput.value.trim() : '';
+      const userLocVal = locInput ? locInput.value.trim() : '';
 
       if (!nameVal && !codeVal) {
         showToast('กรุณาระบุรหัสหรือชื่ออะไหล่', 'warning');
@@ -1102,16 +1128,23 @@
         if (price) price.value = priceVal;
         if (qty) qty.value = qtyVal;
 
+        const scanLoc = (mobilePdAiLastScanResult && (mobilePdAiLastScanResult.location || (mobilePdAiLastScanResult.matchedInternalPart && mobilePdAiLastScanResult.matchedInternalPart.location))) || '';
+        const locVal = userLocVal || scanLoc;
+        const vendorVal = (mobilePdAiLastScanResult && (mobilePdAiLastScanResult.recommendedVendor || mobilePdAiLastScanResult.vendor || (mobilePdAiLastScanResult.matchedInternalPart && mobilePdAiLastScanResult.matchedInternalPart.vendor))) || '';
+        const leadTimeVal = (mobilePdAiLastScanResult && (mobilePdAiLastScanResult.estimatedLeadTime || mobilePdAiLastScanResult.leadTime || (mobilePdAiLastScanResult.matchedInternalPart && mobilePdAiLastScanResult.matchedInternalPart.leadTime))) || '';
+
+        row.dataset.partCode = codeVal;
+        row.dataset.partNameOnly = nameVal || codeVal;
+        row.dataset.spec = specVal;
+        row.dataset.brand = brandVal;
+        row.dataset.vendor = vendorVal;
+        row.dataset.leadTime = leadTimeVal;
+        row.dataset.location = locVal;
+
         const locBadge = row.querySelector('.part-location-badge');
-        const locVal = (mobilePdAiLastScanResult && (mobilePdAiLastScanResult.location || (mobilePdAiLastScanResult.matchedInternalPart && mobilePdAiLastScanResult.matchedInternalPart.location))) || '';
         if (locBadge) {
-          if (locVal) {
-            locBadge.innerHTML = `📍 <span class="font-bold">จุดจัดเก็บ:</span> ${escapeHtml(locVal)}`;
-            locBadge.classList.remove('hidden');
-          } else {
-            locBadge.innerHTML = '';
-            locBadge.classList.add('hidden');
-          }
+          locBadge.innerHTML = renderMobilePdLocationBadge(locVal);
+          locBadge.classList.remove('hidden');
         }
 
         calcMobilePdPartsTotal();
@@ -1137,19 +1170,23 @@
         const priceInput = row.querySelector('.part-price');
         if (nameInput) nameInput.value = `${opt.dataset.code} ${opt.dataset.name}`.trim();
         if (priceInput) priceInput.value = opt.dataset.price || '0';
+        row.dataset.partCode = opt.dataset.code || '';
+        row.dataset.partNameOnly = opt.dataset.name || '';
+        row.dataset.spec = opt.dataset.spec || '';
+        row.dataset.brand = opt.dataset.brand || '';
+        row.dataset.location = opt.dataset.location || '';
         if (locBadge) {
-          const loc = opt.dataset.location;
-          if (loc) {
-            locBadge.innerHTML = `📍 <span class="font-bold">จุดจัดเก็บ:</span> ${escapeHtml(loc)}`;
-            locBadge.classList.remove('hidden');
-          } else {
-            locBadge.innerHTML = '';
-            locBadge.classList.add('hidden');
-          }
+          locBadge.innerHTML = renderMobilePdLocationBadge(opt.dataset.location || '');
+          locBadge.classList.remove('hidden');
         }
       } else if (locBadge) {
         locBadge.innerHTML = '';
         locBadge.classList.add('hidden');
+        delete row.dataset.partCode;
+        delete row.dataset.partNameOnly;
+        delete row.dataset.spec;
+        delete row.dataset.brand;
+        delete row.dataset.location;
       }
       calcMobilePdPartsTotal();
     }
@@ -1212,9 +1249,14 @@
 
         if (qty > 0 && (customNameVal || (opt && opt.value))) {
           parts.push({
-            partId: opt ? opt.value : '',
-            partCode: opt ? (opt.dataset.code || '') : '',
-            partName: customNameVal || (opt ? opt.dataset.name : ''),
+            partId: (opt && opt.value) ? opt.value : '',
+            partCode: r.dataset.partCode || (opt ? (opt.dataset.code || '') : ''),
+            partName: r.dataset.partNameOnly || customNameVal || (opt ? opt.dataset.name : ''),
+            spec: r.dataset.spec || (opt ? (opt.dataset.spec || '') : ''),
+            brand: r.dataset.brand || (opt ? (opt.dataset.brand || '') : ''),
+            vendor: r.dataset.vendor || '',
+            leadTime: r.dataset.leadTime || '',
+            location: r.dataset.location || (opt ? (opt.dataset.location || '') : ''),
             qty: qty,
             unitPrice: price,
             saveToCatalog: !opt || !opt.value

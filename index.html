@@ -3186,8 +3186,13 @@
                 </div>
               </div>
 
+              <div class="p-2.5 bg-sky-50/80 rounded-lg border border-sky-200">
+                <label class="block font-bold text-sky-900 mb-0.5 text-[11px]">📍 จุดจัดเก็บอะไหล่ (Location)</label>
+                <datalist id="mobPdLocationSuggestions"></datalist>
+                <input type="text" id="mobPdAiLocation" list="mobPdLocationSuggestions" placeholder="เช่น ตู้ A-01, ชั้นวาง 3 (เว้นว่างได้หากรอสั่งซื้อ)" class="w-full px-2.5 py-1.5 rounded-lg border border-sky-200 text-xs bg-white focus:ring-2 focus:ring-sky-500 outline-none">
+              </div>
+
               <div class="p-2 bg-amber-100/60 rounded-lg border border-amber-200 text-[11px] space-y-1">
-                <div id="mobPdAiLocationBox" class="text-amber-950 font-medium"><span class="font-bold text-amber-900">📍 จุดจัดเก็บ:</span> <span id="mobPdAiLocationText" class="font-bold text-slate-800">-</span></div>
                 <div><span class="font-bold text-amber-900">🏪 ผู้ขายแนะนำ:</span> <span id="mobPdAiVendorText">-</span></div>
                 <div><span class="font-bold text-amber-900">🚚 ลีดไทม์:</span> <span id="mobPdAiLeadTimeText">-</span></div>
               </div>
