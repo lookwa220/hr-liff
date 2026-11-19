@@ -816,19 +816,42 @@
       dl.innerHTML = locs.map(l => `<option value="${escapeHtml(l)}"></option>`).join('');
     }
 
+    function buildMobilePdPartRowOptionsHtml(query, selectedVal) {
+      const q = String(query || '').trim().toLowerCase();
+      let partOpts = '<option value="">-- เลือกอะไหล่หรือพิมพ์ใหม่ --</option>';
+      mobilePdSparePartsCache.forEach(p => {
+        const isCurrent = selectedVal && String(p.PartId) === String(selectedVal);
+        if (q && !isCurrent) {
+          const hay = `${p.PartCode || ''} ${p.PartName || ''} ${p.Spec || ''} ${p.Brand || ''} ${p.Location || ''}`.toLowerCase();
+          if (!hay.includes(q)) return;
+        }
+        const locText = isMobilePdWaitingLocation(p.Location) ? ' [🏷️ รอจัดเก็บ]' : ` [📍 ${p.Location}]`;
+        partOpts += `<option value="${p.PartId}" data-code="${escapeHtml(p.PartCode || '')}" data-name="${escapeHtml(p.PartName || '')}" data-spec="${escapeHtml(p.Spec || '')}" data-brand="${escapeHtml(p.Brand || '')}" data-price="${p.UnitPrice}" data-unit="${escapeHtml(p.Unit || 'ชิ้น')}" data-location="${escapeHtml(p.Location || '')}">${escapeHtml(p.PartCode || '')} - ${escapeHtml(p.PartName || '')}${escapeHtml(locText)} (คงเหลือ: ${p.InStockQty})</option>`;
+      });
+      return partOpts;
+    }
+
+    function filterMobilePdPartRowSelect(rowId, query) {
+      const row = document.getElementById(rowId);
+      const sel = row ? row.querySelector('select.part-select') : null;
+      if (!sel) return;
+      const currentVal = sel.value;
+      sel.innerHTML = buildMobilePdPartRowOptionsHtml(query, currentVal);
+      if (currentVal && Array.from(sel.options).some(o => o.value === currentVal)) {
+        sel.value = currentVal;
+      }
+    }
+
     function addMobilePdPartRow() {
       const container = document.getElementById('mobPdPartsList');
       if (!container) return;
 
       const rowId = 'pd_part_row_' + Date.now();
-      let partOpts = '<option value="">-- เลือกอะไหล่หรือพิมพ์ใหม่ --</option>';
-      mobilePdSparePartsCache.forEach(p => {
-        const locText = isMobilePdWaitingLocation(p.Location) ? ' [🏷️ รอจัดเก็บ]' : ` [📍 ${p.Location}]`;
-        partOpts += `<option value="${p.PartId}" data-code="${escapeHtml(p.PartCode || '')}" data-name="${escapeHtml(p.PartName || '')}" data-spec="${escapeHtml(p.Spec || '')}" data-brand="${escapeHtml(p.Brand || '')}" data-price="${p.UnitPrice}" data-unit="${escapeHtml(p.Unit || 'ชิ้น')}" data-location="${escapeHtml(p.Location || '')}">${escapeHtml(p.PartCode || '')} - ${escapeHtml(p.PartName || '')}${escapeHtml(locText)} (คงเหลือ: ${p.InStockQty})</option>`;
-      });
+      const partOpts = buildMobilePdPartRowOptionsHtml('', '');
 
       const rowHtml = `
         <div id="${rowId}" class="p-2.5 bg-white rounded-xl border border-orange-200 space-y-2">
+          <input type="text" placeholder="🔍 พิมพ์กรองอะไหล่ในแถวนี้..." oninput="filterMobilePdPartRowSelect('${rowId}', this.value)" class="part-search w-full px-2 py-1 rounded-lg border border-slate-200 bg-slate-50 text-xs focus:bg-white focus:border-orange-400 focus:outline-none">
           <div class="flex items-center justify-between">
             <select onchange="handleMobilePdPartSelect('${rowId}', this)" class="part-select flex-1 px-2 py-1 rounded-lg border border-slate-200 text-xs mr-2">
               ${partOpts}
