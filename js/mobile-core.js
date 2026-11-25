@@ -339,7 +339,7 @@
       if (!quota) return;
 
       const annualUsed = quota.annualUsedDays !== undefined ? quota.annualUsedDays : 0;
-      const annualTotal = quota.annualTotal !== undefined ? quota.annualTotal : 6;
+      const annualTotal = quota.annualTotal !== undefined ? quota.annualTotal : 0;
       const annualRemain = quota.annualRemaining !== undefined ? quota.annualRemaining : Math.max(0, annualTotal - annualUsed);
       const sickUsed = quota.sickUsedDays !== undefined ? quota.sickUsedDays : 0;
       const paidUsed = quota.personalPaidUsedDays !== undefined ? quota.personalPaidUsedDays : 0;

@@ -279,9 +279,25 @@
 
         if (res && res.success && res.history && res.history.length > 0) {
           container.innerHTML = res.history.map(item => {
-            let statusBadge = '<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-amber-100 text-amber-800">รออนุมัติ</span>';
-            if (item.status === 'APPROVED') statusBadge = '<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-emerald-100 text-emerald-800">อนุมัติแล้ว</span>';
-            else if (item.status === 'REJECTED') statusBadge = '<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-red-100 text-red-800">ปฏิเสธ</span>';
+            const stUpper = String(item.status || 'PENDING').trim().toUpperCase();
+            let statusBadge = `<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-amber-100 text-amber-800">${item.stageLabel || 'รออนุมัติ'}</span>`;
+            if (stUpper === 'APPROVED') statusBadge = '<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-emerald-100 text-emerald-800">อนุมัติแล้ว</span>';
+            else if (stUpper === 'REJECTED') statusBadge = '<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-red-100 text-red-800">ไม่อนุมัติ</span>';
+            else if (stUpper === 'CANCELLED') statusBadge = '<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-slate-100 text-slate-600">ยกเลิก</span>';
+            else if (stUpper === 'PENDING_HR') statusBadge = '<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-indigo-100 text-indigo-800">รอ HR รับทราบ</span>';
+            else if (stUpper === 'PENDING_EXECUTIVE') statusBadge = '<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-violet-100 text-violet-800">รอผู้บริหาร</span>';
+            else if (stUpper === 'PENDING_APPROVER') statusBadge = '<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-sky-100 text-sky-800">รอผู้อนุมัติแผนก</span>';
+            else if (stUpper === 'PENDING_CHECKER') statusBadge = '<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-amber-100 text-amber-800">รอผู้ตรวจสอบ</span>';
+            else if (stUpper === 'PENDING_LEADER') statusBadge = '<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-amber-100 text-amber-800">รอหัวหน้างาน</span>';
+
+            const pendingNames = Array.isArray(item.pendingApproverNames) ? item.pendingApproverNames.filter(Boolean) : [];
+            const pendingTracker = (stUpper.startsWith('PENDING') && pendingNames.length > 0)
+              ? `<p class="text-[11px] text-amber-700 bg-amber-50 border border-amber-200/70 rounded-lg px-2 py-1 mt-1.5">⏳ กำลังรอ: ${pendingNames.join(', ')}</p>`
+              : '';
+            const historyLines = String(item.approvalHistory || '').split('\n').map(s => s.trim()).filter(Boolean);
+            const historySection = historyLines.length > 0
+              ? `<div class="text-[10px] text-slate-500 mt-1.5 border-t border-slate-100 pt-1 space-y-0.5">${historyLines.map(line => `<div>${line}</div>`).join('')}</div>`
+              : (item.approverName && item.approverName !== '-' ? `<p class="text-[10px] text-slate-400 mt-1 border-t border-slate-100 pt-1">ผู้อนุมัติ: ${item.approverName} (${item.approvedAt})</p>` : '');
 
             const hasAttach = !!(item.attachmentUrl && item.attachmentUrl.trim());
             let certSection = '';
@@ -324,7 +340,8 @@
                 <p class="text-slate-500 text-[11px]">
                   เหตุผล: ${item.reason || '-'}
                 </p>
-                ${item.approverName && item.approverName !== '-' ? `<p class="text-[10px] text-slate-400 mt-1 border-t border-slate-100 pt-1">ผู้อนุมัติ: ${item.approverName} (${item.approvedAt})</p>` : ''}
+                ${pendingTracker}
+                ${historySection}
                 ${certSection}
               </div>
             `;
