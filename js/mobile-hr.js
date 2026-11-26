@@ -667,6 +667,10 @@
             leavesCont.innerHTML = res.leaves.map(l => {
               const hasAttachment = !!(l.attachmentUrl && l.attachmentUrl.trim());
               const stageLabel = l.actionRole || '';
+              const stPendingUpper = String(l.status || '').trim().toUpperCase();
+              const isHrSickPending = stPendingUpper === 'PENDING_HR' && String(l.leaveType || '').includes('ป่วย');
+              const safeFullName = String(l.fullName || '').replace(/'/g, "\\'");
+              const safeLeaveType = String(l.leaveType || '').replace(/'/g, "\\'");
               return `
               <div id="card-app-${l.docNo}" class="p-3.5 bg-white rounded-xl border border-slate-200 shadow-sm text-xs space-y-2">
                 <div class="flex justify-between items-center gap-2">
@@ -698,7 +702,7 @@
                   </div>
                 `}
                 <div class="flex space-x-2 pt-2 border-t border-slate-100">
-                  <button onclick="handleApproveAction('${l.docNo}', 'APPROVE')" class="flex-1 py-1.5 bg-emerald-600 text-white rounded-lg font-bold text-xs shadow-sm hover:bg-emerald-700">
+                  <button onclick="${isHrSickPending ? `openMobSickNoteModal('${l.docNo}', '${safeFullName}', '${safeLeaveType}', ${hasAttachment})` : `handleApproveAction('${l.docNo}', 'APPROVE')`}" class="flex-1 py-1.5 bg-emerald-600 text-white rounded-lg font-bold text-xs shadow-sm hover:bg-emerald-700">
                     ✅ อนุมัติ
                   </button>
                   <button onclick="handleApproveAction('${l.docNo}', 'REJECT')" class="flex-1 py-1.5 bg-slate-100 text-red-600 border border-red-200 rounded-lg font-bold text-xs hover:bg-red-50">
@@ -858,8 +862,69 @@
       }
     }
 
-    async function handleApproveAction(docNo, action) {
-      if (!confirm(`ยืนยันการ${action === 'APPROVE' ? 'อนุมัติ' : 'ปฏิเสธ'}คำขอเลขที่ ${docNo} หรือไม่?`)) return;
+    let mobSickNoteState = { docNo: '', selected: '' };
+
+    function openMobSickNoteModal(docNo, fullName, leaveType, hasAttachment) {
+      mobSickNoteState = { docNo: docNo || '', selected: '' };
+      const modal = document.getElementById('mobSickNoteModal');
+      const metaEl = document.getElementById('mobSickNoteMeta');
+      const badgeEl = document.getElementById('mobSickNoteAttachBadge');
+      const extraInp = document.getElementById('mobSickNoteExtraRemarks');
+      const confirmBtn = document.getElementById('btnConfirmMobSickNote');
+      if (!modal) return;
+
+      if (metaEl) metaEl.innerText = `${docNo} • ${fullName || '-'} (${leaveType || 'ลาป่วย'})`;
+      if (badgeEl) {
+        badgeEl.innerHTML = hasAttachment
+          ? '<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold">📎 มีเอกสารแนบแล้ว</span>'
+          : '<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 font-bold">⚠️ ยังไม่มีเอกสารแนบ</span>';
+      }
+      if (extraInp) extraInp.value = '';
+      if (confirmBtn) {
+        confirmBtn.disabled = false;
+        confirmBtn.innerText = 'ยืนยันอนุมัติ';
+      }
+
+      selectMobSickNoteOption(hasAttachment ? 'ลาป่วยมีใบแพทย์' : 'ลาป่วยไม่มีใบแพทย์');
+      modal.classList.remove('hidden');
+    }
+
+    function selectMobSickNoteOption(val) {
+      mobSickNoteState.selected = val || '';
+      document.querySelectorAll('#mobSickNoteModal .mob-sick-note-opt').forEach(btn => {
+        const active = btn.dataset.val === mobSickNoteState.selected;
+        btn.classList.toggle('border-emerald-500', active);
+        btn.classList.toggle('bg-emerald-50', active);
+        btn.classList.toggle('text-emerald-800', active);
+        btn.classList.toggle('border-slate-200', !active);
+        btn.classList.toggle('bg-white', !active);
+        btn.classList.toggle('text-slate-700', !active);
+      });
+    }
+
+    function closeMobSickNoteModal() {
+      const modal = document.getElementById('mobSickNoteModal');
+      if (modal) modal.classList.add('hidden');
+    }
+
+    async function confirmMobSickNoteModal() {
+      const selected = mobSickNoteState.selected;
+      if (!selected) {
+        showToast('กรุณาเลือกประเภทหมายเหตุลาป่วย', 'error');
+        return;
+      }
+      const extra = (document.getElementById('mobSickNoteExtraRemarks')?.value || '').trim();
+      const targetDocNo = mobSickNoteState.docNo;
+      closeMobSickNoteModal();
+      await handleApproveAction(targetDocNo, 'APPROVE', {
+        skipConfirm: true,
+        sickNoteType: selected,
+        comment: extra || selected
+      });
+    }
+
+    async function handleApproveAction(docNo, action, extraParams) {
+      if (!(extraParams && extraParams.skipConfirm) && !confirm(`ยืนยันการ${action === 'APPROVE' ? 'อนุมัติ' : 'ปฏิเสธ'}คำขอเลขที่ ${docNo} หรือไม่?`)) return;
 
       const card = document.getElementById(`card-app-${docNo}`);
       if (card) {
@@ -868,14 +933,17 @@
       }
 
       try {
-        const res = await jsonpRequest({
+        const reqParams = {
           action: 'processApproval',
           docNo: docNo,
           decision: action,
           approvalAction: action,
           approverCode: state.currentUser.employeeCode,
           approverName: state.currentUser.fullName
-        });
+        };
+        if (extraParams && extraParams.sickNoteType) reqParams.sickNoteType = extraParams.sickNoteType;
+        if (extraParams && extraParams.comment) reqParams.comment = extraParams.comment;
+        const res = await jsonpRequest(reqParams);
 
         if (res && res.success) {
           showToast(res.message || 'บันทึกเรียบร้อย');

@@ -3551,10 +3551,45 @@
     </div>
   </div>
 
+  <!-- Modal: ระบุหมายเหตุลาป่วยสำหรับ HR (เมื่ออนุมัติขั้นสุดท้ายใน LIFF) -->
+  <div id="mobSickNoteModal" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 animate-in fade-in duration-150">
+    <div class="bg-white rounded-2xl max-w-sm w-full p-4 shadow-xl border border-slate-200 space-y-3">
+      <div class="flex items-center justify-between pb-2 border-b border-slate-200">
+        <div class="flex items-center gap-2">
+          <span class="text-base">🩺</span>
+          <h3 class="text-sm font-bold text-slate-800">ระบุหมายเหตุลาป่วย (สำหรับ HR)</h3>
+        </div>
+        <button type="button" onclick="closeMobSickNoteModal()" class="p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 text-sm">✕</button>
+      </div>
+
+      <div class="p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs space-y-1">
+        <div id="mobSickNoteMeta" class="font-bold text-slate-800"></div>
+        <div id="mobSickNoteAttachBadge" class="text-[11px]"></div>
+      </div>
+
+      <div class="space-y-1.5 text-xs">
+        <div class="font-bold text-slate-700">เลือกประเภทหมายเหตุลาป่วย *</div>
+        <button type="button" onclick="selectMobSickNoteOption(this.dataset.val)" data-val="ลาป่วยไม่มีใบแพทย์" class="mob-sick-note-opt w-full px-3 py-2.5 rounded-xl border border-slate-200 bg-white text-left font-semibold text-slate-700">1. ลาป่วยไม่มีใบแพทย์</button>
+        <button type="button" onclick="selectMobSickNoteOption(this.dataset.val)" data-val="ลาป่วยมีใบแพทย์" class="mob-sick-note-opt w-full px-3 py-2.5 rounded-xl border border-slate-200 bg-white text-left font-semibold text-slate-700">2. ลาป่วยมีใบแพทย์</button>
+        <button type="button" onclick="selectMobSickNoteOption(this.dataset.val)" data-val="ลาป่วยหมอนัด" class="mob-sick-note-opt w-full px-3 py-2.5 rounded-xl border border-slate-200 bg-white text-left font-semibold text-slate-700">3. ลาป่วยหมอนัด</button>
+        <button type="button" onclick="selectMobSickNoteOption(this.dataset.val)" data-val="ลาป่วยพักตามใบแพทย์" class="mob-sick-note-opt w-full px-3 py-2.5 rounded-xl border border-slate-200 bg-white text-left font-semibold text-slate-700">4. ลาป่วยพักตามใบแพทย์</button>
+      </div>
+
+      <div>
+        <input id="mobSickNoteExtraRemarks" type="text" placeholder="หมายเหตุเพิ่มเติม (ไม่บังคับ)" class="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-emerald-500 outline-none">
+      </div>
+
+      <div class="flex items-center gap-2 pt-1">
+        <button type="button" onclick="closeMobSickNoteModal()" class="flex-1 py-2 rounded-xl bg-slate-100 text-slate-700 font-bold text-xs">ยกเลิก</button>
+        <button type="button" id="btnConfirmMobSickNote" onclick="confirmMobSickNoteModal()" class="flex-1 py-2 rounded-xl bg-emerald-600 text-white font-bold text-xs shadow-sm">ยืนยันอนุมัติ</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Application Logic -->
   <!-- Modular Mobile JS Architecture (v3.1.6) -->
   <script src="js/mobile-core.js?v=3.1.7"></script>
-  <script src="js/mobile-hr.js?v=3.1.5"></script>
+  <script src="js/mobile-hr.js?v=3.1.6"></script>
   <script src="js/mobile-services.js?v=3.1.6"></script>
   <script src="js/mobile-iso-mnw.js?v=3.1.4"></script>
   <script src="js/mobile-pd-pc.js?v=3.1.4"></script>
