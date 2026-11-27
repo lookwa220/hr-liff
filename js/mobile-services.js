@@ -1111,7 +1111,10 @@
     }
 
     // ดึง API Key จาก Central AI Gateway หลังบ้านเป็นอันดับแรก (และซิงค์ลง localStorage เพื่อไม่ให้ติดคีย์เก่าที่หมดอายุ)
-    async function getEffectiveMobileGeminiApiKey(forceRefresh) {
+    async function getEffectiveMobileGeminiApiKey(forceRefresh, silent) {
+      if (!forceRefresh && MobileMeetingState && MobileMeetingState._cachedGeminiKey) {
+        return MobileMeetingState._cachedGeminiKey;
+      }
       const myEmpId = state.currentUser ? (state.currentUser.employeeId || state.currentUser.employeeCode || '') : '';
       try {
         const res = await postApiRequest({
@@ -1121,6 +1124,7 @@
         if (res && res.status === 'success' && res.apiKey) {
           const serverKey = res.apiKey.trim();
           localStorage.setItem('MINAMIDA_GEMINI_API_KEY', serverKey);
+          if (MobileMeetingState) MobileMeetingState._cachedGeminiKey = serverKey;
           return serverKey;
         }
       } catch (e) {
@@ -1129,13 +1133,20 @@
 
       if (!forceRefresh) {
         let cachedKey = localStorage.getItem('MINAMIDA_GEMINI_API_KEY');
-        if (cachedKey && cachedKey.trim()) return cachedKey.trim();
+        if (cachedKey && cachedKey.trim()) {
+          const trimmed = cachedKey.trim();
+          if (MobileMeetingState) MobileMeetingState._cachedGeminiKey = trimmed;
+          return trimmed;
+        }
       }
 
-      const entered = prompt('ระบบสแกนนามบัตรทำงานด้วย Gemini AI (ฟรี 100%)\nกรุณาวาง API Key ที่ได้รับจาก Google AI Studio (aistudio.google.com):');
+      if (silent) return null;
+
+      const entered = prompt('ระบบทำงานด้วย Gemini AI (ฟรี 100%)\nกรุณาวาง API Key ที่ได้รับจาก Google AI Studio (aistudio.google.com):');
       if (entered && entered.trim()) {
         const key = entered.trim();
         localStorage.setItem('MINAMIDA_GEMINI_API_KEY', key);
+        if (MobileMeetingState) MobileMeetingState._cachedGeminiKey = key;
         postApiRequest({
           action: 'saveGeminiApiKey',
           apiKey: key,
@@ -2393,6 +2404,7 @@ Strict Rules:
     const MobileMeetingState = {
       activeTab: 'APPT',
       initialData: null,
+      _cachedGeminiKey: '',
       appointments: [],
       minutes: [],
       actionItems: [],
@@ -2420,6 +2432,12 @@ Strict Rules:
         recordedAudioMime: '',
         isRecording: false,
         liveWs: null,
+        wsSetupDone: false,
+        transcribeFallbackUsed: false,
+        pendingTranscribeText: '',
+        _mrStopPromise: null,
+        _mrStopResolver: null,
+        _autoTranscribingPromise: null,
         liveStream: null,
         liveAudioCtx: null,
         liveProcessor: null,
@@ -3220,6 +3238,8 @@ Strict Rules:
       renderMobileMinutesAgendas_();
       renderMobileMinutesActions_();
       switchMobileMinutesLangTab('TH');
+      // Pre-warm Gemini API Key silently so tapping Mic has zero async delay before AudioContext
+      getEffectiveMobileGeminiApiKey(false, true).catch(() => {});
     }
 
     function closeMobileMinutesStudioModal() {
@@ -3426,45 +3446,110 @@ Strict Rules:
       return false;
     }
 
-    function connectMobileLiveTranscribeWs_(apiKey) {
+    function connectMobileLiveTranscribeWs_(apiKey, overrideModel) {
       const st = MobileMeetingState.studio;
       if (!apiKey || typeof WebSocket === 'undefined') return;
       try {
-        if (st.liveWs) { try { st.liveWs.close(); } catch (e) {} }
+        if (st.liveWs) {
+          try {
+            st.liveWs._manualSwitch = true;
+            st.liveWs.close();
+          } catch (e) {}
+        }
+        st.wsSetupDone = false;
+        st.pendingTranscribeText = '';
+        const targetModel = overrideModel || 'models/gemini-3.5-transcribe-live';
+        const isFallbackLive = targetModel.indexOf('gemini-3.8-live') !== -1;
+
         const ws = new WebSocket(`wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key=${encodeURIComponent(apiKey)}`);
         st.liveWs = ws;
 
         ws.onopen = function() {
-          ws.send(JSON.stringify({
-            setup: {
-              model: 'models/gemini-3.5-transcribe-live',
-              generationConfig: { responseModalities: ['TEXT'] },
-              inputAudioTranscription: { mode: 'smart' }
-            }
-          }));
+          if (isFallbackLive) {
+            ws.send(JSON.stringify({
+              setup: {
+                model: 'models/gemini-3.8-live',
+                generationConfig: { responseModalities: ['AUDIO'] },
+                systemInstruction: {
+                  parts: [{ text: 'You are a silent meeting transcription listener. Do not speak; remain silent.' }]
+                },
+                inputAudioTranscription: {}
+              }
+            }));
+          } else {
+            ws.send(JSON.stringify({
+              setup: {
+                model: targetModel,
+                generationConfig: { responseModalities: ['TEXT'] },
+                inputAudioTranscription: { mode: 'smart' }
+              }
+            }));
+          }
           const sEl = document.getElementById('mobLiveMicStatus');
-          if (sEl) sEl.innerText = '🔴 กำลังฟังสดบนโต๊ะประชุม (Live Transcribe)';
+          if (sEl) sEl.innerText = '🔄 กำลังเชื่อมต่อไมค์รับเสียงสด...';
         };
 
-        ws.onmessage = function(ev) {
+        ws.onmessage = async function(ev) {
           try {
-            const msg = JSON.parse(ev.data);
-            const interim = msg && msg.serverContent && msg.serverContent.interimInputTranscription && msg.serverContent.interimInputTranscription.text;
-            const finalTxt = msg && msg.serverContent && msg.serverContent.inputTranscription && msg.serverContent.inputTranscription.text;
-            const ib = document.getElementById('mobLiveInterimBox');
-            if (interim && ib) {
-              ib.classList.remove('hidden');
-              ib.innerText = 'กำลังฟัง: ' + interim;
+            const rawText = (typeof ev.data === 'string')
+              ? ev.data
+              : (ev.data && typeof ev.data.text === 'function' ? await ev.data.text() : '');
+            if (!rawText) return;
+            const msg = JSON.parse(rawText);
+            if (msg.setupComplete !== undefined) {
+              st.wsSetupDone = true;
+              const sEl = document.getElementById('mobLiveMicStatus');
+              if (sEl) sEl.innerText = '🟢 กำลังฟังสดและแกะคำพูดอัตโนมัติ...';
             }
-            if (finalTxt) {
-              if (ib) ib.classList.add('hidden');
-              const ta = document.getElementById('mobMinTranscript');
-              if (ta) {
-                ta.value = (ta.value ? ta.value.trim() + '\n' : '') + finalTxt.trim();
-                ta.scrollTop = ta.scrollHeight;
+            const sc = msg && msg.serverContent;
+            if (!sc) return;
+            const interim = sc.interimInputTranscription && sc.interimInputTranscription.text;
+            const finalTxt = sc.inputTranscription && sc.inputTranscription.text;
+            const ib = document.getElementById('mobLiveInterimBox');
+
+            if (isFallbackLive) {
+              if (finalTxt) st.pendingTranscribeText += finalTxt;
+              const preview = (st.pendingTranscribeText || interim || '').trim();
+              if (preview && ib) {
+                ib.classList.remove('hidden');
+                ib.innerText = '👂 กำลังฟัง: ' + preview;
+              }
+              if (sc.turnComplete && st.pendingTranscribeText.trim()) {
+                if (ib) ib.classList.add('hidden');
+                const ta = document.getElementById('mobMinTranscript');
+                if (ta) {
+                  ta.value = (ta.value ? ta.value.trim() + '\n' : '') + st.pendingTranscribeText.trim();
+                  ta.scrollTop = ta.scrollHeight;
+                }
+                st.pendingTranscribeText = '';
+              }
+            } else {
+              if (interim && ib) {
+                ib.classList.remove('hidden');
+                ib.innerText = '👂 กำลังฟัง: ' + interim;
+              }
+              if (finalTxt && finalTxt.trim()) {
+                if (ib) ib.classList.add('hidden');
+                const ta = document.getElementById('mobMinTranscript');
+                if (ta) {
+                  ta.value = (ta.value ? ta.value.trim() + '\n' : '') + finalTxt.trim();
+                  ta.scrollTop = ta.scrollHeight;
+                }
               }
             }
           } catch (e) {}
+        };
+
+        ws.onclose = function() {
+          if (!ws._manualSwitch && st.isRecording && !st.wsSetupDone && !st.transcribeFallbackUsed) {
+            st.transcribeFallbackUsed = true;
+            connectMobileLiveTranscribeWs_(apiKey, 'models/gemini-3.8-live');
+          }
+        };
+
+        ws.onerror = function() {
+          const sEl = document.getElementById('mobLiveMicStatus');
+          if (sEl && st.isRecording) sEl.innerText = '🎙️ กำลังอัดเสียง (พร้อมถอดเสียงอัตโนมัติหลังหยุด)';
         };
       } catch (err) {}
     }
@@ -3481,6 +3566,16 @@ Strict Rules:
       }
       if (typeof stopMobileLiveTranslate === 'function') stopMobileLiveTranslate();
 
+      // Synchronously create & unlock AudioContext inside tap handler BEFORE awaits (iOS/LINE WebView guardrail)
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      let unlockedCtx = null;
+      try {
+        if (AudioCtx) {
+          unlockedCtx = new AudioCtx();
+          if (unlockedCtx.state === 'suspended') unlockedCtx.resume().catch(() => {});
+        }
+      } catch (e) { unlockedCtx = null; }
+
       const apiKey = await getEffectiveMobileGeminiApiKey();
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -3490,6 +3585,11 @@ Strict Rules:
         st.recSeconds = 0;
         st.mediaChunks = [];
         st.recordedAudioBlob = null;
+        st.wsSetupDone = false;
+        st.transcribeFallbackUsed = false;
+        st.pendingTranscribeText = '';
+        st._autoTranscribingPromise = null;
+        st._mrStopPromise = new Promise(resolve => { st._mrStopResolver = resolve; });
 
         // Request Screen Wake Lock so mobile screen stays awake on meeting table
         if (navigator.wakeLock && typeof navigator.wakeLock.request === 'function') {
@@ -3502,6 +3602,8 @@ Strict Rules:
         const lbl = document.getElementById('mobLiveMicLabel');
         const timerEl = document.getElementById('mobLiveMicTimer');
         const sEl = document.getElementById('mobLiveMicStatus');
+        const audSt = document.getElementById('mobAudioUploadStatus');
+        if (audSt) { audSt.innerText = ''; audSt.classList.add('hidden'); }
         if (btn) btn.className = 'w-full py-3 px-4 rounded-2xl bg-slate-700 text-white font-bold text-xs shadow-md flex items-center justify-center gap-2 animate-pulse transition';
         if (lbl) lbl.innerText = '⏹️ หยุดฟัง & หยุดอัดเสียง';
         if (timerEl) { timerEl.classList.remove('hidden'); timerEl.innerText = '00:00'; }
@@ -3527,16 +3629,26 @@ Strict Rules:
             mr.ondataavailable = (e) => { if (e.data && e.data.size > 0) st.mediaChunks.push(e.data); };
             mr.onstop = () => {
               if (st.mediaChunks.length > 0) {
-                const finalMime = mime || (mr.mimeType || 'audio/webm');
-                st.recordedAudioBlob = new Blob(st.mediaChunks, { type: finalMime });
-                st.recordedAudioMime = finalMime;
-                const ext = finalMime.includes('mp4') ? 'm4a' : 'webm';
+                const rawMime = mime || (mr.mimeType || 'audio/webm');
+                const cleanMime = String(rawMime).split(';')[0].trim() || 'audio/webm';
+                st.recordedAudioBlob = new Blob(st.mediaChunks, { type: cleanMime });
+                st.recordedAudioMime = cleanMime;
+                const ext = cleanMime.includes('mp4') ? 'm4a' : 'webm';
                 st.audioFileName = `mobile_meeting_${Date.now()}.${ext}`;
               }
+              if (typeof st._mrStopResolver === 'function') {
+                st._mrStopResolver();
+                st._mrStopResolver = null;
+              }
             };
-            mr.start(2000);
+            mr.start(1000);
             st.mediaRecorder = mr;
-          } catch (mrErr) {}
+          } catch (mrErr) {
+            if (typeof st._mrStopResolver === 'function') { st._mrStopResolver(); st._mrStopResolver = null; }
+          }
+        } else if (typeof st._mrStopResolver === 'function') {
+          st._mrStopResolver();
+          st._mrStopResolver = null;
         }
 
         if (apiKey) {
@@ -3546,44 +3658,109 @@ Strict Rules:
           }, 540000);
         }
 
-        const AudioCtx = window.AudioContext || window.webkitAudioContext;
-        if (AudioCtx) {
-          const ctx = new AudioCtx();
+        const ctx = unlockedCtx || (AudioCtx ? new AudioCtx() : null);
+        if (ctx) {
+          if (ctx.state === 'suspended') { try { await ctx.resume(); } catch (e) {} }
           const source = ctx.createMediaStreamSource(stream);
           const proc = ctx.createScriptProcessor(4096, 1, 1);
+          const zeroGain = ctx.createGain();
+          zeroGain.gain.value = 0;
+          let preRoll = [];
+          let isSpeaking = false;
+          let lastVoiceAt = 0;
+
           proc.onaudioprocess = (e) => {
-            if (!st.isRecording || !st.liveWs || st.liveWs.readyState !== 1) return;
-            const b64 = float32ToPcm16Base64Mob_(e.inputBuffer.getChannelData(0), ctx.sampleRate);
-            st.liveWs.send(JSON.stringify({
-              realtimeInput: { audio: { data: b64, mimeType: 'audio/pcm;rate=16000' } }
-            }));
+            if (!st.isRecording) return;
+            const rawCh = e.inputBuffer.getChannelData(0);
+            const rms = calcMobAudioRms_(rawCh);
+            const vuFill = document.getElementById('mobLiveVuFill');
+            const vuPct = document.getElementById('mobLiveVuPct');
+            const pctVal = Math.min(100, Math.round(rms * 900));
+            if (vuFill) vuFill.style.width = pctVal + '%';
+            if (vuPct) vuPct.innerText = pctVal + '%';
+
+            if (!st.liveWs || st.liveWs.readyState !== 1 || !st.wsSetupDone) return;
+            const b64 = float32ToPcm16Base64Mob_(rawCh, ctx.sampleRate);
+            const now = Date.now();
+            if (rms >= 0.008) {
+              lastVoiceAt = now;
+              if (!isSpeaking) {
+                isSpeaking = true;
+                while (preRoll.length > 0) {
+                  st.liveWs.send(JSON.stringify({
+                    realtimeInput: { audio: { data: preRoll.shift(), mimeType: 'audio/pcm;rate=16000' } }
+                  }));
+                }
+              }
+              st.liveWs.send(JSON.stringify({
+                realtimeInput: { audio: { data: b64, mimeType: 'audio/pcm;rate=16000' } }
+              }));
+            } else if (isSpeaking) {
+              if ((now - lastVoiceAt) < 950) {
+                st.liveWs.send(JSON.stringify({
+                  realtimeInput: { audio: { data: b64, mimeType: 'audio/pcm;rate=16000' } }
+                }));
+              } else {
+                isSpeaking = false;
+                preRoll = [];
+                st.liveWs.send(JSON.stringify({ realtimeInput: { audioStreamEnd: true } }));
+              }
+            } else {
+              preRoll.push(b64);
+              if (preRoll.length > 3) preRoll.shift();
+            }
           };
           source.connect(proc);
-          proc.connect(ctx.destination);
+          proc.connect(zeroGain);
+          zeroGain.connect(ctx.destination);
           st.liveAudioCtx = ctx;
           st.liveProcessor = proc;
         }
       } catch (err) {
+        if (unlockedCtx) { try { unlockedCtx.close(); } catch (e) {} }
         showToast('เปิดไมโครโฟนไม่สำเร็จ: ' + err.message, 'error');
       }
     }
 
-    function stopMobileMeetingLiveMic() {
+    async function stopMobileMeetingLiveMic(opts) {
       const st = MobileMeetingState.studio;
+      const wasRecording = Boolean(st.isRecording);
       st.isRecording = false;
+      st.wsSetupDone = false;
       if (st.recTimer) { clearInterval(st.recTimer); st.recTimer = null; }
       if (st.wsRenewTimer) { clearInterval(st.wsRenewTimer); st.wsRenewTimer = null; }
       if (st.liveProcessor) { try { st.liveProcessor.disconnect(); } catch (e) {} st.liveProcessor = null; }
       if (st.liveAudioCtx) { try { st.liveAudioCtx.close(); } catch (e) {} st.liveAudioCtx = null; }
-      if (st.liveWs) {
-        try {
-          if (st.liveWs.readyState === 1) st.liveWs.send(JSON.stringify({ realtimeInput: { audioStreamEnd: true } }));
-          st.liveWs.close();
-        } catch (e) {}
-        st.liveWs = null;
+
+      if (st.pendingTranscribeText && st.pendingTranscribeText.trim()) {
+        const ta = document.getElementById('mobMinTranscript');
+        if (ta) {
+          ta.value = (ta.value ? ta.value.trim() + '\n' : '') + st.pendingTranscribeText.trim();
+          ta.scrollTop = ta.scrollHeight;
+        }
+        st.pendingTranscribeText = '';
       }
+
+      const wsToClose = st.liveWs;
+      st.liveWs = null;
+      if (wsToClose) {
+        try {
+          wsToClose._manualSwitch = true;
+          if (wsToClose.readyState === 1) {
+            wsToClose.send(JSON.stringify({ realtimeInput: { audioStreamEnd: true } }));
+          }
+          setTimeout(() => { try { wsToClose.close(); } catch (e) {} }, 250);
+        } catch (e) {}
+      }
+
       if (st.mediaRecorder && st.mediaRecorder.state !== 'inactive') {
         try { st.mediaRecorder.stop(); } catch (e) {}
+      }
+      if (st._mrStopPromise) {
+        await Promise.race([
+          st._mrStopPromise,
+          new Promise(resolve => setTimeout(resolve, 600))
+        ]);
       }
       if (st.liveStream) {
         try { st.liveStream.getTracks().forEach(t => t.stop()); } catch (e) {}
@@ -3598,10 +3775,34 @@ Strict Rules:
       const lbl = document.getElementById('mobLiveMicLabel');
       const sEl = document.getElementById('mobLiveMicStatus');
       const ib = document.getElementById('mobLiveInterimBox');
+      const vuFill = document.getElementById('mobLiveVuFill');
+      const vuPct = document.getElementById('mobLiveVuPct');
       if (btn) btn.className = 'w-full py-3 px-4 rounded-2xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs shadow-md flex items-center justify-center gap-2 active:scale-95 transition';
       if (lbl) lbl.innerText = '🎙️ วางไมค์ฟังเสียงสด (Live Transcribe)';
       if (sEl) sEl.innerText = 'พร้อมใช้งาน • จอไม่ดับอัตโนมัติขณะอัดเสียง';
       if (ib) ib.classList.add('hidden');
+      if (vuFill) vuFill.style.width = '0%';
+      if (vuPct) vuPct.innerText = '0%';
+
+      if (wasRecording && !(opts && opts.skipAutoTranscribe)) {
+        const ta = document.getElementById('mobMinTranscript');
+        const hasTxt = Boolean(ta && ta.value.trim());
+        if (!hasTxt && st.recordedAudioBlob && st.recordedAudioBlob.size > 500) {
+          st._autoTranscribingPromise = transcribeMobileBlobToTextarea_(
+            st.recordedAudioBlob,
+            st.recordedAudioMime,
+            st.audioFileName || 'mobile_recording.webm'
+          );
+          try {
+            const transcribed = await st._autoTranscribingPromise;
+            if (transcribed) {
+              showToast('🎙️ ถอดเสียงที่บันทึกไว้เรียบร้อย! กด "✨ สรุปมติด้วย Gemini AI" ได้เลยครับ');
+            }
+          } finally {
+            st._autoTranscribingPromise = null;
+          }
+        }
+      }
     }
 
     // -------------------------------------------------------------------------
@@ -4097,59 +4298,53 @@ Strict Rules:
     window.onChangeMobileTranslateLang = onChangeMobileTranslateLang;
     window.swapMobileLiveTranslateLang = swapMobileLiveTranslateLang;
 
-    async function handleMobileMeetingAudioFile(event) {
-      const file = event.target.files && event.target.files[0];
-      if (!file) return;
-      const st = MobileMeetingState.studio;
-      st.recordedAudioBlob = file;
-      st.recordedAudioMime = file.type || 'audio/webm';
-      st.audioFileName = file.name;
-
+    async function transcribeMobileBlobToTextarea_(blob, mimeType, fileName) {
+      if (!blob || !blob.size) return '';
       const statusEl = document.getElementById('mobAudioUploadStatus');
+      const cleanMime = String(mimeType || blob.type || 'audio/webm').split(';')[0].trim() || 'audio/webm';
+      const displayName = fileName || `mobile_audio_${Date.now()}.webm`;
       if (statusEl) {
         statusEl.classList.remove('hidden');
-        statusEl.innerText = `⏳ กำลังถอดเสียง "${file.name}"...`;
+        statusEl.innerText = `⏳ กำลังถอดเสียงที่บันทึกไว้ด้วย Gemini AI...`;
       }
 
       const apiKey = await getEffectiveMobileGeminiApiKey();
       if (!apiKey) {
         if (statusEl) statusEl.innerText = '⚠️ ไม่พบ Gemini API Key';
-        event.target.value = '';
-        return;
+        return '';
       }
 
       try {
-        const mime = file.type || 'audio/webm';
         let partObj = null;
-        if (file.size <= 12 * 1024 * 1024) {
+        if (blob.size <= 12 * 1024 * 1024) {
           const dataUrl = await new Promise((resolve, reject) => {
             const r = new FileReader();
             r.onload = () => resolve(r.result);
             r.onerror = reject;
-            r.readAsDataURL(file);
+            r.readAsDataURL(blob);
           });
-          partObj = { inline_data: { mime_type: mime, data: String(dataUrl).split(';base64,')[1] } };
+          partObj = { inline_data: { mime_type: cleanMime, data: String(dataUrl).split(';base64,')[1] } };
         } else {
           const initResp = await fetch(`https://generativelanguage.googleapis.com/upload/v1beta/files?key=${encodeURIComponent(apiKey)}`, {
             method: 'POST',
             headers: {
               'X-Goog-Upload-Protocol': 'resumable',
               'X-Goog-Upload-Command': 'start',
-              'X-Goog-Upload-Header-Content-Length': String(file.size),
-              'X-Goog-Upload-Header-Content-Type': mime,
+              'X-Goog-Upload-Header-Content-Length': String(blob.size),
+              'X-Goog-Upload-Header-Content-Type': cleanMime,
               'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ file: { display_name: file.name } })
+            body: JSON.stringify({ file: { display_name: displayName } })
           });
           const uploadUrl = initResp.headers.get('x-goog-upload-url');
           if (uploadUrl) {
             const finResp = await fetch(uploadUrl, {
               method: 'POST',
-              headers: { 'Content-Length': String(file.size), 'X-Goog-Upload-Offset': '0', 'X-Goog-Upload-Command': 'upload, finalize' },
-              body: file
+              headers: { 'Content-Length': String(blob.size), 'X-Goog-Upload-Offset': '0', 'X-Goog-Upload-Command': 'upload, finalize' },
+              body: blob
             });
             const fInfo = await finResp.json();
-            if (fInfo && fInfo.file && fInfo.file.uri) partObj = { file_data: { mime_type: mime, file_uri: fInfo.file.uri } };
+            if (fInfo && fInfo.file && fInfo.file.uri) partObj = { file_data: { mime_type: cleanMime, file_uri: fInfo.file.uri } };
           }
         }
 
@@ -4161,19 +4356,22 @@ Strict Rules:
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                  contents: [{ parts: [partObj, { text: 'ถอดเสียงประชุมนี้เป็นภาษาไทยที่อ่านเข้าใจง่าย คงรหัสชิ้นงานและศัพท์เทคนิค' }] }],
+                  contents: [{ parts: [partObj, { text: 'ถอดเสียงการประชุมนี้เป็นข้อความภาษาไทยที่อ่านเข้าใจง่าย คงรหัสชิ้นงาน ชื่อคน และศัพท์เทคนิคญี่ปุ่น/อังกฤษให้ครบถ้วน (ไม่ต้องใส่คำทักทายหรือคำอธิบายนำ)' }] }],
                   generationConfig: { temperature: 0.1 }
                 })
               });
               if (resp.ok) {
                 const j = await resp.json();
                 const txt = j && j.candidates && j.candidates[0] && j.candidates[0].content && j.candidates[0].content.parts && j.candidates[0].content.parts[0] && j.candidates[0].content.parts[0].text;
-                if (txt) {
+                if (txt && txt.trim()) {
+                  const cleanTxt = txt.trim();
                   const ta = document.getElementById('mobMinTranscript');
-                  if (ta) ta.value = (ta.value ? ta.value.trim() + '\n\n' : '') + txt.trim();
-                  if (statusEl) statusEl.innerText = `✅ ถอดเสียงสำเร็จ (${model})`;
-                  event.target.value = '';
-                  return;
+                  if (ta) {
+                    ta.value = (ta.value ? ta.value.trim() + '\n\n' : '') + cleanTxt;
+                    ta.scrollTop = ta.scrollHeight;
+                  }
+                  if (statusEl) statusEl.innerText = `✅ ถอดเสียงสำเร็จ (${model}) — กดปุ่ม "✨ สรุปมติด้วย Gemini AI" เพื่อวิเคราะห์ต่อได้เลย`;
+                  return cleanTxt;
                 }
               }
             } catch (e) {}
@@ -4183,6 +4381,18 @@ Strict Rules:
       } catch (err) {
         if (statusEl) statusEl.innerText = '❌ ผิดพลาด: ' + err.message;
       }
+      return '';
+    }
+
+    async function handleMobileMeetingAudioFile(event) {
+      const file = event.target.files && event.target.files[0];
+      if (!file) return;
+      const st = MobileMeetingState.studio;
+      const cleanMime = String(file.type || 'audio/webm').split(';')[0].trim() || 'audio/webm';
+      st.recordedAudioBlob = file;
+      st.recordedAudioMime = cleanMime;
+      st.audioFileName = file.name;
+      await transcribeMobileBlobToTextarea_(file, cleanMime, file.name);
       event.target.value = '';
     }
 
@@ -4255,20 +4465,39 @@ Strict Rules:
     }
 
     async function runMobileMeetingAiSynthesis() {
+      const st = MobileMeetingState.studio;
       const btn = document.getElementById('btnMobRunAiSummary');
+
+      if (st.isRecording) {
+        if (btn) { btn.disabled = true; btn.innerText = '⏳ กำลังหยุดอัดและวิเคราะห์เสียง...'; }
+        await stopMobileMeetingLiveMic({ skipAutoTranscribe: true });
+      }
+      if (st._autoTranscribingPromise) {
+        if (btn) { btn.disabled = true; btn.innerText = '⏳ Gemini AI กำลังถอดเสียงและสรุปมติ...'; }
+        try { await st._autoTranscribingPromise; } catch (e) {}
+      }
+
       const title = document.getElementById('mobMinTitle').value.trim();
       const rawNotes = document.getElementById('mobMinRawNotes').value.trim();
-      const transcript = document.getElementById('mobMinTranscript').value.trim();
-      const imgList = (MobileMeetingState.studio.whiteboardItems || []).map(it => it.base64).filter(Boolean);
+      let transcript = document.getElementById('mobMinTranscript').value.trim();
+      const imgList = (st.whiteboardItems || []).map(it => it.base64).filter(Boolean);
+      const hasRecordedAudio = Boolean(st.recordedAudioBlob && st.recordedAudioBlob.size > 500);
 
-      if (!rawNotes && !transcript && imgList.length === 0) {
+      if (!rawNotes && !transcript && imgList.length === 0 && !hasRecordedAudio) {
+        if (btn) { btn.disabled = false; btn.innerText = '✨ สรุปมติด้วย Gemini AI'; }
         showToast('กรุณาอัดเสียง พิมพ์โน้ต หรือแนบรูปกระดานก่อนครับ', 'error');
         return;
       }
 
-      if (btn) { btn.disabled = true; btn.innerText = '⏳ Gemini AI กำลังสรุปมติ...'; }
+      if (btn) {
+        btn.disabled = true;
+        btn.innerText = (!transcript && hasRecordedAudio) ? '⏳ Gemini AI กำลังถอดเสียงและสรุปมติ...' : '⏳ Gemini AI กำลังสรุปมติ...';
+      }
 
       const applyOut = (out, modelName) => {
+        if (out.transcriptCleaned && !document.getElementById('mobMinTranscript').value.trim()) {
+          document.getElementById('mobMinTranscript').value = out.transcriptCleaned;
+        }
         if (out.summaryTh) document.getElementById('mobMinSummaryTh').value = out.summaryTh;
         if (Array.isArray(out.agendas) && out.agendas.length > 0) {
           MobileMeetingState.studio.agendas = out.agendas.map((ag, i) => ({
@@ -4299,10 +4528,23 @@ Strict Rules:
           const exT = document.getElementById('mobMinTags').value.split(',').map(s => s.trim()).filter(Boolean);
           document.getElementById('mobMinTags').value = Array.from(new Set(exT.concat(out.tags))).join(', ');
         }
+        const sumEl = document.getElementById('mobMinSummaryTh');
+        if (sumEl) {
+          try { sumEl.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (e) {}
+        }
         showToast(`✨ AI (${modelName}) สรุปมติเรียบร้อย!`);
       };
 
       try {
+        if (!transcript && hasRecordedAudio) {
+          const transcribed = await transcribeMobileBlobToTextarea_(
+            st.recordedAudioBlob,
+            st.recordedAudioMime,
+            st.audioFileName || 'mobile_recording.webm'
+          );
+          transcript = (transcribed || document.getElementById('mobMinTranscript').value || '').trim();
+        }
+
         const apiKey = await getEffectiveMobileGeminiApiKey();
         if (apiKey) {
           const roster = (MobileMeetingState.initialData && MobileMeetingState.initialData.employees ? MobileMeetingState.initialData.employees : [])
@@ -4311,18 +4553,35 @@ Strict Rules:
             .join(', ');
           const promptText = [
             'คุณคือเลขานุการบริหารโรงงาน Minamida (Thailand) Co., Ltd.',
-            'วิเคราะห์โน้ตย่อ บทถอดเสียง รูปกระดาน และบริบทครั้งก่อน แล้วตอบกลับเป็น JSON เท่านั้น:',
+            'วิเคราะห์โน้ตย่อ บทถอดเสียง ไฟล์เสียง รูปกระดาน และบริบทครั้งก่อน แล้วตอบกลับเป็น JSON เท่านั้น:',
             `หัวข้อ: ${title || '-'}`,
-            MobileMeetingState.studio.previousContextSummary ? `บริบทครั้งก่อน:\n${MobileMeetingState.studio.previousContextSummary}` : '',
+            st.previousContextSummary ? `บริบทครั้งก่อน:\n${st.previousContextSummary}` : '',
             rawNotes ? `โน้ตย่อ:\n${rawNotes}` : '',
             transcript ? `บทถอดเสียง:\n${transcript}` : '',
             roster ? `รายชื่อพนักงาน: ${roster}` : '',
-            'JSON: {"summaryTh":"สรุปผู้บริหารภาษาไทย 3-5 บรรทัด","agendas":[{"agendaNo":1,"title":"วาระ","discussion":"ประเด็น","resolution":"มติ","status":"RESOLVED หรือ CARRY_OVER"}],"actionItems":[{"taskDescription":"งาน","assigneeEmpId":"รหัส","assigneeName":"ชื่อ","dueDate":"YYYY-MM-DD หรือว่าง"}],"extractedPartCodes":["รหัสพาร์ท"],"tags":["แท็ก"]}'
+            'JSON: {"summaryTh":"สรุปผู้บริหารภาษาไทย 3-5 บรรทัด","transcriptCleaned":"บทถอดเสียงภาษาไทยจากไฟล์เสียง (ถ้ามี)","agendas":[{"agendaNo":1,"title":"วาระ","discussion":"ประเด็น","resolution":"มติ","status":"RESOLVED หรือ CARRY_OVER"}],"actionItems":[{"taskDescription":"งาน","assigneeEmpId":"รหัส","assigneeName":"ชื่อ","dueDate":"YYYY-MM-DD หรือว่าง"}],"extractedPartCodes":["รหัสพาร์ท"],"tags":["แท็ก"]}'
           ].filter(Boolean).join('\n\n');
 
           const parts = imgList.slice(0, 4).map(b64 => ({
             inline_data: { mime_type: 'image/jpeg', data: String(b64).split(';base64,')[1] || b64 }
           }));
+
+          // Direct multimodal audio fallback if text transcription wasn't populated
+          if (!transcript && hasRecordedAudio && st.recordedAudioBlob.size <= 12 * 1024 * 1024) {
+            try {
+              const cleanAudioMime = String(st.recordedAudioMime || st.recordedAudioBlob.type || 'audio/webm').split(';')[0].trim() || 'audio/webm';
+              const audioDataUrl = await new Promise((resolve, reject) => {
+                const r = new FileReader();
+                r.onload = () => resolve(r.result);
+                r.onerror = reject;
+                r.readAsDataURL(st.recordedAudioBlob);
+              });
+              const cleanAudioB64 = String(audioDataUrl || '').split(';base64,')[1];
+              if (cleanAudioB64) {
+                parts.push({ inline_data: { mime_type: cleanAudioMime, data: cleanAudioB64 } });
+              }
+            } catch (audioReadErr) {}
+          }
           parts.push({ text: promptText });
 
           const models = ['gemini-4-hydrogen', 'gemini-3.8-flash', 'gemini-3.6-flash', 'gemini-3.5-flash-lite', 'gemini-3.1-flash-lite'];
@@ -4350,12 +4609,17 @@ Strict Rules:
           }
         }
 
+        if (!rawNotes && !transcript && imgList.length === 0) {
+          showToast('ไม่สามารถถอดเสียงหรือเชื่อมต่อ Gemini API ได้ กรุณาตรวจสอบ API Key หรือพิมพ์โน้ตย่อครับ', 'error');
+          return;
+        }
+
         const fbRes = await postApiRequest({
           action: 'summarizeMeetingWithAi',
           title: title,
           rawNotes: rawNotes,
           transcriptText: transcript,
-          previousContextSummary: MobileMeetingState.studio.previousContextSummary,
+          previousContextSummary: st.previousContextSummary,
           imageBase64List: imgList
         });
         if (fbRes && fbRes.status === 'success' && fbRes.data) {
