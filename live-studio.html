@@ -23,7 +23,7 @@
         <span class="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-teal-500 flex items-center justify-center text-lg shadow">🎙️</span>
         <div>
           <h1 id="studioTitle" class="text-sm sm:text-base font-extrabold text-white leading-tight">Minamida Live AI Studio</h1>
-          <p id="studioSubTitle" class="text-[11px] text-slate-400">ไมโครโฟนเชื่อมต่อตรง + ซับไตเติลเรียลไทม์ (เชื่อมต่อกับหน้าหลัก Minamida Hub)</p>
+          <p id="studioSubTitle" class="text-[11px] text-slate-400">ไมโครโฟนเชื่อมต่อตรง + เช็กเสียงสด + ซับไตเติลแยก 2 จอ (Minamida Hub)</p>
         </div>
       </div>
 
@@ -36,7 +36,7 @@
   </header>
 
   <main class="flex-1 max-w-5xl w-full mx-auto p-3 sm:p-5 flex flex-col gap-3">
-    <!-- Toolbar -->
+    <!-- Toolbar: Mode + Engine + Language + Start/Stop -->
     <section class="p-3 sm:p-4 rounded-2xl bg-slate-900 border border-slate-800 space-y-3 shadow-lg">
       <div class="flex flex-wrap items-center gap-2">
         <!-- Studio Mode -->
@@ -58,17 +58,64 @@
         <button type="button" id="btnStudioMicAction" onclick="toggleStudioRunning()" class="ml-auto px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-extrabold shadow transition">🎙️ เริ่มเปิดไมโครโฟน</button>
       </div>
 
-      <!-- Output Mode & Font Size -->
-      <div class="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-slate-800/80">
+      <!-- Engine Selector + Output Mode + Font Size -->
+      <div class="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-800/80">
+        <div id="engineControlCluster" class="flex flex-wrap items-center gap-2">
+          <label for="studioEngineSelect" class="text-[11px] font-bold text-slate-400">สมอง AI:</label>
+          <select id="studioEngineSelect" onchange="onChangeStudioEngine()" class="px-2.5 py-1 rounded-xl bg-slate-950 border border-teal-500/40 text-[11px] font-bold text-teal-200 outline-none">
+            <option value="gemini-3.8-live" selected>🧠 Gemini 3.8 Live (แม่นยำ ไทย-ญี่ปุ่น • แนะนำ)</option>
+            <option value="gemini-3.5-live-translate-preview">⚡ Gemini 3.5 Live Translate (แปลตรงความเร็วสูง)</option>
+          </select>
+        </div>
+
         <div id="outputModeCluster" class="flex flex-wrap items-center gap-1.5">
           <button type="button" id="btnOutVoiceSub" onclick="setStudioVoiceOut(true)" class="px-3 py-1 rounded-lg bg-indigo-600 text-white text-[11px] font-bold transition">🔊 + 💬 เสียงพูด + ซับไตเติล</button>
           <button type="button" id="btnOutSubOnly" onclick="setStudioVoiceOut(false)" class="px-3 py-1 rounded-lg bg-slate-800 text-slate-300 border border-slate-700 text-[11px] font-bold transition">💬 ซับไตเติลอย่างเดียว (ปิดเสียง)</button>
         </div>
+
         <div class="flex items-center gap-1.5 text-[11px]">
           <span class="text-slate-400">ขนาดซับ:</span>
           <button type="button" onclick="setCinemaFontSize('md')" class="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold">ปกติ</button>
           <button type="button" onclick="setCinemaFontSize('lg')" class="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold">ใหญ่</button>
           <button type="button" onclick="setCinemaFontSize('xl')" class="px-2 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 border border-amber-400/30 text-amber-200 font-bold">จอทีวี XL</button>
+        </div>
+      </div>
+
+      <!-- Permanent Mic Diagnostics Bar: Selector + Live VU Meter + 3s Loopback Test -->
+      <div class="p-2.5 rounded-xl bg-slate-950/90 border border-slate-800 space-y-2">
+        <div class="flex flex-wrap items-center gap-2">
+          <div class="flex items-center gap-1.5 flex-1 min-w-[210px]">
+            <span class="text-[11px] font-bold text-slate-300 shrink-0">🎛️ ไมโครโฟน:</span>
+            <select id="studioMicSelect" onchange="onChangeStudioMic()" class="flex-1 min-w-0 px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-700 text-[11px] font-semibold text-white outline-none">
+              <option value="">ไมโครโฟนหลักของระบบ (Default)</option>
+            </select>
+          </div>
+
+          <div class="flex items-center gap-1.5">
+            <span class="text-[11px] font-bold text-slate-400">ตัดเสียงเงียบ:</span>
+            <select id="studioVadSens" onchange="onChangeStudioSens()" class="px-2 py-1 rounded-lg bg-slate-900 border border-slate-700 text-[11px] font-semibold text-slate-200 outline-none">
+              <option value="low">ไวพิเศษ (ไมค์เบา/อยู่ไกล)</option>
+              <option value="normal" selected>ปกติ (แนะนำ)</option>
+              <option value="high">ตัดเสียงกวนสูง (ใกล้เครื่องจักร)</option>
+            </select>
+          </div>
+
+          <button type="button" id="btnTestMicLoopback" onclick="testStudioMicLoopback()" class="px-3 py-1.5 rounded-lg bg-emerald-600/90 hover:bg-emerald-500 text-white text-[11px] font-bold flex items-center gap-1 transition shrink-0">🎧 ทดสอบไมค์ 3 วิ (ฟังเสียงตัวเอง)</button>
+        </div>
+
+        <!-- Live VU Meter + Silence Gate Status -->
+        <div class="flex items-center gap-2.5">
+          <span class="text-[10px] font-bold text-slate-400 shrink-0">ระดับเสียงเข้า:</span>
+          <div id="studioVuTrack" class="flex-1 h-2.5 rounded-full bg-slate-800 overflow-hidden border border-slate-700">
+            <div id="studioVuFill" class="h-full w-0 bg-emerald-500 transition-all duration-75"></div>
+          </div>
+          <span id="studioVuPercent" class="text-[10px] font-mono font-bold text-slate-300 w-9 text-right">0%</span>
+          <span id="studioVadBadge" class="text-[10px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 font-bold shrink-0">🔇 รอเสียงพูด (ตัดเสียงซ่าอัตโนมัติ)</span>
+        </div>
+
+        <div id="micLoopbackStatus" class="hidden text-[11px] px-2.5 py-1.5 rounded-lg bg-emerald-950/80 border border-emerald-500/40 text-emerald-200 font-semibold"></div>
+        <div id="deadMicWarning" class="hidden text-[11px] px-2.5 py-1.5 rounded-lg bg-amber-950/90 border border-amber-400/50 text-amber-200 font-semibold">
+          ⚠️ ยังไม่พบสัญญาณเสียงเข้าจากไมโครโฟนที่เลือก (ความดัง 0–1%) — กรุณากดปุ่ม <b>"🎧 ทดสอบไมค์ 3 วิ"</b> หรือเลือกไมโครโฟนตัวอื่นจากช่องด้านบน และเช็กปุ่ม Mute บนสายหูฟัง/Windows ครับ
         </div>
       </div>
     </section>
@@ -79,23 +126,42 @@
       <button type="button" onclick="startStudioSession()" class="px-6 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold text-sm shadow-lg animate-pulse transition">🎙️ คลิก 1 ครั้งเพื่อเปิดไมโครโฟนเริ่มแปลสด</button>
     </div>
 
-    <!-- Cinema Live Subtitle Stage -->
-    <section id="cinemaStage" class="rounded-3xl bg-black border border-indigo-500/30 p-5 sm:p-8 flex flex-col justify-center items-center text-center min-h-[210px] sm:min-h-[260px] shadow-2xl relative overflow-hidden">
-      <div class="absolute top-3 left-4 flex items-center gap-2 text-[11px] text-slate-400">
-        <span id="cinemaLiveDot" class="w-2.5 h-2.5 rounded-full bg-slate-600 inline-block"></span>
-        <span id="cinemaModeTag" class="font-bold uppercase tracking-wider">CINEMA LIVE SUBTITLE</span>
+    <!-- Cinema Live Subtitle Stage (Separated: What AI Hears vs Translated Subtitle) -->
+    <section id="cinemaStage" class="rounded-3xl bg-black border border-indigo-500/30 p-4 sm:p-6 flex flex-col justify-center items-center gap-3 shadow-2xl relative overflow-hidden">
+      <div class="w-full max-w-4xl flex items-center justify-between text-[11px] text-slate-400">
+        <div class="flex items-center gap-2">
+          <span id="cinemaLiveDot" class="w-2.5 h-2.5 rounded-full bg-slate-600 inline-block"></span>
+          <span id="cinemaModeTag" class="font-bold uppercase tracking-wider">CINEMA LIVE SUBTITLE</span>
+        </div>
+        <span id="cinemaEngineTag" class="px-2 py-0.5 rounded-full bg-slate-900 border border-slate-700 text-[10px] font-bold text-teal-300">Gemini 3.8 Live</span>
       </div>
-      <div id="cinemaSrcText" class="text-sm sm:text-base text-slate-300 font-medium max-w-4xl min-h-[24px] mb-3 transition-all">รอรับเสียงพูดจากไมโครโฟน...</div>
-      <div id="cinemaOutText" class="text-2xl sm:text-4xl font-extrabold text-amber-300 subtitle-glow max-w-4xl leading-snug tracking-wide transition-all">พร้อมแสดงซับไตเติลภาษาญี่ปุ่น / ไทยแบบเรียลไทม์</div>
+
+      <!-- Panel 1: What AI Actually Hears -->
+      <div class="w-full max-w-4xl rounded-2xl bg-slate-900/90 border border-teal-500/35 p-3 sm:p-4 text-left space-y-1">
+        <div class="flex items-center justify-between gap-2">
+          <span class="text-[11px] font-extrabold text-teal-300">👂 สิ่งที่ AI ได้ยินจากไมค์ของคุณ (เสียงต้นทาง)</span>
+          <span id="cinemaHeardStatus" class="text-[10px] text-slate-400">รอรับเสียงพูดภาษาไทย / ญี่ปุ่น...</span>
+        </div>
+        <div id="cinemaSrcText" class="text-sm sm:text-base text-white font-semibold min-h-[26px] leading-relaxed">รอรับเสียงพูดจากไมโครโฟน...</div>
+      </div>
+
+      <!-- Panel 2: Translated Subtitle Output -->
+      <div class="w-full max-w-4xl rounded-2xl bg-indigo-950/40 border border-amber-400/35 p-4 sm:p-6 text-center space-y-1.5">
+        <div class="flex items-center justify-center gap-2">
+          <span class="text-[11px] font-extrabold text-indigo-200">🌐 คำแปลล่าม AI (ซับไตเติลสด)</span>
+          <span id="cinemaTargetBadge" class="text-[10px] px-2 py-0.5 rounded-full bg-amber-400/20 text-amber-200 font-bold">🇯🇵 ภาษาญี่ปุ่น</span>
+        </div>
+        <div id="cinemaOutText" class="text-2xl sm:text-4xl font-extrabold text-amber-300 subtitle-glow leading-snug tracking-wide transition-all min-h-[44px]">พร้อมแสดงซับไตเติลภาษาญี่ปุ่น / ไทยแบบเรียลไทม์</div>
+      </div>
     </section>
 
     <!-- Rolling Bilingual Feed -->
-    <section class="flex-1 rounded-2xl bg-slate-900 border border-slate-800 p-3 sm:p-4 flex flex-col gap-2 min-h-[180px]">
+    <section class="flex-1 rounded-2xl bg-slate-900 border border-slate-800 p-3 sm:p-4 flex flex-col gap-2 min-h-[170px]">
       <div class="flex items-center justify-between gap-2">
         <h2 class="text-xs font-bold text-slate-300">💬 ประวัติซับไตเติล & บทสนทนาล่าสุด (ซิงค์กลับหน้าบันทึกประชุมอัตโนมัติ)</h2>
         <button type="button" onclick="copyStudioFeed()" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-[11px] font-bold text-slate-200 transition">📋 คัดลอกข้อความ</button>
       </div>
-      <div id="studioFeedList" class="flex-1 max-h-64 overflow-y-auto space-y-2 text-xs pr-1">
+      <div id="studioFeedList" class="flex-1 max-h-56 overflow-y-auto space-y-2 text-xs pr-1">
         <div class="text-slate-500 text-center py-6">คำพูดและคำแปลจะปรากฏเรียงตามลำดับที่นี่</div>
       </div>
     </section>
@@ -107,16 +173,21 @@
 
     const studio = {
       mode: params.get('mode') === 'transcribe' ? 'transcribe' : 'translate',
+      engine: params.get('engine') || 'gemini-3.8-live',
       targetLang: params.get('lang') || 'ja',
       voiceOut: params.get('voice') !== '0',
+      selectedMicId: '',
+      vadSensitivity: 'normal',
       apiKey: '',
       isRunning: false,
+      isLoopbackTesting: false,
       ws: null,
       wsSetupDone: false,
       modelFallbackUsed: false,
       stream: null,
       inputCtx: null,
       processor: null,
+      zeroGain: null,
       outputCtx: null,
       nextPlayTime: 0,
       activeSources: [],
@@ -125,6 +196,11 @@
       wsRenewTimer: null,
       pendingInput: '',
       pendingOutput: '',
+      turnFinalizedInStage: false,
+      preRollBuffer: [],
+      isSpeaking: false,
+      lastVoiceTime: 0,
+      peakRmsSinceStart: 0,
       feedLines: [],
       cinemaSize: 'lg',
       autoStartAttempted: false
@@ -136,6 +212,29 @@
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;');
+    }
+
+    function getVadThreshold_() {
+      if (studio.vadSensitivity === 'low') return 0.0055;
+      if (studio.vadSensitivity === 'high') return 0.024;
+      return 0.011;
+    }
+
+    function buildInterpreterSystemPrompt_(targetLang) {
+      const targetName = targetLang === 'ja'
+        ? 'natural polite Japanese (日本語 / 丁寧語 suitable for factory management meetings)'
+        : (targetLang === 'th'
+          ? 'natural polite Thai (ภาษาไทยที่สุภาพชัดเจนสำหรับทีมงานโรงงาน)'
+          : 'clear professional English');
+      return [
+        'You are a strict real-time simultaneous meeting interpreter for Minamida Thailand (automotive cold-forging & precision machining factory).',
+        'Incoming audio is primarily spoken in Thai (ภาษาไทย), Japanese (日本語), or English.',
+        `Your ONLY job is to translate what the speaker just said into ${targetName}.`,
+        'CRITICAL RULES:',
+        '1. ONLY translate spoken meaning. NEVER reply conversationally, NEVER answer questions, NEVER add greetings or commentary.',
+        '2. If the audio is silent, static noise, breathing, or unintelligible background hum, remain COMPLETELY SILENT — NEVER invent English filler words like "Yeah", "Um", or "I don\'t know".',
+        '3. If the speaker already spoke in the target language, output a clean concise version only if necessary, otherwise stay brief and accurate.'
+      ].join('\n');
     }
 
     function postToOpener_(payload) {
@@ -160,25 +259,80 @@
       });
     }
 
+    function updateVuUi_(rms, isActiveSpeech) {
+      const pct = Math.min(100, Math.round(rms * 900));
+      const fill = document.getElementById('studioVuFill');
+      const pctEl = document.getElementById('studioVuPercent');
+      const vadEl = document.getElementById('studioVadBadge');
+      if (fill) {
+        fill.style.width = pct + '%';
+        fill.className = pct > 80
+          ? 'h-full bg-amber-400 transition-all duration-75'
+          : (isActiveSpeech ? 'h-full bg-emerald-400 transition-all duration-75' : 'h-full bg-slate-500 transition-all duration-75');
+      }
+      if (pctEl) pctEl.innerText = pct + '%';
+      if (vadEl) {
+        vadEl.innerText = isActiveSpeech ? '🟢 กำลังส่งเสียงพูดเข้า AI' : '🔇 ตัดเสียงเงียบ (รอเสียงพูด)';
+        vadEl.className = isActiveSpeech
+          ? 'text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-400/40 text-emerald-300 font-bold shrink-0'
+          : 'text-[10px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 font-bold shrink-0';
+      }
+      if (pct >= 2) {
+        const warn = document.getElementById('deadMicWarning');
+        if (warn) warn.classList.add('hidden');
+      }
+    }
+
+    async function refreshStudioMicDevices_() {
+      const sel = document.getElementById('studioMicSelect');
+      if (!sel || !navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) return;
+      try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const mics = devices.filter(d => d.kind === 'audioinput');
+        const prev = studio.selectedMicId || sel.value;
+        let html = '<option value="">ไมโครโฟนหลักของระบบ (Default)</option>';
+        mics.forEach((m, idx) => {
+          const label = m.label || `ไมโครโฟน #${idx + 1}`;
+          html += `<option value="${escHtml_(m.deviceId)}">${escHtml_(label)}</option>`;
+        });
+        sel.innerHTML = html;
+        if (prev && mics.some(m => m.deviceId === prev)) {
+          sel.value = prev;
+        }
+      } catch (e) {}
+    }
+
     function syncStudioUi_() {
       const btnTr = document.getElementById('btnModeTranslate');
       const btnTc = document.getElementById('btnModeTranscribe');
       const langCluster = document.getElementById('langControlCluster');
       const outCluster = document.getElementById('outputModeCluster');
+      const engCluster = document.getElementById('engineControlCluster');
       const sel = document.getElementById('studioTargetLang');
+      const engSel = document.getElementById('studioEngineSelect');
+      const engTag = document.getElementById('cinemaEngineTag');
+      const targetBadge = document.getElementById('cinemaTargetBadge');
 
       if (sel) sel.value = studio.targetLang;
+      if (engSel) engSel.value = studio.engine;
 
       if (studio.mode === 'translate') {
         if (btnTr) btnTr.className = 'px-3 py-1.5 rounded-lg text-xs font-bold bg-indigo-600 text-white transition';
         if (btnTc) btnTc.className = 'px-3 py-1.5 rounded-lg text-xs font-bold text-slate-400 hover:text-white transition';
         if (langCluster) langCluster.classList.remove('hidden');
         if (outCluster) outCluster.classList.remove('hidden');
+        if (engCluster) engCluster.classList.remove('hidden');
+        if (engTag) engTag.innerText = studio.engine === 'gemini-3.8-live' ? 'Gemini 3.8 Live' : 'Gemini 3.5 Translate';
+        if (targetBadge) {
+          targetBadge.innerText = studio.targetLang === 'ja' ? '🇯🇵 ภาษาญี่ปุ่น' : (studio.targetLang === 'th' ? '🇹🇭 ภาษาไทย' : '🇬🇧 ภาษาอังกฤษ');
+        }
       } else {
         if (btnTr) btnTr.className = 'px-3 py-1.5 rounded-lg text-xs font-bold text-slate-400 hover:text-white transition';
         if (btnTc) btnTc.className = 'px-3 py-1.5 rounded-lg text-xs font-bold bg-rose-600 text-white transition';
         if (langCluster) langCluster.classList.add('hidden');
         if (outCluster) outCluster.classList.add('hidden');
+        if (engCluster) engCluster.classList.add('hidden');
+        if (engTag) engTag.innerText = 'Gemini 3.5 Transcribe';
       }
 
       const bVoice = document.getElementById('btnOutVoiceSub');
@@ -212,11 +366,11 @@
       const outEl = document.getElementById('cinemaOutText');
       if (!outEl) return;
       if (sizeKey === 'md') {
-        outEl.className = 'text-xl sm:text-2xl font-extrabold text-amber-300 subtitle-glow max-w-4xl leading-snug tracking-wide transition-all';
+        outEl.className = 'text-xl sm:text-2xl font-extrabold text-amber-300 subtitle-glow leading-snug tracking-wide transition-all min-h-[44px]';
       } else if (sizeKey === 'xl') {
-        outEl.className = 'text-4xl sm:text-6xl font-extrabold text-amber-300 subtitle-glow max-w-5xl leading-tight tracking-wide transition-all';
+        outEl.className = 'text-4xl sm:text-6xl font-extrabold text-amber-300 subtitle-glow leading-tight tracking-wide transition-all min-h-[44px]';
       } else {
-        outEl.className = 'text-2xl sm:text-4xl font-extrabold text-amber-300 subtitle-glow max-w-4xl leading-snug tracking-wide transition-all';
+        outEl.className = 'text-2xl sm:text-4xl font-extrabold text-amber-300 subtitle-glow leading-snug tracking-wide transition-all min-h-[44px]';
       }
     }
 
@@ -229,16 +383,26 @@
       }
     }
 
+    // Anti-aliased box-averaging 16kHz PCM encoder + RMS energy calculator
     function float32ToPcm16Base64_(float32Arr, inputRate) {
+      let sumSq = 0;
+      for (let i = 0; i < float32Arr.length; i++) {
+        sumSq += float32Arr[i] * float32Arr[i];
+      }
+      const rms = Math.sqrt(sumSq / Math.max(1, float32Arr.length));
+
       const targetRate = 16000;
       let samples = float32Arr;
       if (inputRate && inputRate !== targetRate) {
         const ratio = inputRate / targetRate;
-        const newLen = Math.round(float32Arr.length / ratio);
+        const newLen = Math.floor(float32Arr.length / ratio);
         samples = new Float32Array(newLen);
         for (let i = 0; i < newLen; i++) {
-          const idx = Math.min(float32Arr.length - 1, Math.round(i * ratio));
-          samples[i] = float32Arr[idx];
+          const start = Math.floor(i * ratio);
+          const end = Math.min(float32Arr.length, Math.max(start + 1, Math.floor((i + 1) * ratio)));
+          let acc = 0;
+          for (let j = start; j < end; j++) acc += float32Arr[j];
+          samples[i] = acc / (end - start);
         }
       }
       const buffer = new ArrayBuffer(samples.length * 2);
@@ -250,7 +414,7 @@
       const bytes = new Uint8Array(buffer);
       let bin = '';
       for (let i = 0; i < bytes.byteLength; i++) bin += String.fromCharCode(bytes[i]);
-      return btoa(bin);
+      return { base64: btoa(bin), rms: rms };
     }
 
     function clearPlaybackQueue_() {
@@ -297,11 +461,14 @@
       studio.pendingOutput = '';
       if (!srcText && !outText) return;
 
+      studio.turnFinalizedInStage = true;
       const langTag = studio.targetLang === 'ja' ? '🇯🇵 JP' : (studio.targetLang === 'th' ? '🇹🇭 TH' : '🇬🇧 EN');
       const srcEl = document.getElementById('cinemaSrcText');
       const outEl = document.getElementById('cinemaOutText');
-      if (srcEl && srcText) srcEl.innerText = '🎙️ ' + srcText;
+      const heardSt = document.getElementById('cinemaHeardStatus');
+      if (srcEl && srcText) srcEl.innerText = srcText;
       if (outEl) outEl.innerText = outText || srcText;
+      if (heardSt) heardSt.innerText = '✅ จบประโยคล่าสุดแล้ว';
 
       const list = document.getElementById('studioFeedList');
       if (list) {
@@ -310,11 +477,11 @@
         card.className = 'p-2.5 rounded-xl bg-slate-950/90 border border-slate-800 space-y-1';
         if (studio.mode === 'translate') {
           card.innerHTML =
-            (srcText ? `<div class="text-[11px] text-slate-400">🎙️ ${escHtml_(srcText)}</div>` : '') +
+            (srcText ? `<div class="text-[11px] text-teal-200">👂 AI ได้ยิน: ${escHtml_(srcText)}</div>` : '') +
             (outText ? `<div class="text-sm font-bold text-amber-300">${langTag}: ${escHtml_(outText)}</div>` : '');
-          studio.feedLines.push((srcText ? `[🎙️ ต้นทาง] ${srcText} ➔ ` : '') + `[🌐 แปล ${studio.targetLang.toUpperCase()}] ${outText}`);
+          studio.feedLines.push((srcText ? `[👂 AI ได้ยิน] ${srcText} ➔ ` : '') + `[🌐 แปล ${studio.targetLang.toUpperCase()}] ${outText}`);
         } else {
-          card.innerHTML = `<div class="text-sm font-semibold text-teal-200">🎙️ ${escHtml_(srcText)}</div>`;
+          card.innerHTML = `<div class="text-sm font-semibold text-teal-200">👂 ${escHtml_(srcText)}</div>`;
           studio.feedLines.push(srcText);
         }
         list.appendChild(card);
@@ -346,21 +513,38 @@
 
         ws.onopen = () => {
           if (studio.mode === 'translate') {
-            const activeModel = overrideModel || 'models/gemini-3.5-live-translate-preview';
-            ws.send(JSON.stringify({
-              setup: {
-                model: activeModel,
-                generationConfig: {
-                  responseModalities: ['AUDIO'],
-                  translationConfig: {
-                    targetLanguageCode: studio.targetLang,
-                    echoTargetLanguage: false
-                  }
-                },
-                inputAudioTranscription: {},
-                outputAudioTranscription: {}
-              }
-            }));
+            const requestedModel = overrideModel || (studio.engine === 'gemini-3.5-live-translate-preview'
+              ? 'models/gemini-3.5-live-translate-preview'
+              : 'models/gemini-3.8-live');
+
+            if (requestedModel.indexOf('gemini-3.8-live') !== -1) {
+              ws.send(JSON.stringify({
+                setup: {
+                  model: 'models/gemini-3.8-live',
+                  generationConfig: { responseModalities: ['AUDIO'] },
+                  systemInstruction: {
+                    parts: [{ text: buildInterpreterSystemPrompt_(studio.targetLang) }]
+                  },
+                  inputAudioTranscription: {},
+                  outputAudioTranscription: {}
+                }
+              }));
+            } else {
+              ws.send(JSON.stringify({
+                setup: {
+                  model: requestedModel,
+                  generationConfig: {
+                    responseModalities: ['AUDIO'],
+                    translationConfig: {
+                      targetLanguageCode: studio.targetLang,
+                      echoTargetLanguage: false
+                    }
+                  },
+                  inputAudioTranscription: {},
+                  outputAudioTranscription: {}
+                }
+              }));
+            }
             updateStatus_('🔄 กำลังตั้งค่าล่าม ' + studio.targetLang.toUpperCase() + '...', true);
           } else {
             ws.send(JSON.stringify({
@@ -382,7 +566,8 @@
 
             if (msg.setupComplete !== undefined) {
               studio.wsSetupDone = true;
-              updateStatus_(studio.mode === 'translate' ? ('🟢 กำลังแปลสด ➔ ' + studio.targetLang.toUpperCase()) : '🟢 กำลังฟังสด (Live Transcribe)', true);
+              const engLbl = studio.engine === 'gemini-3.8-live' ? '3.8 Live' : '3.5 Translate';
+              updateStatus_(studio.mode === 'translate' ? (`🟢 กำลังแปลสด (${engLbl}) ➔ ` + studio.targetLang.toUpperCase()) : '🟢 กำลังฟังสด (Live Transcribe)', true);
             }
 
             const sc = msg.serverContent;
@@ -399,16 +584,28 @@
               const interimTxt = sc.interimInputTranscription && sc.interimInputTranscription.text;
               const inTxt = sc.inputTranscription && sc.inputTranscription.text;
               const outTxt = sc.outputTranscription && sc.outputTranscription.text;
-              if (inTxt) studio.pendingInput += inTxt;
-              if (outTxt) studio.pendingOutput += outTxt;
+              if (inTxt) {
+                if (studio.turnFinalizedInStage && !studio.pendingInput && !studio.pendingOutput) {
+                  studio.turnFinalizedInStage = false;
+                }
+                studio.pendingInput += inTxt;
+              }
+              if (outTxt) {
+                if (studio.turnFinalizedInStage && !studio.pendingInput && !studio.pendingOutput) {
+                  studio.turnFinalizedInStage = false;
+                }
+                studio.pendingOutput += outTxt;
+              }
 
               const srcPreview = (studio.pendingInput || interimTxt || '').trim();
               const outPreview = studio.pendingOutput.trim();
               if (srcPreview || outPreview) {
                 const srcEl = document.getElementById('cinemaSrcText');
                 const outEl = document.getElementById('cinemaOutText');
-                if (srcEl && srcPreview) srcEl.innerText = '🎙️ ' + srcPreview;
+                const heardSt = document.getElementById('cinemaHeardStatus');
+                if (srcEl && srcPreview) srcEl.innerText = srcPreview;
                 if (outEl && outPreview) outEl.innerText = outPreview;
+                if (heardSt) heardSt.innerText = '🔴 กำลังรับฟังและแกะคำพูด...';
                 postToOpener_({
                   type: 'MINAMIDA_STUDIO_EVENT',
                   event: 'interim',
@@ -423,7 +620,9 @@
               const interimTxt = sc.interimInputTranscription && sc.interimInputTranscription.text;
               const finalTxt = sc.inputTranscription && sc.inputTranscription.text;
               if (interimTxt) {
+                const srcEl = document.getElementById('cinemaSrcText');
                 const outEl = document.getElementById('cinemaOutText');
+                if (srcEl) srcEl.innerText = interimTxt.trim();
                 if (outEl) outEl.innerText = interimTxt.trim();
                 postToOpener_({
                   type: 'MINAMIDA_STUDIO_EVENT',
@@ -445,7 +644,9 @@
         ws.onclose = () => {
           if (!ws._manualSwitch && studio.isRunning && studio.mode === 'translate' && !studio.wsSetupDone && !studio.modelFallbackUsed) {
             studio.modelFallbackUsed = true;
-            connectWebSocket_('models/gemini-3.5-live-translate');
+            studio.engine = 'gemini-3.5-live-translate-preview';
+            syncStudioUi_();
+            connectWebSocket_('models/gemini-3.5-live-translate-preview');
           }
         };
 
@@ -453,6 +654,99 @@
           updateStatus_('⚠️ กำลังเชื่อมต่อ Gemini Live ใหม่...', true);
         };
       } catch (e) {}
+    }
+
+    async function testStudioMicLoopback() {
+      if (studio.isLoopbackTesting) return;
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
+
+      const statusBox = document.getElementById('micLoopbackStatus');
+      const btn = document.getElementById('btnTestMicLoopback');
+      studio.isLoopbackTesting = true;
+      if (btn) btn.disabled = true;
+      if (statusBox) {
+        statusBox.classList.remove('hidden');
+        statusBox.innerText = '🔴 กำลังอัดเสียงทดสอบ 3 วินาที... กรุณาพูดใส่ไมค์ได้เลยครับ!';
+      }
+
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      let tempStream = null;
+      let tempCtx = null;
+      let tempProc = null;
+      let tempZeroGain = null;
+      try {
+        const audioConstraint = {
+          deviceId: studio.selectedMicId ? { exact: studio.selectedMicId } : undefined,
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+          channelCount: 1
+        };
+        tempStream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraint });
+        refreshStudioMicDevices_();
+
+        tempCtx = new AudioCtx();
+        if (tempCtx.state === 'suspended') await tempCtx.resume();
+        const sampleRate = tempCtx.sampleRate;
+        const chunks = [];
+        let peakPct = 0;
+
+        const src = tempCtx.createMediaStreamSource(tempStream);
+        tempProc = tempCtx.createScriptProcessor(4096, 1, 1);
+        tempZeroGain = tempCtx.createGain();
+        tempZeroGain.gain.value = 0;
+
+        tempProc.onaudioprocess = (e) => {
+          const ch = e.inputBuffer.getChannelData(0);
+          chunks.push(new Float32Array(ch));
+          let sumSq = 0;
+          for (let i = 0; i < ch.length; i++) sumSq += ch[i] * ch[i];
+          const rms = Math.sqrt(sumSq / Math.max(1, ch.length));
+          const pct = Math.min(100, Math.round(rms * 900));
+          if (pct > peakPct) peakPct = pct;
+          updateVuUi_(rms, rms >= getVadThreshold_());
+        };
+        src.connect(tempProc);
+        tempProc.connect(tempZeroGain);
+        tempZeroGain.connect(tempCtx.destination);
+
+        await new Promise(resolve => setTimeout(resolve, 3000));
+
+        try { tempProc.disconnect(); } catch (e) {}
+        try { tempStream.getTracks().forEach(t => t.stop()); } catch (e) {}
+
+        const totalLen = chunks.reduce((a, b) => a + b.length, 0);
+        if (totalLen > 0) {
+          const merged = new Float32Array(totalLen);
+          let off = 0;
+          chunks.forEach(c => { merged.set(c, off); off += c.length; });
+          const playBuf = tempCtx.createBuffer(1, totalLen, sampleRate);
+          playBuf.getChannelData(0).set(merged);
+          const player = tempCtx.createBufferSource();
+          player.buffer = playBuf;
+          player.connect(tempCtx.destination);
+          if (statusBox) {
+            statusBox.innerText = peakPct < 2
+              ? `⚠️ อัดเสร็จแล้ว แต่ความดังสูงสุดแค่ ${peakPct}% (แทบไม่มีเสียงเข้าไมค์ กรุณาลองเปลี่ยนช่องไมค์ด้านบน)`
+              : `🔊 กำลังเล่นเสียงที่ไมค์รับได้จริงให้คุณฟัง... (วัดความดังสูงสุดได้ ${peakPct}%)`;
+          }
+          await new Promise(resolve => {
+            player.onended = resolve;
+            player.start();
+            setTimeout(resolve, 3400);
+          });
+        }
+        try { tempCtx.close(); } catch (e) {}
+      } catch (err) {
+        if (statusBox) {
+          statusBox.classList.remove('hidden');
+          statusBox.innerText = '❌ เปิดทดสอบไมค์ไม่สำเร็จ: ' + err.message;
+        }
+      } finally {
+        studio.isLoopbackTesting = false;
+        if (btn) btn.disabled = false;
+        updateVuUi_(0, false);
+      }
     }
 
     async function startStudioSession() {
@@ -467,6 +761,8 @@
       }
 
       const banner = document.getElementById('gesturePromptBanner');
+      const warn = document.getElementById('deadMicWarning');
+      if (warn) warn.classList.add('hidden');
       const AudioCtx = window.AudioContext || window.webkitAudioContext;
       if (AudioCtx) {
         try {
@@ -476,7 +772,15 @@
       }
 
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const audioConstraints = {
+          deviceId: studio.selectedMicId ? { exact: studio.selectedMicId } : undefined,
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+          channelCount: 1
+        };
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints });
+        refreshStudioMicDevices_();
         if (banner) banner.classList.add('hidden');
 
         studio.isRunning = true;
@@ -485,6 +789,10 @@
         studio.modelFallbackUsed = false;
         studio.pendingInput = '';
         studio.pendingOutput = '';
+        studio.preRollBuffer = [];
+        studio.isSpeaking = false;
+        studio.lastVoiceTime = 0;
+        studio.peakRmsSinceStart = 0;
         syncStudioUi_();
 
         const timerEl = document.getElementById('studioTimer');
@@ -496,6 +804,10 @@
             const ss = String(studio.recSeconds % 60).padStart(2, '0');
             timerEl.innerText = `${mm}:${ss}`;
           }
+          if (studio.recSeconds === 5 && studio.peakRmsSinceStart < 0.0025) {
+            const w = document.getElementById('deadMicWarning');
+            if (w) w.classList.remove('hidden');
+          }
         }, 1000);
 
         connectWebSocket_();
@@ -505,19 +817,59 @@
 
         if (AudioCtx) {
           const ctx = new AudioCtx();
+          if (ctx.state === 'suspended') await ctx.resume();
           const source = ctx.createMediaStreamSource(stream);
           const proc = ctx.createScriptProcessor(4096, 1, 1);
+          const zeroGain = ctx.createGain();
+          zeroGain.gain.value = 0;
+
           proc.onaudioprocess = (e) => {
-            if (!studio.isRunning || !studio.ws || studio.ws.readyState !== 1 || !studio.wsSetupDone) return;
-            const b64 = float32ToPcm16Base64_(e.inputBuffer.getChannelData(0), ctx.sampleRate);
-            studio.ws.send(JSON.stringify({
-              realtimeInput: { audio: { data: b64, mimeType: 'audio/pcm;rate=16000' } }
-            }));
+            if (!studio.isRunning || studio.isLoopbackTesting) return;
+            const res = float32ToPcm16Base64_(e.inputBuffer.getChannelData(0), ctx.sampleRate);
+            if (res.rms > studio.peakRmsSinceStart) studio.peakRmsSinceStart = res.rms;
+
+            const threshold = getVadThreshold_();
+            const now = Date.now();
+            const voiceActive = res.rms >= threshold;
+            updateVuUi_(res.rms, voiceActive || (studio.isSpeaking && (now - studio.lastVoiceTime) < 950));
+
+            if (!studio.ws || studio.ws.readyState !== 1 || !studio.wsSetupDone) return;
+
+            if (voiceActive) {
+              studio.lastVoiceTime = now;
+              if (!studio.isSpeaking) {
+                studio.isSpeaking = true;
+                while (studio.preRollBuffer.length > 0) {
+                  const preB64 = studio.preRollBuffer.shift();
+                  studio.ws.send(JSON.stringify({
+                    realtimeInput: { audio: { data: preB64, mimeType: 'audio/pcm;rate=16000' } }
+                  }));
+                }
+              }
+              studio.ws.send(JSON.stringify({
+                realtimeInput: { audio: { data: res.base64, mimeType: 'audio/pcm;rate=16000' } }
+              }));
+            } else if (studio.isSpeaking) {
+              if ((now - studio.lastVoiceTime) < 950) {
+                studio.ws.send(JSON.stringify({
+                  realtimeInput: { audio: { data: res.base64, mimeType: 'audio/pcm;rate=16000' } }
+                }));
+              } else {
+                studio.isSpeaking = false;
+                studio.preRollBuffer = [];
+                studio.ws.send(JSON.stringify({ realtimeInput: { audioStreamEnd: true } }));
+              }
+            } else {
+              studio.preRollBuffer.push(res.base64);
+              if (studio.preRollBuffer.length > 3) studio.preRollBuffer.shift();
+            }
           };
           source.connect(proc);
-          proc.connect(ctx.destination);
+          proc.connect(zeroGain);
+          zeroGain.connect(ctx.destination);
           studio.inputCtx = ctx;
           studio.processor = proc;
+          studio.zeroGain = zeroGain;
         }
       } catch (err) {
         if (banner) banner.classList.remove('hidden');
@@ -528,9 +880,12 @@
     function stopStudioSession(silentClose) {
       studio.isRunning = false;
       studio.wsSetupDone = false;
+      studio.isSpeaking = false;
+      studio.preRollBuffer = [];
       if (studio.recTimer) { clearInterval(studio.recTimer); studio.recTimer = null; }
       if (studio.wsRenewTimer) { clearInterval(studio.wsRenewTimer); studio.wsRenewTimer = null; }
       if (studio.processor) { try { studio.processor.disconnect(); } catch (e) {} studio.processor = null; }
+      if (studio.zeroGain) { try { studio.zeroGain.disconnect(); } catch (e) {} studio.zeroGain = null; }
       if (studio.inputCtx) { try { studio.inputCtx.close(); } catch (e) {} studio.inputCtx = null; }
       if (studio.ws) {
         try {
@@ -546,6 +901,7 @@
       }
       clearPlaybackQueue_();
       flushTurn_();
+      updateVuUi_(0, false);
       syncStudioUi_();
       updateStatus_('⏸️ หยุดชั่วคราว', false);
       if (!silentClose) {
@@ -571,11 +927,38 @@
     function onChangeStudioLang() {
       const sel = document.getElementById('studioTargetLang');
       if (sel) studio.targetLang = sel.value || 'ja';
+      syncStudioUi_();
       if (studio.isRunning && studio.mode === 'translate') {
         flushTurn_();
         clearPlaybackQueue_();
         connectWebSocket_();
       }
+    }
+
+    function onChangeStudioEngine() {
+      const sel = document.getElementById('studioEngineSelect');
+      if (sel) studio.engine = sel.value || 'gemini-3.8-live';
+      studio.modelFallbackUsed = false;
+      syncStudioUi_();
+      if (studio.isRunning && studio.mode === 'translate') {
+        flushTurn_();
+        clearPlaybackQueue_();
+        connectWebSocket_();
+      }
+    }
+
+    function onChangeStudioMic() {
+      const sel = document.getElementById('studioMicSelect');
+      studio.selectedMicId = sel ? sel.value : '';
+      if (studio.isRunning) {
+        stopStudioSession(true);
+        startStudioSession();
+      }
+    }
+
+    function onChangeStudioSens() {
+      const sel = document.getElementById('studioVadSens');
+      studio.vadSensitivity = sel ? sel.value : 'normal';
     }
 
     function swapStudioLang() {
@@ -650,6 +1033,7 @@
     });
 
     // Boot
+    refreshStudioMicDevices_();
     syncStudioUi_();
     postToOpener_({ type: 'MINAMIDA_STUDIO_READY' });
     setTimeout(function() {

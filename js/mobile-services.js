@@ -3153,11 +3153,14 @@ Strict Rules:
       let samples = float32Arr;
       if (inputSampleRate && inputSampleRate !== targetRate) {
         const ratio = inputSampleRate / targetRate;
-        const newLen = Math.round(float32Arr.length / ratio);
+        const newLen = Math.floor(float32Arr.length / ratio);
         samples = new Float32Array(newLen);
         for (let i = 0; i < newLen; i++) {
-          const idx = Math.min(float32Arr.length - 1, Math.round(i * ratio));
-          samples[i] = float32Arr[idx];
+          const start = Math.floor(i * ratio);
+          const end = Math.min(float32Arr.length, Math.max(start + 1, Math.floor((i + 1) * ratio)));
+          let acc = 0;
+          for (let j = start; j < end; j++) acc += float32Arr[j];
+          samples[i] = acc / (end - start);
         }
       }
       const buffer = new ArrayBuffer(samples.length * 2);
@@ -3170,6 +3173,19 @@ Strict Rules:
       let binary = '';
       for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
       return btoa(binary);
+    }
+
+    function calcMobAudioRms_(float32Arr) {
+      let sumSq = 0;
+      for (let i = 0; i < float32Arr.length; i++) sumSq += float32Arr[i] * float32Arr[i];
+      return Math.sqrt(sumSq / Math.max(1, float32Arr.length));
+    }
+
+    function buildMobInterpreterPrompt_(targetLang) {
+      const targetName = targetLang === 'ja'
+        ? 'natural polite Japanese (日本語 / 丁寧語 suitable for factory meetings)'
+        : (targetLang === 'th' ? 'natural polite Thai' : 'clear professional English');
+      return `You are a strict simultaneous meeting interpreter for a Thai-Japanese factory. Incoming speech is Thai, Japanese, or English. ONLY translate what the speaker said into ${targetName}. Never chat, never answer questions, and on silence or background noise stay completely silent.`;
     }
 
     function connectMobileLiveTranscribeWs_(apiKey) {
@@ -3506,27 +3522,45 @@ Strict Rules:
           } catch (e) {}
         }
         tr.wsSetupDone = false;
-        const activeModel = overrideModel || 'models/gemini-3.5-live-translate-preview';
+        const engSel = document.getElementById('mobTranslateEngine');
+        const activeEngine = (engSel && engSel.value) ? engSel.value : 'gemini-3.8-live';
+        const activeModel = overrideModel || (activeEngine === 'gemini-3.5-live-translate-preview'
+          ? 'models/gemini-3.5-live-translate-preview'
+          : 'models/gemini-3.8-live');
         const sel = document.getElementById('mobTranslateTargetLang');
         const targetLang = sel ? sel.value : 'ja';
         const ws = new WebSocket(`wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key=${encodeURIComponent(apiKey)}`);
         tr.ws = ws;
 
         ws.onopen = function() {
-          ws.send(JSON.stringify({
-            setup: {
-              model: activeModel,
-              generationConfig: {
-                responseModalities: ['AUDIO'],
-                translationConfig: {
-                  targetLanguageCode: targetLang,
-                  echoTargetLanguage: false
-                }
-              },
-              inputAudioTranscription: {},
-              outputAudioTranscription: {}
-            }
-          }));
+          if (activeModel.indexOf('gemini-3.8-live') !== -1) {
+            ws.send(JSON.stringify({
+              setup: {
+                model: 'models/gemini-3.8-live',
+                generationConfig: { responseModalities: ['AUDIO'] },
+                systemInstruction: {
+                  parts: [{ text: buildMobInterpreterPrompt_(targetLang) }]
+                },
+                inputAudioTranscription: {},
+                outputAudioTranscription: {}
+              }
+            }));
+          } else {
+            ws.send(JSON.stringify({
+              setup: {
+                model: activeModel,
+                generationConfig: {
+                  responseModalities: ['AUDIO'],
+                  translationConfig: {
+                    targetLanguageCode: targetLang,
+                    echoTargetLanguage: false
+                  }
+                },
+                inputAudioTranscription: {},
+                outputAudioTranscription: {}
+              }
+            }));
+          }
           const sEl = document.getElementById('mobLiveTranslateStatus');
           if (sEl) sEl.innerText = '🔄 ตั้งค่าล่าม ' + targetLang.toUpperCase() + '...';
         };
@@ -3665,15 +3699,56 @@ Strict Rules:
           const ctx = new AudioCtx();
           const source = ctx.createMediaStreamSource(stream);
           const proc = ctx.createScriptProcessor(4096, 1, 1);
+          const zeroGain = ctx.createGain();
+          zeroGain.gain.value = 0;
+          let preRoll = [];
+          let isSpeaking = false;
+          let lastVoiceAt = 0;
+
           proc.onaudioprocess = (e) => {
-            if (!tr.isTranslating || !tr.ws || tr.ws.readyState !== 1 || !tr.wsSetupDone) return;
-            const b64 = float32ToPcm16Base64Mob_(e.inputBuffer.getChannelData(0), ctx.sampleRate);
-            tr.ws.send(JSON.stringify({
-              realtimeInput: { audio: { data: b64, mimeType: 'audio/pcm;rate=16000' } }
-            }));
+            if (!tr.isTranslating) return;
+            const rawCh = e.inputBuffer.getChannelData(0);
+            const rms = calcMobAudioRms_(rawCh);
+            const vuFill = document.getElementById('mobLiveVuFill');
+            const vuPct = document.getElementById('mobLiveVuPct');
+            const pctVal = Math.min(100, Math.round(rms * 900));
+            if (vuFill) vuFill.style.width = pctVal + '%';
+            if (vuPct) vuPct.innerText = pctVal + '%';
+
+            if (!tr.ws || tr.ws.readyState !== 1 || !tr.wsSetupDone) return;
+            const b64 = float32ToPcm16Base64Mob_(rawCh, ctx.sampleRate);
+            const now = Date.now();
+            if (rms >= 0.011) {
+              lastVoiceAt = now;
+              if (!isSpeaking) {
+                isSpeaking = true;
+                while (preRoll.length > 0) {
+                  tr.ws.send(JSON.stringify({
+                    realtimeInput: { audio: { data: preRoll.shift(), mimeType: 'audio/pcm;rate=16000' } }
+                  }));
+                }
+              }
+              tr.ws.send(JSON.stringify({
+                realtimeInput: { audio: { data: b64, mimeType: 'audio/pcm;rate=16000' } }
+              }));
+            } else if (isSpeaking) {
+              if ((now - lastVoiceAt) < 950) {
+                tr.ws.send(JSON.stringify({
+                  realtimeInput: { audio: { data: b64, mimeType: 'audio/pcm;rate=16000' } }
+                }));
+              } else {
+                isSpeaking = false;
+                preRoll = [];
+                tr.ws.send(JSON.stringify({ realtimeInput: { audioStreamEnd: true } }));
+              }
+            } else {
+              preRoll.push(b64);
+              if (preRoll.length > 3) preRoll.shift();
+            }
           };
           source.connect(proc);
-          proc.connect(ctx.destination);
+          proc.connect(zeroGain);
+          zeroGain.connect(ctx.destination);
           tr.inputCtx = ctx;
           tr.processor = proc;
         }
@@ -3727,6 +3802,13 @@ Strict Rules:
         connectMobileLiveTranslateWs_(apiKey);
       }
     }
+
+    function onChangeMobileTranslateEngine() {
+      const tr = getMobileTranslatorState_();
+      tr.modelFallbackUsed = false;
+      onChangeMobileTranslateLang();
+    }
+    window.onChangeMobileTranslateEngine = onChangeMobileTranslateEngine;
 
     function swapMobileLiveTranslateLang() {
       const sel = document.getElementById('mobTranslateTargetLang');
