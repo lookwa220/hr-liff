@@ -48,11 +48,12 @@
         <!-- Language Controls (translate mode) -->
         <div id="langControlCluster" class="flex flex-wrap items-center gap-1.5">
           <select id="studioTargetLang" onchange="onChangeStudioLang()" class="px-3 py-1.5 rounded-xl bg-slate-950 border border-indigo-400/40 text-xs font-bold text-white outline-none">
+            <option value="auto_th_ja" selected>🔄 แปลอัตโนมัติ 2 ทาง: ไทย ↔ ญี่ปุ่น (เครื่องเดียวไม่ต้องกดสลับ • แนะนำ)</option>
             <option value="ja">🇯🇵 แปลเสียง ➔ ภาษาญี่ปุ่น (JP)</option>
             <option value="th">🇹🇭 แปลเสียง ➔ ภาษาไทย (TH)</option>
             <option value="en">🇬🇧 แปลเสียง ➔ ภาษาอังกฤษ (EN)</option>
           </select>
-          <button type="button" onclick="swapStudioLang()" class="px-3 py-1.5 rounded-xl bg-indigo-500/20 hover:bg-indigo-500/35 border border-indigo-400/30 text-xs font-bold text-indigo-200 transition">⇄ สลับ ไทย ↔ ญี่ปุ่น</button>
+          <button type="button" onclick="swapStudioLang()" class="px-3 py-1.5 rounded-xl bg-indigo-500/20 hover:bg-indigo-500/35 border border-indigo-400/30 text-xs font-bold text-indigo-200 transition">⇄ สลับโหมด (2 ทาง / TH / JP)</button>
         </div>
 
         <button type="button" id="btnStudioMicAction" onclick="toggleStudioRunning()" class="ml-auto px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-extrabold shadow transition">🎙️ เริ่มเปิดไมโครโฟน</button>
@@ -174,7 +175,7 @@
     const studio = {
       mode: params.get('mode') === 'transcribe' ? 'transcribe' : 'translate',
       engine: params.get('engine') || 'gemini-3.8-live',
-      targetLang: params.get('lang') || 'ja',
+      targetLang: params.get('lang') || 'auto_th_ja',
       voiceOut: params.get('voice') !== '0',
       selectedMicId: '',
       vadSensitivity: 'normal',
@@ -191,6 +192,7 @@
       outputCtx: null,
       nextPlayTime: 0,
       activeSources: [],
+      lastSpeakerEndedAt: 0,
       recTimer: null,
       recSeconds: 0,
       wsRenewTimer: null,
@@ -221,6 +223,19 @@
     }
 
     function buildInterpreterSystemPrompt_(targetLang) {
+      if (targetLang === 'auto_th_ja') {
+        return [
+          'You are a strict real-time two-way simultaneous interpreter placed in the center of a Thai-Japanese manufacturing meeting at Minamida Thailand (automotive cold-forging & precision machining factory).',
+          'AUTOMATIC TWO-WAY RULE:',
+          '1. When the speaker speaks THAI (ภาษาไทย), translate it directly into natural, polite business JAPANESE (日本語 / 丁寧語).',
+          '2. When the speaker speaks JAPANESE (日本語), translate it directly into natural, polite THAI (ภาษาไทยที่สุภาพชัดเจน).',
+          '3. When the speaker speaks English, translate it directly into polite Thai.',
+          'CRITICAL RULES:',
+          '- Output ONLY the translation in the opposite language. NEVER repeat the source language.',
+          '- NEVER reply conversationally, NEVER answer questions, NEVER add greetings or commentary.',
+          '- If audio is silent, static noise, breathing, or unintelligible hum, remain COMPLETELY SILENT — NEVER invent English filler words like "Yeah", "Um", or "I don\'t know".'
+        ].join('\n');
+      }
       const targetName = targetLang === 'ja'
         ? 'natural polite Japanese (日本語 / 丁寧語 suitable for factory management meetings)'
         : (targetLang === 'th'
@@ -235,6 +250,25 @@
         '2. If the audio is silent, static noise, breathing, or unintelligible background hum, remain COMPLETELY SILENT — NEVER invent English filler words like "Yeah", "Um", or "I don\'t know".',
         '3. If the speaker already spoke in the target language, output a clean concise version only if necessary, otherwise stay brief and accurate.'
       ].join('\n');
+    }
+
+    function detectTranslationDirectionTag_(targetLang, srcText, outText) {
+      if (targetLang === 'auto_th_ja') {
+        if (/[\u3040-\u30ff\u4e00-\u9faf]/.test(outText || '')) return { badge: '🇹🇭 ➔ 🇯🇵 JP', code: 'TH➔JA' };
+        if (/[\u0e00-\u0e7f]/.test(outText || '')) return { badge: '🇯🇵 ➔ 🇹🇭 TH', code: 'JA➔TH' };
+        return { badge: '🔄 TH↔JP', code: 'AUTO' };
+      }
+      if (targetLang === 'ja') return { badge: '🇯🇵 JP', code: 'JA' };
+      if (targetLang === 'th') return { badge: '🇹🇭 TH', code: 'TH' };
+      return { badge: '🇬🇧 EN', code: 'EN' };
+    }
+
+    function isAiSpeakerPlaying_() {
+      if (!studio.voiceOut || studio.mode !== 'translate') return false;
+      if (studio.activeSources && studio.activeSources.length > 0) return true;
+      if (studio.outputCtx && studio.nextPlayTime > studio.outputCtx.currentTime) return true;
+      if (studio.lastSpeakerEndedAt && (Date.now() - studio.lastSpeakerEndedAt) < 450) return true;
+      return false;
     }
 
     function postToOpener_(payload) {
@@ -324,7 +358,9 @@
         if (engCluster) engCluster.classList.remove('hidden');
         if (engTag) engTag.innerText = studio.engine === 'gemini-3.8-live' ? 'Gemini 3.8 Live' : 'Gemini 3.5 Translate';
         if (targetBadge) {
-          targetBadge.innerText = studio.targetLang === 'ja' ? '🇯🇵 ภาษาญี่ปุ่น' : (studio.targetLang === 'th' ? '🇹🇭 ภาษาไทย' : '🇬🇧 ภาษาอังกฤษ');
+          targetBadge.innerText = studio.targetLang === 'auto_th_ja'
+            ? '🔄 อัตโนมัติ ไทย ↔ ญี่ปุ่น'
+            : (studio.targetLang === 'ja' ? '🇯🇵 ภาษาญี่ปุ่น' : (studio.targetLang === 'th' ? '🇹🇭 ภาษาไทย' : '🇬🇧 ภาษาอังกฤษ'));
         }
       } else {
         if (btnTr) btnTr.className = 'px-3 py-1.5 rounded-lg text-xs font-bold text-slate-400 hover:text-white transition';
@@ -450,6 +486,7 @@
         src.onended = () => {
           const idx = studio.activeSources.indexOf(src);
           if (idx >= 0) studio.activeSources.splice(idx, 1);
+          if (studio.activeSources.length === 0) studio.lastSpeakerEndedAt = Date.now();
         };
       } catch (e) {}
     }
@@ -462,7 +499,7 @@
       if (!srcText && !outText) return;
 
       studio.turnFinalizedInStage = true;
-      const langTag = studio.targetLang === 'ja' ? '🇯🇵 JP' : (studio.targetLang === 'th' ? '🇹🇭 TH' : '🇬🇧 EN');
+      const dirInfo = detectTranslationDirectionTag_(studio.targetLang, srcText, outText);
       const srcEl = document.getElementById('cinemaSrcText');
       const outEl = document.getElementById('cinemaOutText');
       const heardSt = document.getElementById('cinemaHeardStatus');
@@ -478,8 +515,8 @@
         if (studio.mode === 'translate') {
           card.innerHTML =
             (srcText ? `<div class="text-[11px] text-teal-200">👂 AI ได้ยิน: ${escHtml_(srcText)}</div>` : '') +
-            (outText ? `<div class="text-sm font-bold text-amber-300">${langTag}: ${escHtml_(outText)}</div>` : '');
-          studio.feedLines.push((srcText ? `[👂 AI ได้ยิน] ${srcText} ➔ ` : '') + `[🌐 แปล ${studio.targetLang.toUpperCase()}] ${outText}`);
+            (outText ? `<div class="text-sm font-bold text-amber-300">${dirInfo.badge}: ${escHtml_(outText)}</div>` : '');
+          studio.feedLines.push((srcText ? `[👂 AI ได้ยิน] ${srcText} ➔ ` : '') + `[${dirInfo.code}] ${outText}`);
         } else {
           card.innerHTML = `<div class="text-sm font-semibold text-teal-200">👂 ${escHtml_(srcText)}</div>`;
           studio.feedLines.push(srcText);
@@ -494,7 +531,8 @@
         mode: studio.mode,
         srcText: srcText,
         outText: outText,
-        targetLang: studio.targetLang
+        targetLang: studio.targetLang,
+        detectedDir: dirInfo.code
       });
     }
 
@@ -513,6 +551,9 @@
 
         ws.onopen = () => {
           if (studio.mode === 'translate') {
+            if (studio.targetLang === 'auto_th_ja' && !overrideModel) {
+              studio.engine = 'gemini-3.8-live';
+            }
             const requestedModel = overrideModel || (studio.engine === 'gemini-3.5-live-translate-preview'
               ? 'models/gemini-3.5-live-translate-preview'
               : 'models/gemini-3.8-live');
@@ -530,13 +571,14 @@
                 }
               }));
             } else {
+              const bcpTarget = studio.targetLang === 'auto_th_ja' ? 'ja' : studio.targetLang;
               ws.send(JSON.stringify({
                 setup: {
                   model: requestedModel,
                   generationConfig: {
                     responseModalities: ['AUDIO'],
                     translationConfig: {
-                      targetLanguageCode: studio.targetLang,
+                      targetLanguageCode: bcpTarget,
                       echoTargetLanguage: false
                     }
                   },
@@ -545,7 +587,8 @@
                 }
               }));
             }
-            updateStatus_('🔄 กำลังตั้งค่าล่าม ' + studio.targetLang.toUpperCase() + '...', true);
+            const setupLbl = studio.targetLang === 'auto_th_ja' ? 'อัตโนมัติ TH ↔ JP' : studio.targetLang.toUpperCase();
+            updateStatus_('🔄 กำลังตั้งค่าล่าม ' + setupLbl + '...', true);
           } else {
             ws.send(JSON.stringify({
               setup: {
@@ -567,7 +610,10 @@
             if (msg.setupComplete !== undefined) {
               studio.wsSetupDone = true;
               const engLbl = studio.engine === 'gemini-3.8-live' ? '3.8 Live' : '3.5 Translate';
-              updateStatus_(studio.mode === 'translate' ? (`🟢 กำลังแปลสด (${engLbl}) ➔ ` + studio.targetLang.toUpperCase()) : '🟢 กำลังฟังสด (Live Transcribe)', true);
+              const langReadyLbl = studio.targetLang === 'auto_th_ja'
+                ? '🟢 แปลอัตโนมัติ 2 ทาง (TH ↔ JP)'
+                : (`🟢 กำลังแปลสด (${engLbl}) ➔ ` + studio.targetLang.toUpperCase());
+              updateStatus_(studio.mode === 'translate' ? langReadyLbl : '🟢 กำลังฟังสด (Live Transcribe)', true);
             }
 
             const sc = msg.serverContent;
@@ -825,6 +871,23 @@
 
           proc.onaudioprocess = (e) => {
             if (!studio.isRunning || studio.isLoopbackTesting) return;
+
+            if (isAiSpeakerPlaying_()) {
+              const vadEl = document.getElementById('studioVadBadge');
+              if (vadEl) {
+                vadEl.innerText = '🔊 ล่ามกำลังพูดออกลำโพง (พักไมค์กันเสียงสะท้อน)';
+                vadEl.className = 'text-[10px] px-2 py-0.5 rounded-full bg-indigo-500/20 border border-indigo-400/40 text-indigo-200 font-bold shrink-0';
+              }
+              if (studio.isSpeaking) {
+                studio.isSpeaking = false;
+                studio.preRollBuffer = [];
+                if (studio.ws && studio.ws.readyState === 1 && studio.wsSetupDone) {
+                  studio.ws.send(JSON.stringify({ realtimeInput: { audioStreamEnd: true } }));
+                }
+              }
+              return;
+            }
+
             const res = float32ToPcm16Base64_(e.inputBuffer.getChannelData(0), ctx.sampleRate);
             if (res.rms > studio.peakRmsSinceStart) studio.peakRmsSinceStart = res.rms;
 
@@ -926,7 +989,8 @@
 
     function onChangeStudioLang() {
       const sel = document.getElementById('studioTargetLang');
-      if (sel) studio.targetLang = sel.value || 'ja';
+      if (sel) studio.targetLang = sel.value || 'auto_th_ja';
+      if (studio.targetLang === 'auto_th_ja') studio.engine = 'gemini-3.8-live';
       syncStudioUi_();
       if (studio.isRunning && studio.mode === 'translate') {
         flushTurn_();
@@ -938,6 +1002,9 @@
     function onChangeStudioEngine() {
       const sel = document.getElementById('studioEngineSelect');
       if (sel) studio.engine = sel.value || 'gemini-3.8-live';
+      if (studio.targetLang === 'auto_th_ja' && studio.engine !== 'gemini-3.8-live') {
+        studio.targetLang = 'ja';
+      }
       studio.modelFallbackUsed = false;
       syncStudioUi_();
       if (studio.isRunning && studio.mode === 'translate') {
@@ -964,7 +1031,9 @@
     function swapStudioLang() {
       const sel = document.getElementById('studioTargetLang');
       if (!sel) return;
-      sel.value = (sel.value === 'ja') ? 'th' : 'ja';
+      if (sel.value === 'auto_th_ja') sel.value = 'ja';
+      else if (sel.value === 'ja') sel.value = 'th';
+      else sel.value = 'auto_th_ja';
       studio.targetLang = sel.value;
       onChangeStudioLang();
     }

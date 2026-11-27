@@ -3746,11 +3746,12 @@
             </div>
             <div class="flex items-center gap-1.5">
               <select id="mobTranslateTargetLang" onchange="onChangeMobileTranslateLang()" class="flex-1 rounded-xl bg-slate-950/90 border border-indigo-400/30 text-white text-[11px] font-bold px-2 py-1.5 outline-none">
+                <option value="auto_th_ja" selected>🔄 อัตโนมัติ 2 ทาง: ไทย ↔ ญี่ปุ่น (เครื่องเดียว)</option>
                 <option value="ja">🇯🇵 แปลเสียง ➔ ภาษาญี่ปุ่น (JP)</option>
                 <option value="th">🇹🇭 แปลเสียง ➔ ภาษาไทย (TH)</option>
                 <option value="en">🇬🇧 แปลเสียง ➔ ภาษาอังกฤษ (EN)</option>
               </select>
-              <button type="button" id="btnMobSwapTranslateLang" onclick="swapMobileLiveTranslateLang()" class="px-2.5 py-1.5 rounded-xl bg-indigo-500/30 border border-indigo-400/30 text-indigo-100 text-[11px] font-bold shrink-0 active:scale-95">⇄ สลับ ไทย↔JP</button>
+              <button type="button" id="btnMobSwapTranslateLang" onclick="swapMobileLiveTranslateLang()" class="px-2.5 py-1.5 rounded-xl bg-indigo-500/30 border border-indigo-400/30 text-indigo-100 text-[11px] font-bold shrink-0 active:scale-95">⇄ สลับโหมด</button>
             </div>
             <div class="flex items-center gap-1.5">
               <select id="mobTranslateEngine" onchange="onChangeMobileTranslateEngine()" class="w-full rounded-xl bg-slate-950/90 border border-teal-500/30 text-teal-200 text-[10px] font-bold px-2 py-1 outline-none">
@@ -3977,10 +3978,10 @@
   <datalist id="mobMeetEmpDatalist"></datalist>
 
   <!-- Application Logic -->
-  <!-- Modular Mobile JS Architecture (v3.3.2) -->
+  <!-- Modular Mobile JS Architecture (v3.3.3) -->
   <script src="js/mobile-core.js?v=3.3.0"></script>
   <script src="js/mobile-hr.js?v=3.1.7"></script>
-  <script src="js/mobile-services.js?v=3.3.2"></script>
+  <script src="js/mobile-services.js?v=3.3.3"></script>
   <script src="js/mobile-iso-mnw.js?v=3.1.4"></script>
   <script src="js/mobile-pd-pc.js?v=3.1.4"></script>
 </body>

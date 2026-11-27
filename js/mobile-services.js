@@ -3182,10 +3182,23 @@ Strict Rules:
     }
 
     function buildMobInterpreterPrompt_(targetLang) {
+      if (targetLang === 'auto_th_ja') {
+        return 'You are a strict real-time two-way simultaneous interpreter placed in the center of a Thai-Japanese manufacturing meeting. AUTOMATIC TWO-WAY RULE: When the speaker speaks THAI, translate directly into polite business JAPANESE (日本語 / 丁寧語). When the speaker speaks JAPANESE, translate directly into polite THAI. If spoken in English, translate into polite Thai. Output ONLY the opposite-language translation, never converse, never repeat the source language, and stay completely silent on noise or silence.';
+      }
       const targetName = targetLang === 'ja'
         ? 'natural polite Japanese (日本語 / 丁寧語 suitable for factory meetings)'
         : (targetLang === 'th' ? 'natural polite Thai' : 'clear professional English');
       return `You are a strict simultaneous meeting interpreter for a Thai-Japanese factory. Incoming speech is Thai, Japanese, or English. ONLY translate what the speaker said into ${targetName}. Never chat, never answer questions, and on silence or background noise stay completely silent.`;
+    }
+
+    function isMobAiSpeakerPlaying_() {
+      const tr = getMobileTranslatorState_();
+      const chkVoice = document.getElementById('chkMobTranslateVoiceOut');
+      if (chkVoice && !chkVoice.checked) return false;
+      if (tr.activeSources && tr.activeSources.length > 0) return true;
+      if (tr.outputCtx && tr.nextPlayTime > tr.outputCtx.currentTime) return true;
+      if (tr.lastSpeakerEndedAt && (Date.now() - tr.lastSpeakerEndedAt) < 450) return true;
+      return false;
     }
 
     function connectMobileLiveTranscribeWs_(apiKey) {
@@ -3441,6 +3454,7 @@ Strict Rules:
         src.onended = () => {
           const idx = tr.activeSources.indexOf(src);
           if (idx >= 0) tr.activeSources.splice(idx, 1);
+          if (tr.activeSources.length === 0) tr.lastSpeakerEndedAt = Date.now();
         };
       } catch (err) {}
     }
@@ -3476,8 +3490,21 @@ Strict Rules:
       if (!srcText && !outText) return;
 
       const sel = document.getElementById('mobTranslateTargetLang');
-      const targetLang = sel ? sel.value : 'ja';
-      const langTag = targetLang === 'ja' ? '🇯🇵 JP' : (targetLang === 'th' ? '🇹🇭 TH' : '🇬🇧 EN');
+      const targetLang = sel ? sel.value : 'auto_th_ja';
+      let langTag = targetLang === 'ja' ? '🇯🇵 JP' : (targetLang === 'th' ? '🇹🇭 TH' : '🇬🇧 EN');
+      let dirCode = targetLang.toUpperCase();
+      if (targetLang === 'auto_th_ja') {
+        if (/[\u3040-\u30ff\u4e00-\u9faf]/.test(outText)) {
+          langTag = '🇹🇭 ➔ 🇯🇵 JP';
+          dirCode = 'TH➔JA';
+        } else if (/[\u0e00-\u0e7f]/.test(outText)) {
+          langTag = '🇯🇵 ➔ 🇹🇭 TH';
+          dirCode = 'JA➔TH';
+        } else {
+          langTag = '🔄 TH↔JP';
+          dirCode = 'AUTO';
+        }
+      }
 
       const cBox = document.getElementById('mobLiveCinemaBox');
       const cSrc = document.getElementById('mobLiveCinemaSrc');
@@ -3492,7 +3519,7 @@ Strict Rules:
         const row = document.createElement('div');
         row.className = 'p-2 rounded-lg bg-white/10 border border-indigo-400/20 space-y-0.5';
         row.innerHTML =
-          (srcText ? `<div class="text-[10px] text-slate-300">🎙️ ${escMobMeet_(srcText)}</div>` : '') +
+          (srcText ? `<div class="text-[10px] text-slate-300">👂 ${escMobMeet_(srcText)}</div>` : '') +
           (outText ? `<div class="text-[11px] font-bold text-indigo-200">${langTag}: ${escMobMeet_(outText)}</div>` : '');
         feed.appendChild(row);
         feed.scrollTop = feed.scrollHeight;
@@ -3503,8 +3530,8 @@ Strict Rules:
         const ta = document.getElementById('mobMinTranscript');
         if (ta) {
           const line = (srcText && outText)
-            ? `[🎙️ ต้นทาง] ${srcText} ➔ [🌐 แปล ${targetLang.toUpperCase()}] ${outText}`
-            : (outText ? `[🌐 แปล ${targetLang.toUpperCase()}] ${outText}` : `[🎙️ ต้นทาง] ${srcText}`);
+            ? `[👂 ต้นทาง] ${srcText} ➔ [${dirCode}] ${outText}`
+            : (outText ? `[${dirCode}] ${outText}` : `[👂 ต้นทาง] ${srcText}`);
           ta.value = (ta.value ? ta.value.trim() + '\n' : '') + line;
           ta.scrollTop = ta.scrollHeight;
         }
@@ -3522,13 +3549,16 @@ Strict Rules:
           } catch (e) {}
         }
         tr.wsSetupDone = false;
+        const sel = document.getElementById('mobTranslateTargetLang');
+        const targetLang = sel ? sel.value : 'auto_th_ja';
         const engSel = document.getElementById('mobTranslateEngine');
+        if (targetLang === 'auto_th_ja' && !overrideModel && engSel) {
+          engSel.value = 'gemini-3.8-live';
+        }
         const activeEngine = (engSel && engSel.value) ? engSel.value : 'gemini-3.8-live';
         const activeModel = overrideModel || (activeEngine === 'gemini-3.5-live-translate-preview'
           ? 'models/gemini-3.5-live-translate-preview'
           : 'models/gemini-3.8-live');
-        const sel = document.getElementById('mobTranslateTargetLang');
-        const targetLang = sel ? sel.value : 'ja';
         const ws = new WebSocket(`wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key=${encodeURIComponent(apiKey)}`);
         tr.ws = ws;
 
@@ -3546,13 +3576,14 @@ Strict Rules:
               }
             }));
           } else {
+            const bcpTarget = targetLang === 'auto_th_ja' ? 'ja' : targetLang;
             ws.send(JSON.stringify({
               setup: {
                 model: activeModel,
                 generationConfig: {
                   responseModalities: ['AUDIO'],
                   translationConfig: {
-                    targetLanguageCode: targetLang,
+                    targetLanguageCode: bcpTarget,
                     echoTargetLanguage: false
                   }
                 },
@@ -3562,7 +3593,7 @@ Strict Rules:
             }));
           }
           const sEl = document.getElementById('mobLiveTranslateStatus');
-          if (sEl) sEl.innerText = '🔄 ตั้งค่าล่าม ' + targetLang.toUpperCase() + '...';
+          if (sEl) sEl.innerText = targetLang === 'auto_th_ja' ? '🔄 ตั้งค่าล่าม 2 ทาง TH ↔ JP...' : ('🔄 ตั้งค่าล่าม ' + targetLang.toUpperCase() + '...');
         };
 
         ws.onmessage = async function(ev) {
@@ -3707,6 +3738,16 @@ Strict Rules:
 
           proc.onaudioprocess = (e) => {
             if (!tr.isTranslating) return;
+            if (isMobAiSpeakerPlaying_()) {
+              if (isSpeaking) {
+                isSpeaking = false;
+                preRoll = [];
+                if (tr.ws && tr.ws.readyState === 1 && tr.wsSetupDone) {
+                  tr.ws.send(JSON.stringify({ realtimeInput: { audioStreamEnd: true } }));
+                }
+              }
+              return;
+            }
             const rawCh = e.inputBuffer.getChannelData(0);
             const rms = calcMobAudioRms_(rawCh);
             const vuFill = document.getElementById('mobLiveVuFill');
@@ -3813,8 +3854,16 @@ Strict Rules:
     function swapMobileLiveTranslateLang() {
       const sel = document.getElementById('mobTranslateTargetLang');
       if (!sel) return;
-      sel.value = (sel.value === 'ja') ? 'th' : 'ja';
-      showToast(sel.value === 'th' ? 'สลับเป็น 🇯🇵 ➔ 🇹🇭 (แปลเป็นไทย)' : 'สลับเป็น 🇹🇭 ➔ 🇯🇵 (แปลเป็นญี่ปุ่น)');
+      if (sel.value === 'auto_th_ja') {
+        sel.value = 'ja';
+        showToast('โหมดทางเดียว: 🇯🇵 แปลเป็นญี่ปุ่น');
+      } else if (sel.value === 'ja') {
+        sel.value = 'th';
+        showToast('โหมดทางเดียว: 🇹🇭 แปลเป็นไทย');
+      } else {
+        sel.value = 'auto_th_ja';
+        showToast('โหมดอัตโนมัติ 2 ทาง: 🔄 ไทย ↔ ญี่ปุ่น');
+      }
       onChangeMobileTranslateLang();
     }
 
