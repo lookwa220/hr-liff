@@ -3735,6 +3735,40 @@
 
           <div id="mobLiveInterimBox" class="hidden p-2 rounded-xl bg-slate-950/70 border border-teal-500/40 text-[11px] text-teal-200 italic"></div>
 
+          <!-- Phase 4: Mobile Live Interpreter TH <-> JP / EN -->
+          <div id="mobLiveInterpreterBox" class="p-2.5 rounded-2xl bg-indigo-950/85 border border-indigo-400/30 space-y-2">
+            <div class="flex items-center justify-between gap-2">
+              <span class="text-[11px] font-bold text-indigo-200">🌐 ล่ามแปลสด TH ↔ JP (Unlimited)</span>
+              <div class="flex items-center gap-1.5">
+                <span id="mobLiveTranslateTimer" class="hidden text-[10px] font-mono font-bold text-indigo-200">00:00</span>
+                <span id="mobLiveTranslateStatus" class="text-[10px] px-2 py-0.5 rounded-full bg-indigo-900/80 text-indigo-200">พร้อมแปลสด</span>
+              </div>
+            </div>
+            <div class="flex items-center gap-1.5">
+              <select id="mobTranslateTargetLang" onchange="onChangeMobileTranslateLang()" class="flex-1 rounded-xl bg-slate-950/90 border border-indigo-400/30 text-white text-[11px] font-bold px-2 py-1.5 outline-none">
+                <option value="ja">🇯🇵 แปลเสียง ➔ ภาษาญี่ปุ่น (JP)</option>
+                <option value="th">🇹🇭 แปลเสียง ➔ ภาษาไทย (TH)</option>
+                <option value="en">🇬🇧 แปลเสียง ➔ ภาษาอังกฤษ (EN)</option>
+              </select>
+              <button type="button" id="btnMobSwapTranslateLang" onclick="swapMobileLiveTranslateLang()" class="px-2.5 py-1.5 rounded-xl bg-indigo-500/30 border border-indigo-400/30 text-indigo-100 text-[11px] font-bold shrink-0 active:scale-95">⇄ สลับ ไทย↔JP</button>
+            </div>
+            <button type="button" id="btnMobLiveTranslate" onclick="toggleMobileLiveTranslate()" class="w-full py-2.5 px-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-sm flex items-center justify-center gap-2 active:scale-95 transition">
+              <span id="mobLiveTranslateLabel">🌐 เปิดล่ามแปลสดในห้องประชุม (Live Translate)</span>
+            </button>
+            <div class="flex flex-wrap items-center gap-3 text-[10px] text-slate-200">
+              <label class="flex items-center gap-1.5 cursor-pointer">
+                <input type="checkbox" id="chkMobTranslateVoiceOut" checked class="rounded text-indigo-500 w-3.5 h-3.5">
+                <span>🔊 อ่านเสียงคำแปล (24kHz)</span>
+              </label>
+              <label class="flex items-center gap-1.5 cursor-pointer">
+                <input type="checkbox" id="chkMobTranslateSyncTranscript" checked class="rounded text-teal-500 w-3.5 h-3.5">
+                <span>📝 ลง Transcript อัตโนมัติ</span>
+              </label>
+            </div>
+            <div id="mobLiveTranslateInterim" class="hidden p-2 rounded-xl bg-indigo-950/90 border border-indigo-400/30 text-[11px] text-indigo-200 italic"></div>
+            <div id="mobLiveTranslateFeed" class="hidden max-h-36 overflow-y-auto p-2 rounded-xl bg-slate-950/80 border border-indigo-400/20 space-y-1.5 text-[11px]"></div>
+          </div>
+
           <div class="grid grid-cols-2 gap-2">
             <div>
               <input type="file" id="mobMinAudioFile" accept="audio/*,.m4a,.mp3,.wav,.webm,.ogg" onchange="handleMobileMeetingAudioFile(event)" class="hidden">
@@ -3924,10 +3958,10 @@
   <datalist id="mobMeetEmpDatalist"></datalist>
 
   <!-- Application Logic -->
-  <!-- Modular Mobile JS Architecture (v3.2.0) -->
-  <script src="js/mobile-core.js?v=3.2.1"></script>
+  <!-- Modular Mobile JS Architecture (v3.3.0) -->
+  <script src="js/mobile-core.js?v=3.3.0"></script>
   <script src="js/mobile-hr.js?v=3.1.7"></script>
-  <script src="js/mobile-services.js?v=3.2.0"></script>
+  <script src="js/mobile-services.js?v=3.3.0"></script>
   <script src="js/mobile-iso-mnw.js?v=3.1.4"></script>
   <script src="js/mobile-pd-pc.js?v=3.1.4"></script>
 </body>

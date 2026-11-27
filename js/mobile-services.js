@@ -2829,6 +2829,11 @@ Strict Rules:
     function openMobileMinutesStudioModal(options) {
       const opts = options || {};
       stopMobileMeetingLiveMic();
+      if (typeof stopMobileLiveTranslate === 'function') stopMobileLiveTranslate();
+      const mobTrFeed = document.getElementById('mobLiveTranslateFeed');
+      if (mobTrFeed) { mobTrFeed.innerHTML = ''; mobTrFeed.classList.add('hidden'); }
+      const mobTrInt = document.getElementById('mobLiveTranslateInterim');
+      if (mobTrInt) { mobTrInt.innerText = ''; mobTrInt.classList.add('hidden'); }
       ensureMobileMeetingInitialData_();
 
       const modal = document.getElementById('modalMobileMinutesStudio');
@@ -2994,6 +2999,7 @@ Strict Rules:
 
     function closeMobileMinutesStudioModal() {
       stopMobileMeetingLiveMic();
+      if (typeof stopMobileLiveTranslate === 'function') stopMobileLiveTranslate();
       const modal = document.getElementById('modalMobileMinutesStudio');
       if (modal) modal.classList.add('hidden');
     }
@@ -3219,6 +3225,7 @@ Strict Rules:
         showToast('อุปกรณ์นี้ไม่รองรับการอัดเสียงจากไมโครโฟน', 'error');
         return;
       }
+      if (typeof stopMobileLiveTranslate === 'function') stopMobileLiveTranslate();
 
       const apiKey = await getEffectiveMobileGeminiApiKey();
       try {
@@ -3342,6 +3349,363 @@ Strict Rules:
       if (sEl) sEl.innerText = 'พร้อมใช้งาน • จอไม่ดับอัตโนมัติขณะอัดเสียง';
       if (ib) ib.classList.add('hidden');
     }
+
+    // -------------------------------------------------------------------------
+    // PHASE 4: MOBILE LIVE AI INTERPRETER (gemini-3.5-live-translate-preview)
+    // -------------------------------------------------------------------------
+    function getMobileTranslatorState_() {
+      const st = MobileMeetingState.studio;
+      if (!st.translator) {
+        st.translator = {
+          isTranslating: false,
+          stream: null,
+          ws: null,
+          wsSetupDone: false,
+          modelFallbackUsed: false,
+          inputCtx: null,
+          processor: null,
+          outputCtx: null,
+          nextPlayTime: 0,
+          activeSources: [],
+          recTimer: null,
+          recSeconds: 0,
+          wsRenewTimer: null,
+          wakeLockSentinel: null,
+          pendingInput: '',
+          pendingOutput: ''
+        };
+      }
+      return st.translator;
+    }
+
+    function clearMobileTranslatePlaybackQueue_() {
+      const tr = getMobileTranslatorState_();
+      if (Array.isArray(tr.activeSources)) {
+        tr.activeSources.forEach(src => { try { src.stop(); } catch (e) {} });
+      }
+      tr.activeSources = [];
+      tr.nextPlayTime = 0;
+    }
+
+    function playMobilePcm24kBase64_(base64Pcm) {
+      if (!base64Pcm) return;
+      const chkVoice = document.getElementById('chkMobTranslateVoiceOut');
+      if (chkVoice && !chkVoice.checked) return;
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (!AudioCtx) return;
+
+      const tr = getMobileTranslatorState_();
+      try {
+        if (!tr.outputCtx) {
+          tr.outputCtx = new AudioCtx({ sampleRate: 24000 });
+        }
+        if (tr.outputCtx.state === 'suspended') {
+          tr.outputCtx.resume();
+        }
+        const binStr = atob(base64Pcm);
+        const bytes = new Uint8Array(binStr.length);
+        for (let i = 0; i < binStr.length; i++) bytes[i] = binStr.charCodeAt(i);
+        const sampleCount = Math.floor(bytes.byteLength / 2);
+        if (sampleCount <= 0) return;
+
+        const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+        const floats = new Float32Array(sampleCount);
+        for (let i = 0; i < sampleCount; i++) {
+          floats[i] = view.getInt16(i * 2, true) / 32768.0;
+        }
+        const buf = tr.outputCtx.createBuffer(1, sampleCount, 24000);
+        buf.getChannelData(0).set(floats);
+        const src = tr.outputCtx.createBufferSource();
+        src.buffer = buf;
+        src.connect(tr.outputCtx.destination);
+        const startAt = Math.max(tr.outputCtx.currentTime + 0.015, tr.nextPlayTime || 0);
+        src.start(startAt);
+        tr.nextPlayTime = startAt + buf.duration;
+        tr.activeSources.push(src);
+        src.onended = () => {
+          const idx = tr.activeSources.indexOf(src);
+          if (idx >= 0) tr.activeSources.splice(idx, 1);
+        };
+      } catch (err) {}
+    }
+
+    function flushMobileTranslateTurn_() {
+      const tr = getMobileTranslatorState_();
+      const srcText = String(tr.pendingInput || '').trim();
+      const outText = String(tr.pendingOutput || '').trim();
+      tr.pendingInput = '';
+      tr.pendingOutput = '';
+
+      const ib = document.getElementById('mobLiveTranslateInterim');
+      if (ib) { ib.innerText = ''; ib.classList.add('hidden'); }
+      if (!srcText && !outText) return;
+
+      const sel = document.getElementById('mobTranslateTargetLang');
+      const targetLang = sel ? sel.value : 'ja';
+      const langTag = targetLang === 'ja' ? '🇯🇵 JP' : (targetLang === 'th' ? '🇹🇭 TH' : '🇬🇧 EN');
+
+      const feed = document.getElementById('mobLiveTranslateFeed');
+      if (feed) {
+        feed.classList.remove('hidden');
+        const row = document.createElement('div');
+        row.className = 'p-2 rounded-lg bg-white/10 border border-indigo-400/20 space-y-0.5';
+        row.innerHTML =
+          (srcText ? `<div class="text-[10px] text-slate-300">🎙️ ${escMobMeet_(srcText)}</div>` : '') +
+          (outText ? `<div class="text-[11px] font-bold text-indigo-200">${langTag}: ${escMobMeet_(outText)}</div>` : '');
+        feed.appendChild(row);
+        feed.scrollTop = feed.scrollHeight;
+      }
+
+      const chkSync = document.getElementById('chkMobTranslateSyncTranscript');
+      if (!chkSync || chkSync.checked) {
+        const ta = document.getElementById('mobMinTranscript');
+        if (ta) {
+          const line = (srcText && outText)
+            ? `[🎙️ ต้นทาง] ${srcText} ➔ [🌐 แปล ${targetLang.toUpperCase()}] ${outText}`
+            : (outText ? `[🌐 แปล ${targetLang.toUpperCase()}] ${outText}` : `[🎙️ ต้นทาง] ${srcText}`);
+          ta.value = (ta.value ? ta.value.trim() + '\n' : '') + line;
+          ta.scrollTop = ta.scrollHeight;
+        }
+      }
+    }
+
+    function connectMobileLiveTranslateWs_(apiKey, overrideModel) {
+      const tr = getMobileTranslatorState_();
+      if (!apiKey || typeof WebSocket === 'undefined') return;
+      try {
+        if (tr.ws) {
+          try {
+            tr.ws._manualSwitch = true;
+            tr.ws.close();
+          } catch (e) {}
+        }
+        tr.wsSetupDone = false;
+        const activeModel = overrideModel || 'models/gemini-3.5-live-translate-preview';
+        const sel = document.getElementById('mobTranslateTargetLang');
+        const targetLang = sel ? sel.value : 'ja';
+        const ws = new WebSocket(`wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key=${encodeURIComponent(apiKey)}`);
+        tr.ws = ws;
+
+        ws.onopen = function() {
+          ws.send(JSON.stringify({
+            setup: {
+              model: activeModel,
+              generationConfig: {
+                responseModalities: ['AUDIO'],
+                translationConfig: {
+                  targetLanguageCode: targetLang,
+                  echoTargetLanguage: false
+                }
+              },
+              inputAudioTranscription: {},
+              outputAudioTranscription: {}
+            }
+          }));
+          const sEl = document.getElementById('mobLiveTranslateStatus');
+          if (sEl) sEl.innerText = '🔄 ตั้งค่าล่าม ' + targetLang.toUpperCase() + '...';
+        };
+
+        ws.onmessage = async function(ev) {
+          try {
+            const rawText = (typeof ev.data === 'string') ? ev.data : (ev.data && typeof ev.data.text === 'function' ? await ev.data.text() : '');
+            if (!rawText) return;
+            const msg = JSON.parse(rawText);
+
+            if (msg.setupComplete !== undefined) {
+              tr.wsSetupDone = true;
+              const sEl = document.getElementById('mobLiveTranslateStatus');
+              if (sEl) sEl.innerText = '🟢 แปลสด ➔ ' + targetLang.toUpperCase();
+            }
+
+            const sc = msg.serverContent;
+            if (!sc) return;
+
+            if (sc.interrupted) clearMobileTranslatePlaybackQueue_();
+
+            if (sc.modelTurn && Array.isArray(sc.modelTurn.parts)) {
+              sc.modelTurn.parts.forEach(part => {
+                if (part && part.inlineData && part.inlineData.data) {
+                  playMobilePcm24kBase64_(part.inlineData.data);
+                }
+              });
+            }
+
+            const interimTxt = sc.interimInputTranscription && sc.interimInputTranscription.text;
+            const inTxt = sc.inputTranscription && sc.inputTranscription.text;
+            const outTxt = sc.outputTranscription && sc.outputTranscription.text;
+            if (inTxt) tr.pendingInput += (tr.pendingInput ? ' ' : '') + inTxt.trim();
+            if (outTxt) tr.pendingOutput += (tr.pendingOutput ? ' ' : '') + outTxt.trim();
+
+            const ib = document.getElementById('mobLiveTranslateInterim');
+            if (ib && (interimTxt || tr.pendingInput || tr.pendingOutput)) {
+              ib.classList.remove('hidden');
+              const pIn = tr.pendingInput || (interimTxt ? interimTxt.trim() : '');
+              const pOut = tr.pendingOutput || '';
+              ib.innerText = (pIn ? '🎙️ ' + pIn : '') + (pOut ? '  ➔  🌐 ' + pOut : '');
+            }
+
+            if (sc.turnComplete) flushMobileTranslateTurn_();
+          } catch (e) {}
+        };
+
+        ws.onclose = function() {
+          if (!ws._manualSwitch && tr.isTranslating && !tr.wsSetupDone && !tr.modelFallbackUsed) {
+            tr.modelFallbackUsed = true;
+            connectMobileLiveTranslateWs_(apiKey, 'models/gemini-3.5-live-translate');
+          }
+        };
+
+        ws.onerror = function() {
+          const sEl = document.getElementById('mobLiveTranslateStatus');
+          if (sEl) sEl.innerText = '⚠️ กำลังเชื่อมต่อล่ามใหม่...';
+        };
+      } catch (err) {}
+    }
+
+    function toggleMobileLiveTranslate() {
+      const tr = getMobileTranslatorState_();
+      if (tr.isTranslating) stopMobileLiveTranslate();
+      else startMobileLiveTranslate();
+    }
+
+    async function startMobileLiveTranslate() {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        showToast('อุปกรณ์นี้ไม่รองรับไมโครโฟน', 'error');
+        return;
+      }
+      stopMobileMeetingLiveMic();
+
+      const tr = getMobileTranslatorState_();
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      // Unlock audio output directly on user tap (required for iOS Safari / LINE WebView)
+      if (AudioCtx) {
+        try {
+          if (!tr.outputCtx) tr.outputCtx = new AudioCtx({ sampleRate: 24000 });
+          if (tr.outputCtx.state === 'suspended') await tr.outputCtx.resume();
+        } catch (e) {}
+      }
+
+      const apiKey = await getEffectiveMobileGeminiApiKey();
+      if (!apiKey) {
+        showToast('ไม่พบ Gemini API Key สำหรับล่ามแปลสด', 'error');
+        return;
+      }
+
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        tr.isTranslating = true;
+        tr.stream = stream;
+        tr.recSeconds = 0;
+        tr.modelFallbackUsed = false;
+        tr.pendingInput = '';
+        tr.pendingOutput = '';
+
+        if (navigator.wakeLock && typeof navigator.wakeLock.request === 'function') {
+          try { tr.wakeLockSentinel = await navigator.wakeLock.request('screen'); } catch (wlErr) {}
+        }
+
+        const btn = document.getElementById('btnMobLiveTranslate');
+        const lbl = document.getElementById('mobLiveTranslateLabel');
+        const timerEl = document.getElementById('mobLiveTranslateTimer');
+        const sEl = document.getElementById('mobLiveTranslateStatus');
+        if (btn) btn.className = 'w-full py-2.5 px-3 rounded-xl bg-rose-600 text-white font-bold text-xs shadow-sm flex items-center justify-center gap-2 animate-pulse transition';
+        if (lbl) lbl.innerText = '⏹️ หยุดล่ามแปลสด';
+        if (timerEl) { timerEl.classList.remove('hidden'); timerEl.innerText = '00:00'; }
+        if (sEl) sEl.innerText = '🔴 เชื่อมต่อล่ามสด...';
+
+        tr.recTimer = setInterval(() => {
+          tr.recSeconds++;
+          if (timerEl) {
+            const mm = String(Math.floor(tr.recSeconds / 60)).padStart(2, '0');
+            const ss = String(tr.recSeconds % 60).padStart(2, '0');
+            timerEl.innerText = `${mm}:${ss}`;
+          }
+        }, 1000);
+
+        connectMobileLiveTranslateWs_(apiKey);
+        tr.wsRenewTimer = setInterval(() => {
+          if (tr.isTranslating) connectMobileLiveTranslateWs_(apiKey);
+        }, 540000);
+
+        if (AudioCtx) {
+          const ctx = new AudioCtx();
+          const source = ctx.createMediaStreamSource(stream);
+          const proc = ctx.createScriptProcessor(4096, 1, 1);
+          proc.onaudioprocess = (e) => {
+            if (!tr.isTranslating || !tr.ws || tr.ws.readyState !== 1 || !tr.wsSetupDone) return;
+            const b64 = float32ToPcm16Base64Mob_(e.inputBuffer.getChannelData(0), ctx.sampleRate);
+            tr.ws.send(JSON.stringify({
+              realtimeInput: { audio: { data: b64, mimeType: 'audio/pcm;rate=16000' } }
+            }));
+          };
+          source.connect(proc);
+          proc.connect(ctx.destination);
+          tr.inputCtx = ctx;
+          tr.processor = proc;
+        }
+      } catch (err) {
+        showToast('เปิดล่ามแปลสดไม่สำเร็จ: ' + err.message, 'error');
+      }
+    }
+
+    function stopMobileLiveTranslate() {
+      const tr = getMobileTranslatorState_();
+      tr.isTranslating = false;
+      tr.wsSetupDone = false;
+      if (tr.recTimer) { clearInterval(tr.recTimer); tr.recTimer = null; }
+      if (tr.wsRenewTimer) { clearInterval(tr.wsRenewTimer); tr.wsRenewTimer = null; }
+      if (tr.processor) { try { tr.processor.disconnect(); } catch (e) {} tr.processor = null; }
+      if (tr.inputCtx) { try { tr.inputCtx.close(); } catch (e) {} tr.inputCtx = null; }
+      if (tr.ws) {
+        try {
+          tr.ws._manualSwitch = true;
+          if (tr.ws.readyState === 1) tr.ws.send(JSON.stringify({ realtimeInput: { audioStreamEnd: true } }));
+          tr.ws.close();
+        } catch (e) {}
+        tr.ws = null;
+      }
+      if (tr.stream) {
+        try { tr.stream.getTracks().forEach(t => t.stop()); } catch (e) {}
+        tr.stream = null;
+      }
+      if (tr.wakeLockSentinel) {
+        try { tr.wakeLockSentinel.release(); } catch (e) {}
+        tr.wakeLockSentinel = null;
+      }
+      clearMobileTranslatePlaybackQueue_();
+      flushMobileTranslateTurn_();
+
+      const btn = document.getElementById('btnMobLiveTranslate');
+      const lbl = document.getElementById('mobLiveTranslateLabel');
+      const sEl = document.getElementById('mobLiveTranslateStatus');
+      if (btn) btn.className = 'w-full py-2.5 px-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-sm flex items-center justify-center gap-2 active:scale-95 transition';
+      if (lbl) lbl.innerText = '🌐 เปิดล่ามแปลสดในห้องประชุม (Live Translate)';
+      if (sEl) sEl.innerText = 'พร้อมแปลสด';
+    }
+
+    async function onChangeMobileTranslateLang() {
+      const tr = getMobileTranslatorState_();
+      if (!tr.isTranslating) return;
+      flushMobileTranslateTurn_();
+      clearMobileTranslatePlaybackQueue_();
+      const apiKey = await getEffectiveMobileGeminiApiKey();
+      if (apiKey && tr.isTranslating) {
+        connectMobileLiveTranslateWs_(apiKey);
+      }
+    }
+
+    function swapMobileLiveTranslateLang() {
+      const sel = document.getElementById('mobTranslateTargetLang');
+      if (!sel) return;
+      sel.value = (sel.value === 'ja') ? 'th' : 'ja';
+      showToast(sel.value === 'th' ? 'สลับเป็น 🇯🇵 ➔ 🇹🇭 (แปลเป็นไทย)' : 'สลับเป็น 🇹🇭 ➔ 🇯🇵 (แปลเป็นญี่ปุ่น)');
+      onChangeMobileTranslateLang();
+    }
+
+    window.toggleMobileLiveTranslate = toggleMobileLiveTranslate;
+    window.stopMobileLiveTranslate = stopMobileLiveTranslate;
+    window.onChangeMobileTranslateLang = onChangeMobileTranslateLang;
+    window.swapMobileLiveTranslateLang = swapMobileLiveTranslateLang;
 
     async function handleMobileMeetingAudioFile(event) {
       const file = event.target.files && event.target.files[0];

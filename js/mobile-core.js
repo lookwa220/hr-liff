@@ -583,6 +583,7 @@
     // ==========================================
     function openView(viewName, pushHistory = true) {
       if (typeof stopMobileMeetingLiveMic === 'function') stopMobileMeetingLiveMic();
+      if (typeof stopMobileLiveTranslate === 'function') stopMobileLiveTranslate();
       document.getElementById('mainDashboard').classList.add('hidden');
       const allViewIds = [
         'viewLeave', 'viewQuota', 'viewOT', 'viewApprovals',
@@ -707,6 +708,7 @@
 
     function closeCurrentView(syncHistory = true) {
       if (typeof stopMobileMeetingLiveMic === 'function') stopMobileMeetingLiveMic();
+      if (typeof stopMobileLiveTranslate === 'function') stopMobileLiveTranslate();
       const allViewIds = [
         'viewLeave', 'viewQuota', 'viewOT', 'viewApprovals',
         'viewPaySlip', 'viewShiftAtt', 'viewSwap', 'viewSafety',
