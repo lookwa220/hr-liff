@@ -25,10 +25,14 @@
         return true;
       }
 
-      const overrides = (window.state && window.state.calendarOverrides) ? window.state.calendarOverrides : {};
+      const overrides = (state && state.calendarOverrides) ? state.calendarOverrides : {};
+      const dayTypes = (state && state.calendarDayTypes) ? state.calendarDayTypes : {};
+      const shiftStr = String(document.getElementById('leaveShift')?.value || state?.currentUser?.shift || '').toLowerCase();
+      const isNight = shiftStr.includes('night') || shiftStr.includes('กลางคืน');
       const isCalWork = (iso, dow) => {
+        if (dayTypes[iso] === 'SPECIAL_SWAP_NIGHT') return isNight;
         if (overrides[iso] !== undefined) return overrides[iso] === true || String(overrides[iso]).toUpperCase() === 'TRUE';
-        return dow !== 0;
+        return dow !== 0 && dow !== 6;
       };
       const fmtIso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
       const todayIso = fmtIso(new Date());
@@ -48,6 +52,10 @@
         let c = 0;
         for (let i = 0; i < 45 && c < 3; i++) {
           if (isCalWork(fmtIso(cur), cur.getDay())) c++;
+          cur.setDate(cur.getDate() + 1);
+        }
+        for (let j = 0; j < 30; j++) {
+          if (isCalWork(fmtIso(cur), cur.getDay())) break;
           cur.setDate(cur.getDate() + 1);
         }
         const [ey, em, ed] = fmtIso(cur).split('-');
@@ -71,9 +79,13 @@
       checkClientLeaveAdvanceNotice(startDate);
       if (!startDate || !endDate) return;
 
-      const overrides = (window.state && window.state.calendarOverrides) ? window.state.calendarOverrides : {};
+      const overrides = (state && state.calendarOverrides) ? state.calendarOverrides : {};
+      const dayTypes = (state && state.calendarDayTypes) ? state.calendarDayTypes : {};
+      const shiftStr = String(document.getElementById('leaveShift')?.value || state?.currentUser?.shift || '').toLowerCase();
+      const isNight = shiftStr.includes('night') || shiftStr.includes('กลางคืน');
 
       function isWorkDay(dateStr) {
+        if (dayTypes[dateStr] === 'SPECIAL_SWAP_NIGHT') return isNight;
         if (overrides[dateStr] !== undefined) {
           return overrides[dateStr] === true || String(overrides[dateStr]).toUpperCase() === 'TRUE';
         }

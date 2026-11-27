@@ -14,6 +14,7 @@
       config: null,
       currentView: 'dashboard'
     };
+    window.state = state;
 
     // ==========================================
     // Utility: JSONP Requester (Bypasses CORS & Google 302 Redirects)
@@ -148,8 +149,13 @@
         if (res && res.success) {
           state.config = res;
           state.calendarOverrides = res.calendarOverrides || {};
+          state.calendarDayTypes = res.calendarDayTypes || {};
           populateTimeOptions();
           populateLeaveTypes(res.leaveTypes);
+          if (typeof checkClientLeaveAdvanceNotice === 'function') {
+            const sd = document.getElementById('leaveStartDate')?.value || '';
+            if (sd) checkClientLeaveAdvanceNotice(sd);
+          }
         }
       } catch (e) {
         console.warn('Failed to load config', e);
