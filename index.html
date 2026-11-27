@@ -3690,6 +3690,70 @@
     </div>
   </div>
 
+  <!-- Modal: อ่านรายงานการประชุมฉบับสะอาดบนมือถือ (Mobile Clean Minutes Reader) -->
+  <div id="modalMobileMinutesReader" class="hidden fixed inset-0 z-[52] bg-slate-900/75 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-3">
+    <div class="bg-white rounded-t-3xl sm:rounded-3xl max-w-lg w-full max-h-[94vh] flex flex-col overflow-hidden shadow-2xl border border-slate-200 text-left">
+      <div class="px-4 py-3 bg-gradient-to-r from-teal-700 via-sky-700 to-indigo-800 text-white flex items-center justify-between gap-2 shrink-0">
+        <div class="min-w-0">
+          <div class="flex items-center gap-1.5 flex-wrap">
+            <span class="text-sm font-bold truncate">📖 รายงานการประชุม</span>
+            <span id="mobReaderBadgeNo" class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-white/20 font-bold">MIN</span>
+            <span id="mobReaderBadgeSeries" class="text-[10px] px-1.5 py-0.5 rounded bg-indigo-500/40 font-bold">ครั้งที่ 1</span>
+            <span id="mobReaderBadgeStatus" class="text-[10px] px-1.5 py-0.5 rounded bg-emerald-400/30 font-bold">PUBLISHED</span>
+          </div>
+          <p id="mobReaderApptLabel" class="text-[10px] text-teal-100 truncate mt-0.5">-</p>
+        </div>
+        <button type="button" onclick="closeMobileMinutesReaderModal()" class="w-8 h-8 rounded-full bg-white/15 text-white flex items-center justify-center text-sm font-bold shrink-0">✕</button>
+      </div>
+
+      <div class="flex-1 overflow-y-auto p-3.5 space-y-3 text-xs bg-slate-50">
+        <div id="mobReaderSeriesBar" class="hidden p-2.5 rounded-2xl bg-indigo-50 border border-indigo-200 space-y-1.5">
+          <div class="text-[11px] font-bold text-indigo-900">🔁 สายการประชุมต่อเนื่อง (Series Timeline)</div>
+          <div id="mobReaderSeriesChips" class="flex flex-wrap gap-1.5"></div>
+        </div>
+
+        <div class="p-3 bg-white rounded-2xl border border-slate-200 space-y-1.5">
+          <div id="mobReaderTitle" class="text-sm font-extrabold text-slate-900 leading-snug">-</div>
+          <div id="mobReaderMeta" class="text-[11px] text-slate-600 space-y-0.5"></div>
+          <div id="mobReaderAttendees" class="text-[11px] text-slate-600 pt-1.5 border-t border-slate-100"></div>
+          <div id="mobReaderPartsTags" class="hidden flex flex-wrap gap-1 pt-1"></div>
+        </div>
+
+        <div class="p-3 bg-white rounded-2xl border border-slate-200 space-y-2">
+          <div class="flex items-center justify-between gap-2">
+            <div class="flex items-center gap-1 bg-slate-100 p-0.5 rounded-xl text-[11px] font-bold">
+              <button type="button" id="mobReaderTabTh" onclick="switchMobileReaderLang('TH')" class="px-2.5 py-1 rounded-lg bg-white text-teal-700 shadow-2xs">🇹🇭 ไทย</button>
+              <button type="button" id="mobReaderTabJa" onclick="switchMobileReaderLang('JA')" class="px-2.5 py-1 rounded-lg text-slate-500">🇯🇵 JP</button>
+              <button type="button" id="mobReaderTabEn" onclick="switchMobileReaderLang('EN')" class="px-2.5 py-1 rounded-lg text-slate-500">🇬🇧 EN</button>
+            </div>
+            <span class="text-[10px] text-teal-700 font-bold">📖 โหมดอ่านสรุป</span>
+          </div>
+          <div id="mobReaderSummaryBox" class="p-3 rounded-xl bg-slate-50 border border-slate-200/80 text-xs text-slate-800 whitespace-pre-line leading-relaxed"></div>
+        </div>
+
+        <div id="mobReaderAgendasSec" class="hidden p-3 bg-white rounded-2xl border border-slate-200 space-y-2">
+          <div class="font-bold text-slate-800">📋 วาระและมติที่ประชุม</div>
+          <div id="mobReaderAgendasList" class="space-y-2"></div>
+        </div>
+
+        <div id="mobReaderActionsSec" class="p-3 bg-white rounded-2xl border border-slate-200 space-y-2">
+          <div class="font-bold text-slate-800">📌 งานมอบหมาย (Action Items)</div>
+          <div id="mobReaderActionsList" class="space-y-2"></div>
+        </div>
+
+        <div id="mobReaderMediaSec" class="hidden p-3 bg-white rounded-2xl border border-slate-200 space-y-2">
+          <div class="font-bold text-slate-800">📎 ไฟล์เสียงและภาพกระดาน</div>
+          <div id="mobReaderMediaBody" class="space-y-2"></div>
+        </div>
+      </div>
+
+      <div class="p-3 bg-white border-t border-slate-200 flex items-center gap-2 shrink-0">
+        <button type="button" id="btnMobReaderEdit" onclick="editMobileMinutesFromReader()" class="hidden flex-1 py-2.5 px-3 rounded-xl bg-sky-600 text-white font-bold text-xs shadow-xs active:scale-95 transition">✏️ แก้ไขบันทึก</button>
+        <button type="button" id="btnMobReaderFollowUp" onclick="followUpMobileFromReader()" class="hidden flex-1 py-2.5 px-3 rounded-xl bg-indigo-50 text-indigo-700 border border-indigo-200 font-bold text-xs active:scale-95 transition">🔁 นัดครั้งถัดไป</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Modal: สตูดิโอบันทึกการประชุม AI บนมือถือ (Mobile Minutes Studio Modal) -->
   <div id="modalMobileMinutesStudio" class="hidden fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-3">
     <div class="bg-white rounded-t-3xl sm:rounded-3xl max-w-lg w-full max-h-[94vh] flex flex-col overflow-hidden shadow-2xl border border-slate-200 text-left">
@@ -3978,10 +4042,10 @@
   <datalist id="mobMeetEmpDatalist"></datalist>
 
   <!-- Application Logic -->
-  <!-- Modular Mobile JS Architecture (v3.3.3) -->
-  <script src="js/mobile-core.js?v=3.3.0"></script>
+  <!-- Modular Mobile JS Architecture (v3.4.0) -->
+  <script src="js/mobile-core.js?v=3.4.0"></script>
   <script src="js/mobile-hr.js?v=3.1.7"></script>
-  <script src="js/mobile-services.js?v=3.3.3"></script>
+  <script src="js/mobile-services.js?v=3.4.0"></script>
   <script src="js/mobile-iso-mnw.js?v=3.1.4"></script>
   <script src="js/mobile-pd-pc.js?v=3.1.4"></script>
 </body>

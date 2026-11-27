@@ -2809,7 +2809,37 @@ Strict Rules:
       }
     }
 
-    async function openMobileMinutesByNo(minutesNo) {
+    function extractMobDateYmd_(val) {
+      if (!val) return '';
+      const s = String(val).trim();
+      const iso = s.match(/(\d{4}-\d{2}-\d{2})/);
+      if (iso) return iso[1];
+      const dmy = s.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+      if (dmy) return `${dmy[3]}-${dmy[2]}-${dmy[1]}`;
+      return s.replace(/\s+00:00:00$/, '').trim();
+    }
+
+    function extractMobTimeHm_(val) {
+      if (!val) return '';
+      const s = String(val).trim()
+        .replace(/^\d{4}-\d{2}-\d{2}[T\s]+/, '')
+        .replace(/^\d{2}\/\d{2}\/\d{4}\s+/, '');
+      const m = s.match(/(\d{1,2}):(\d{2})/);
+      return m ? `${String(m[1]).padStart(2, '0')}:${m[2]}` : '';
+    }
+
+    function canMobUserEditMinutes_(m) {
+      if (!m || !m.minutesNo) return true;
+      const myEmp = getMobMeetEmpId_().toUpperCase();
+      const u = state.currentUser || {};
+      const role = String(u.role || '').toUpperCase();
+      if (role === 'SUPER_ADMIN' || role === 'ADMIN' || u.isSuperAdmin === true || u.isSuperAdmin === 'TRUE') return true;
+      if (myEmp && m.recorderId && String(m.recorderId).trim().toUpperCase() === myEmp) return true;
+      if (myEmp && m.organizerId && String(m.organizerId).trim().toUpperCase() === myEmp) return true;
+      return false;
+    }
+
+    async function openMobileMinutesByNo(minutesNo, forceEdit) {
       try {
         const res = await postApiRequest({
           action: 'getMeetingMinutesDetail',
@@ -2817,7 +2847,13 @@ Strict Rules:
           callerEmpId: getMobMeetEmpId_()
         });
         if (res && res.status === 'success' && res.data) {
-          openMobileMinutesStudioModal({ existingDetail: res.data });
+          const m = res.data.minutes || {};
+          const st = String(m.status || 'DRAFT').toUpperCase();
+          if (!forceEdit && (st === 'PUBLISHED' || !canMobUserEditMinutes_(m))) {
+            openMobileMinutesReaderModal(res.data);
+          } else {
+            openMobileMinutesStudioModal({ existingDetail: res.data });
+          }
         } else {
           showToast((res && res.message) || 'ไม่สามารถเปิดบันทึกนี้ได้', 'error');
         }
@@ -2825,6 +2861,193 @@ Strict Rules:
         showToast('เกิดข้อผิดพลาด: ' + err.message, 'error');
       }
     }
+
+    function openMobileMinutesReaderModal(detailData) {
+      MobileMeetingState._readerDetail = detailData;
+      MobileMeetingState._readerLang = 'TH';
+      const modal = document.getElementById('modalMobileMinutesReader');
+      if (!modal) {
+        openMobileMinutesStudioModal({ existingDetail: detailData });
+        return;
+      }
+      modal.classList.remove('hidden');
+
+      const m = detailData.minutes || {};
+      const actions = detailData.actionItems || [];
+      const timeline = detailData.seriesTimeline || [];
+
+      document.getElementById('mobReaderBadgeNo').innerText = m.minutesNo || '-';
+      document.getElementById('mobReaderBadgeSeries').innerText = `ครั้งที่ ${m.sessionNo || 1}`;
+      document.getElementById('mobReaderBadgeStatus').innerText = m.status || 'PUBLISHED';
+      document.getElementById('mobReaderApptLabel').innerText = m.appointmentNo ? `เชื่อมโยงนัดหมาย: ${m.appointmentNo}` : 'การประชุมด่วนนอกตาราง';
+      document.getElementById('mobReaderTitle').innerText = m.title || '-';
+
+      const mDate = extractMobDateYmd_(m.meetingDate) || '-';
+      const sTime = extractMobTimeHm_(m.startTime) || '-';
+      const eTime = extractMobTimeHm_(m.endTime) || '-';
+      document.getElementById('mobReaderMeta').innerHTML = `
+        <div>📅 ${escMobMeet_(mDate)} (${escMobMeet_(sTime)} - ${escMobMeet_(eTime)} น.) • 📍 ${escMobMeet_(m.location || '-')}</div>
+        <div>👤 ผู้จัด: ${escMobMeet_(m.organizerName || '-')} (${escMobMeet_(m.organizerDept || '-')}) • ✍️ ผู้จด: ${escMobMeet_(m.recorderName || m.organizerName || '-')}</div>
+      `;
+
+      const attList = m.attendeesActual || [];
+      document.getElementById('mobReaderAttendees').innerHTML =
+        `<span class="font-bold text-slate-700">👥 ผู้เข้าร่วม (${attList.length}):</span> ` +
+        (attList.length > 0 ? attList.map(a => escMobMeet_(typeof a === 'string' ? a : (a.employeeName || a.name || a.employeeId))).join(', ') : '-');
+
+      const ptBox = document.getElementById('mobReaderPartsTags');
+      if (ptBox) {
+        if (m.extractedPartCodes || m.tags) {
+          ptBox.classList.remove('hidden');
+          let h = '';
+          if (m.extractedPartCodes) h += m.extractedPartCodes.split(',').map(s => s.trim()).filter(Boolean).map(p => `<span class="px-2 py-0.5 rounded bg-sky-50 text-sky-800 border border-sky-200 font-mono text-[10px]">🔩 ${escMobMeet_(p)}</span>`).join('');
+          if (m.tags) h += m.tags.split(',').map(s => s.trim()).filter(Boolean).map(t => `<span class="px-2 py-0.5 rounded bg-slate-100 text-slate-700 text-[10px]">🏷️ ${escMobMeet_(t)}</span>`).join('');
+          ptBox.innerHTML = h;
+        } else {
+          ptBox.classList.add('hidden');
+          ptBox.innerHTML = '';
+        }
+      }
+
+      const sBar = document.getElementById('mobReaderSeriesBar');
+      const sChips = document.getElementById('mobReaderSeriesChips');
+      if (sBar && sChips) {
+        if (timeline.length <= 1) {
+          sBar.classList.add('hidden');
+        } else {
+          sBar.classList.remove('hidden');
+          sChips.innerHTML = timeline.map(item => {
+            const cls = item.isCurrent ? 'bg-indigo-600 text-white border-indigo-700' : 'bg-white text-indigo-800 border-indigo-200';
+            const clk = item.minutesNo ? `onclick="openMobileMinutesByNo('${escMobMeet_(item.minutesNo)}')"` : '';
+            return `<button type="button" ${clk} class="px-2 py-1 rounded-lg border text-[10px] font-bold ${cls}">Ep.${item.sessionNo} (${escMobMeet_(extractMobDateYmd_(item.meetingDate))})</button>`;
+          }).join(' <span class="text-indigo-400 self-center">→</span> ');
+        }
+      }
+
+      switchMobileReaderLang('TH');
+
+      const agSec = document.getElementById('mobReaderAgendasSec');
+      const agList = document.getElementById('mobReaderAgendasList');
+      const agendas = m.agendas || [];
+      if (agSec && agList) {
+        if (agendas.length === 0) {
+          agSec.classList.add('hidden');
+        } else {
+          agSec.classList.remove('hidden');
+          agList.innerHTML = agendas.map((ag, i) => `
+            <div class="p-2.5 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
+              <div class="flex items-center justify-between gap-1">
+                <span class="font-bold text-slate-800">${i + 1}. ${escMobMeet_(ag.title)}</span>
+                <span class="px-1.5 py-0.5 rounded text-[10px] font-bold ${ag.status === 'CARRY_OVER' ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'}">${ag.status === 'CARRY_OVER' ? '🔁 ยกยอด' : '✓ ปิดวาระ'}</span>
+              </div>
+              ${ag.discussion ? `<div class="text-[11px] text-slate-600">หารือ: ${escMobMeet_(ag.discussion)}</div>` : ''}
+              ${ag.resolution ? `<div class="text-[11px] font-semibold text-teal-800">มติ: ${escMobMeet_(ag.resolution)}</div>` : ''}
+            </div>
+          `).join('');
+        }
+      }
+
+      const actList = document.getElementById('mobReaderActionsList');
+      if (actList) {
+        if (actions.length === 0) {
+          actList.innerHTML = '<div class="text-[11px] text-slate-400 text-center py-2">- ไม่มีงานมอบหมายเพิ่มเติม -</div>';
+        } else {
+          const myEmp = getMobMeetEmpId_().toUpperCase();
+          actList.innerHTML = actions.map((a, i) => {
+            const st = String(a.status || 'OPEN').toUpperCase();
+            const due = extractMobDateYmd_(a.dueDate) || '-';
+            const canAct = a.actionId && ((myEmp && String(a.assigneeEmpId || '').toUpperCase() === myEmp) || canMobUserEditMinutes_(m));
+            return `
+              <div class="p-2.5 rounded-xl bg-sky-50/50 border border-sky-200 space-y-1.5">
+                <div class="flex items-start justify-between gap-2">
+                  <div class="font-bold text-slate-800">${i + 1}. ${escMobMeet_(a.taskDescription)}</div>
+                  <span class="px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0 ${st === 'DONE' ? 'bg-emerald-100 text-emerald-800' : (st === 'IN_PROGRESS' ? 'bg-sky-100 text-sky-800' : 'bg-amber-100 text-amber-800')}">${escMobMeet_(st)}</span>
+                </div>
+                <div class="text-[11px] text-slate-600">👤 ${escMobMeet_(a.assigneeName || a.assigneeEmpId || '-')} • 📅 ส่ง: ${escMobMeet_(due)}</div>
+                ${canAct && st !== 'DONE' ? `
+                  <div class="flex gap-1.5 pt-0.5">
+                    ${st === 'OPEN' ? `<button type="button" onclick="quickUpdateMobReaderAction('${escMobMeet_(a.actionId)}', 'IN_PROGRESS')" class="flex-1 py-1 rounded-lg bg-sky-100 text-sky-800 text-[10px] font-bold">🔵 กำลังทำ</button>` : ''}
+                    <button type="button" onclick="quickUpdateMobReaderAction('${escMobMeet_(a.actionId)}', 'DONE')" class="flex-1 py-1 rounded-lg bg-emerald-600 text-white text-[10px] font-bold">✓ ปิดงาน</button>
+                  </div>
+                ` : ''}
+              </div>
+            `;
+          }).join('');
+        }
+      }
+
+      const medSec = document.getElementById('mobReaderMediaSec');
+      const medBody = document.getElementById('mobReaderMediaBody');
+      const wbs = (m.whiteboardUrls || []).filter(Boolean);
+      if (medSec && medBody) {
+        if (!m.audioUrl && wbs.length === 0) {
+          medSec.classList.add('hidden');
+        } else {
+          medSec.classList.remove('hidden');
+          let mh = '';
+          if (m.audioUrl) mh += `<div><a href="${escMobMeet_(m.audioUrl)}" target="_blank" class="inline-block px-3 py-1.5 rounded-xl bg-teal-50 text-teal-800 border border-teal-200 font-bold text-[11px]">🔊 เปิดฟังไฟล์เสียง ↗</a></div>`;
+          if (wbs.length > 0) mh += `<div class="flex flex-wrap gap-2">${wbs.map(u => `<a href="${escMobMeet_(typeof u === 'string' ? u : (u.url || u.thumbnailUrl))}" target="_blank"><img src="${escMobMeet_(typeof u === 'string' ? u : (u.thumbnailUrl || u.url))}" class="h-20 w-20 object-cover rounded-xl border border-slate-200"></a>`).join('')}</div>`;
+          medBody.innerHTML = mh;
+        }
+      }
+
+      const canEdit = canMobUserEditMinutes_(m);
+      const btnEdit = document.getElementById('btnMobReaderEdit');
+      const btnFollow = document.getElementById('btnMobReaderFollowUp');
+      if (btnEdit) btnEdit.classList.toggle('hidden', !canEdit);
+      if (btnFollow) btnFollow.classList.toggle('hidden', !m.minutesNo || !canEdit);
+    }
+
+    function closeMobileMinutesReaderModal() {
+      const modal = document.getElementById('modalMobileMinutesReader');
+      if (modal) modal.classList.add('hidden');
+    }
+
+    function switchMobileReaderLang(lang) {
+      MobileMeetingState._readerLang = lang;
+      const m = (MobileMeetingState._readerDetail && MobileMeetingState._readerDetail.minutes) || {};
+      const tTh = document.getElementById('mobReaderTabTh');
+      const tJa = document.getElementById('mobReaderTabJa');
+      const tEn = document.getElementById('mobReaderTabEn');
+      if (tTh) tTh.className = lang === 'TH' ? 'px-2.5 py-1 rounded-lg bg-white text-teal-700 shadow-2xs' : 'px-2.5 py-1 rounded-lg text-slate-500';
+      if (tJa) tJa.className = lang === 'JA' ? 'px-2.5 py-1 rounded-lg bg-white text-indigo-700 shadow-2xs' : 'px-2.5 py-1 rounded-lg text-slate-500';
+      if (tEn) tEn.className = lang === 'EN' ? 'px-2.5 py-1 rounded-lg bg-white text-sky-700 shadow-2xs' : 'px-2.5 py-1 rounded-lg text-slate-500';
+
+      const box = document.getElementById('mobReaderSummaryBox');
+      if (box) {
+        const txt = lang === 'JA' ? (m.summaryJa || '') : (lang === 'EN' ? (m.summaryEn || '') : (m.summaryTh || ''));
+        box.innerText = txt.trim() || (lang === 'TH' ? '- ยังไม่มีสรุปสาระสำคัญ -' : '- ยังไม่มีคำแปลในภาษานี้ -');
+      }
+    }
+
+    function editMobileMinutesFromReader() {
+      const detail = MobileMeetingState._readerDetail;
+      closeMobileMinutesReaderModal();
+      if (detail) openMobileMinutesStudioModal({ existingDetail: detail });
+    }
+
+    async function followUpMobileFromReader() {
+      const m = (MobileMeetingState._readerDetail && MobileMeetingState._readerDetail.minutes) || {};
+      if (!m.minutesNo) return;
+      closeMobileMinutesReaderModal();
+      MobileMeetingState.studio.minutesNo = m.minutesNo;
+      await triggerMobileFollowUpMeeting();
+    }
+
+    async function quickUpdateMobReaderAction(actionId, newStatus) {
+      await updateMobileMeetingActionStatus(actionId, newStatus);
+      const m = (MobileMeetingState._readerDetail && MobileMeetingState._readerDetail.minutes) || {};
+      if (m.minutesNo) {
+        await openMobileMinutesByNo(m.minutesNo);
+      }
+    }
+
+    window.openMobileMinutesReaderModal = openMobileMinutesReaderModal;
+    window.closeMobileMinutesReaderModal = closeMobileMinutesReaderModal;
+    window.switchMobileReaderLang = switchMobileReaderLang;
+    window.editMobileMinutesFromReader = editMobileMinutesFromReader;
+    window.followUpMobileFromReader = followUpMobileFromReader;
+    window.quickUpdateMobReaderAction = quickUpdateMobReaderAction;
 
     function openMobileMinutesStudioModal(options) {
       const opts = options || {};
@@ -2878,9 +3101,9 @@ Strict Rules:
         st.status = m.status || 'DRAFT';
 
         document.getElementById('mobMinTitle').value = m.title || '';
-        document.getElementById('mobMinDate').value = m.meetingDate || todayIso;
-        document.getElementById('mobMinStart').value = (m.startTime || '09:00').slice(0, 5);
-        document.getElementById('mobMinEnd').value = (m.endTime || '10:00').slice(0, 5);
+        document.getElementById('mobMinDate').value = extractMobDateYmd_(m.meetingDate) || todayIso;
+        document.getElementById('mobMinStart').value = extractMobTimeHm_(m.startTime) || '09:00';
+        document.getElementById('mobMinEnd').value = extractMobTimeHm_(m.endTime) || '10:00';
         document.getElementById('mobMinLocation').value = m.location || '';
         document.getElementById('mobMinVisibility').value = m.visibility || 'ATTENDEES_ONLY';
         document.getElementById('mobMinRawNotes').value = m.rawNotes || '';
@@ -2896,7 +3119,9 @@ Strict Rules:
           if (code) st.actualAttendees.set(code, { code: code, name: (a.employeeName || a.name || code), dept: (a.department || a.dept || '') });
         });
         st.agendas = Array.isArray(m.agendas) ? JSON.parse(JSON.stringify(m.agendas)) : [];
-        st.actionItems = Array.isArray(opts.existingDetail.actionItems) ? JSON.parse(JSON.stringify(opts.existingDetail.actionItems)) : [];
+        st.actionItems = Array.isArray(opts.existingDetail.actionItems)
+          ? opts.existingDetail.actionItems.map(a => Object.assign({}, a, { dueDate: extractMobDateYmd_(a.dueDate) }))
+          : [];
         st.whiteboardItems = (m.whiteboardUrls || []).map(u => (typeof u === 'string' ? { url: u, thumbnailUrl: u, base64: '' } : u));
         if (m.audioUrl) {
           st.audioUrl = m.audioUrl;
@@ -2923,9 +3148,9 @@ Strict Rules:
         const sParts = String(app.startDateTime || '').replace('T', ' ').split(' ');
         const eParts = String(app.endDateTime || '').replace('T', ' ').split(' ');
         document.getElementById('mobMinTitle').value = app.title || '';
-        document.getElementById('mobMinDate').value = sParts[0] || todayIso;
-        document.getElementById('mobMinStart').value = (sParts[1] || '09:00').slice(0, 5);
-        document.getElementById('mobMinEnd').value = (eParts[1] || '10:00').slice(0, 5);
+        document.getElementById('mobMinDate').value = extractMobDateYmd_(app.startDateTime) || todayIso;
+        document.getElementById('mobMinStart').value = extractMobTimeHm_(app.startDateTime) || '09:00';
+        document.getElementById('mobMinEnd').value = extractMobTimeHm_(app.endDateTime) || '10:00';
         document.getElementById('mobMinLocation').value = app.location || '';
         document.getElementById('mobMinVisibility').value = 'ATTENDEES_ONLY';
         document.getElementById('mobMinRawNotes').value = app.description || '';

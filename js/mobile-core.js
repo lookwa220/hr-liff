@@ -339,6 +339,44 @@
       // Render Host Visitors & Announcements
       renderHostVisitors(user.pendingVisitors || []);
       renderAnnouncements(user.announcements || []);
+
+      // Handle LIFF deep links (e.g. ?openMinutes=MIN-2026-0001 or ?openMeetingActions=...)
+      if (typeof handleInitialDeepLinkRouting_ === 'function') {
+        handleInitialDeepLinkRouting_();
+      }
+    }
+
+    function getLiffDeepLinkParam_(key) {
+      try {
+        const direct = new URLSearchParams(window.location.search || '');
+        if (direct.get(key)) return direct.get(key);
+        const liffState = direct.get('liff.state');
+        if (liffState) {
+          const idx = liffState.indexOf('?');
+          const qs = idx >= 0 ? liffState.slice(idx) : ('?' + liffState.replace(/^\//, ''));
+          const nested = new URLSearchParams(qs);
+          if (nested.get(key)) return nested.get(key);
+        }
+      } catch (e) {}
+      return '';
+    }
+
+    function handleInitialDeepLinkRouting_() {
+      if (state._deepLinkHandled) return;
+      state._deepLinkHandled = true;
+      const openMinutes = getLiffDeepLinkParam_('openMinutes');
+      const openActions = getLiffDeepLinkParam_('openMeetingActions');
+      if (openMinutes) {
+        openView('meetingHub', false);
+        setTimeout(() => {
+          if (typeof openMobileMinutesByNo === 'function') openMobileMinutesByNo(openMinutes);
+        }, 180);
+      } else if (openActions) {
+        openView('meetingHub', false);
+        setTimeout(() => {
+          if (typeof switchMobileMeetingTab === 'function') switchMobileMeetingTab('ACTIONS');
+        }, 180);
+      }
     }
 
     function renderQuotas(quota) {
