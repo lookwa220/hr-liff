@@ -2387,3 +2387,1546 @@ Strict Rules:
     window.handleMobileSupportDeleteThread = handleMobileSupportDeleteThread;
     window.handleMobileSupportDeleteKb = handleMobileSupportDeleteKb;
 
+    // =========================================================================
+    // SMART AI MEETING MINUTES & CONTINUITY HUB (MOBILE LINE LIFF COMPANION)
+    // =========================================================================
+    const MobileMeetingState = {
+      activeTab: 'APPT',
+      initialData: null,
+      appointments: [],
+      minutes: [],
+      actionItems: [],
+      actionScope: 'MY_TASKS',
+      createAttendeeSelected: new Set(),
+      carryOverContext: null,
+      studio: {
+        minutesNo: '',
+        appointmentNo: '',
+        seriesId: '',
+        sessionNo: 1,
+        parentMinutesNo: '',
+        organizerId: '',
+        organizerName: '',
+        organizerDept: '',
+        status: 'DRAFT',
+        previousContextSummary: '',
+        actualAttendees: new Map(),
+        agendas: [],
+        actionItems: [],
+        whiteboardItems: [],
+        audioUrl: '',
+        audioFileName: '',
+        recordedAudioBlob: null,
+        recordedAudioMime: '',
+        isRecording: false,
+        liveWs: null,
+        liveStream: null,
+        liveAudioCtx: null,
+        liveProcessor: null,
+        mediaRecorder: null,
+        mediaChunks: [],
+        recTimer: null,
+        recSeconds: 0,
+        wsRenewTimer: null,
+        wakeLockSentinel: null
+      }
+    };
+
+    function getMobMeetEmpId_() {
+      return state.currentUser ? (state.currentUser.employeeCode || state.currentUser.employeeId || '') : '';
+    }
+
+    function escMobMeet_(str) {
+      return String(str || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    async function ensureMobileMeetingInitialData_() {
+      if (MobileMeetingState.initialData && Array.isArray(MobileMeetingState.initialData.employees)) {
+        return MobileMeetingState.initialData;
+      }
+      try {
+        const res = await postApiRequest({
+          action: 'getMeetingAppointmentsInitialData',
+          empId: getMobMeetEmpId_()
+        });
+        if (res && res.status === 'success' && res.data) {
+          MobileMeetingState.initialData = res.data;
+          const dl = document.getElementById('mobMeetEmpDatalist');
+          if (dl && Array.isArray(res.data.employees)) {
+            dl.innerHTML = res.data.employees.map(e => {
+              const nick = e.nickname && e.nickname !== '-' ? ` (${e.nickname})` : '';
+              return `<option value="${escMobMeet_(e.code)}">${escMobMeet_(e.code)} - ${escMobMeet_(e.name)}${escMobMeet_(nick)} [${escMobMeet_(e.dept)}]</option>`;
+            }).join('');
+          }
+          return res.data;
+        }
+      } catch (e) {}
+      return null;
+    }
+
+    async function initMobileMeetingHubView() {
+      ensureMobileMeetingInitialData_();
+      switchMobileMeetingTab(MobileMeetingState.activeTab || 'APPT');
+    }
+
+    function switchMobileMeetingTab(tab) {
+      MobileMeetingState.activeTab = tab;
+      const tabs = {
+        APPT: { btn: 'mobMeetTabAppt', panel: 'mobMeetPanelAppt' },
+        MINUTES: { btn: 'mobMeetTabMinutes', panel: 'mobMeetPanelMinutes' },
+        ACTIONS: { btn: 'mobMeetTabActions', panel: 'mobMeetPanelActions' }
+      };
+      Object.keys(tabs).forEach(k => {
+        const b = document.getElementById(tabs[k].btn);
+        const p = document.getElementById(tabs[k].panel);
+        if (b) {
+          b.className = (k === tab)
+            ? 'py-1.5 px-2 rounded-lg bg-white text-sky-700 shadow-2xs transition'
+            : 'py-1.5 px-2 rounded-lg text-slate-500 transition';
+        }
+        if (p) p.classList.toggle('hidden', k !== tab);
+      });
+      if (tab === 'APPT') loadMobileMeetingAppointments();
+      else if (tab === 'MINUTES') loadMobileMeetingMinutes();
+      else if (tab === 'ACTIONS') loadMobileMeetingActions();
+    }
+
+    let mobMeetSearchTimer_ = null;
+    function onMobileMeetingSearch() {
+      clearTimeout(mobMeetSearchTimer_);
+      mobMeetSearchTimer_ = setTimeout(() => {
+        loadMobileMeetingMinutes();
+      }, 250);
+    }
+
+    async function loadMobileMeetingAppointments() {
+      const box = document.getElementById('mobMeetApptList');
+      if (box) box.innerHTML = '<div class="text-center py-6 text-xs text-slate-400">กำลังโหลดนัดหมายการประชุม...</div>';
+      try {
+        const res = await postApiRequest({
+          action: 'getAllMeetingAppointmentsList',
+          empId: getMobMeetEmpId_()
+        });
+        if (res && res.status === 'success') {
+          MobileMeetingState.appointments = res.data || [];
+          renderMobileMeetingAppointments_();
+        } else if (box) {
+          box.innerHTML = `<div class="p-4 text-center text-xs text-rose-600 bg-rose-50 rounded-xl">${escMobMeet_(res ? res.message : 'โหลดข้อมูลไม่สำเร็จ')}</div>`;
+        }
+      } catch (err) {
+        if (box) box.innerHTML = `<div class="p-4 text-center text-xs text-rose-600 bg-rose-50 rounded-xl">${escMobMeet_(err.message)}</div>`;
+      }
+    }
+
+    function renderMobileMeetingAppointments_() {
+      const box = document.getElementById('mobMeetApptList');
+      if (!box) return;
+      const list = (MobileMeetingState.appointments || []).filter(m => m.status !== 'CANCELLED').slice(0, 40);
+      if (list.length === 0) {
+        box.innerHTML = '<div class="p-6 text-center text-xs text-slate-400 bg-slate-50 rounded-2xl border border-slate-200">ยังไม่มีรายการนัดหมายการประชุม</div>';
+        return;
+      }
+
+      box.innerHTML = list.map(m => {
+        const epBadge = (m.sessionNo && m.sessionNo > 1)
+          ? `<span class="px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-700 text-[10px] font-bold">ครั้งที่ ${m.sessionNo}</span>`
+          : '';
+        const minBadge = m.minutesNo
+          ? `<span class="px-1.5 py-0.5 rounded bg-teal-100 text-teal-800 text-[10px] font-bold">📝 ${escMobMeet_(m.minutesNo)}</span>`
+          : '';
+        const rsvpControls = (m.myStatus === 'PENDING') ? `
+          <div class="grid grid-cols-2 gap-1.5 pt-1.5">
+            <button type="button" onclick="respondMobileApptQuick('${escMobMeet_(m.appointmentNo)}', 'ACCEPTED')" class="py-1.5 rounded-xl bg-emerald-600 text-white text-[11px] font-bold">✅ เข้าร่วม</button>
+            <button type="button" onclick="respondMobileApptQuick('${escMobMeet_(m.appointmentNo)}', 'DECLINED')" class="py-1.5 rounded-xl bg-rose-50 text-rose-700 border border-rose-200 text-[11px] font-bold">❌ ไม่สะดวก</button>
+          </div>
+        ` : '';
+
+        return `
+          <div class="p-3.5 rounded-2xl bg-white border border-slate-200 shadow-2xs space-y-2">
+            <div class="flex items-start justify-between gap-2">
+              <div class="min-w-0 space-y-1">
+                <div class="flex items-center gap-1.5 flex-wrap">
+                  <span class="text-[10px] font-mono font-bold text-slate-500">${escMobMeet_(m.appointmentNo)}</span>
+                  ${epBadge}
+                  ${minBadge}
+                </div>
+                <div class="text-xs font-bold text-slate-800 leading-snug">${escMobMeet_(m.title)}</div>
+              </div>
+              <button type="button" onclick="openMobileMinutesForAppt('${escMobMeet_(m.appointmentNo)}', '${escMobMeet_(m.minutesNo || '')}')" class="px-2.5 py-1.5 rounded-xl ${m.minutesNo ? 'bg-teal-50 text-teal-700 border border-teal-200' : 'bg-teal-600 text-white'} text-[11px] font-bold shrink-0">
+                ${m.minutesNo ? '📖 ดูสรุปมติ' : '🎙️ จดบันทึก AI'}
+              </button>
+            </div>
+            <div class="text-[11px] text-slate-500 flex flex-wrap gap-x-3 gap-y-0.5">
+              <span>🕒 ${escMobMeet_(m.startDateTime)}</span>
+              <span>📍 ${escMobMeet_(m.location)}</span>
+              <span>👥 เข้าร่วม ${m.acceptedCount || 0}/${m.totalAttendees || 0}</span>
+            </div>
+            ${rsvpControls}
+          </div>
+        `;
+      }).join('');
+    }
+
+    async function respondMobileApptQuick(apptNo, rsvpStatus) {
+      let reason = '';
+      if (rsvpStatus === 'DECLINED') {
+        const inp = prompt('ระบุเหตุผลที่ไม่สามารถเข้าร่วมประชุมได้:', 'ติดปัญหาหน้างานด่วน');
+        if (inp === null) return;
+        reason = inp;
+      }
+      try {
+        const res = await postApiRequest({
+          action: 'respondMeetingAppointmentRsvp',
+          appointmentNo: apptNo,
+          employeeId: getMobMeetEmpId_(),
+          lineUserId: state.lineUserId || '',
+          status: rsvpStatus,
+          declineReason: reason
+        });
+        if (res && res.status === 'success') {
+          showToast(res.message || 'บันทึกการตอบรับแล้ว');
+          await loadMobileMeetingAppointments();
+        } else {
+          showToast((res && res.message) || 'ตอบรับไม่สำเร็จ', 'error');
+        }
+      } catch (err) {
+        showToast('เกิดข้อผิดพลาด: ' + err.message, 'error');
+      }
+    }
+
+    async function loadMobileMeetingMinutes() {
+      const box = document.getElementById('mobMeetMinutesList');
+      if (box) box.innerHTML = '<div class="text-center py-6 text-xs text-slate-400">กำลังโหลดคลังบันทึกการประชุม...</div>';
+      const q = document.getElementById('mobMeetSearchInput') ? document.getElementById('mobMeetSearchInput').value.trim() : '';
+      const vis = document.getElementById('mobMeetVisFilter') ? document.getElementById('mobMeetVisFilter').value : 'ALL';
+      try {
+        const res = await postApiRequest({
+          action: 'getMeetingMinutesList',
+          callerEmpId: getMobMeetEmpId_(),
+          query: q,
+          visibility: vis
+        });
+        if (res && res.status === 'success') {
+          MobileMeetingState.minutes = res.data || [];
+          renderMobileMeetingMinutes_();
+        } else if (box) {
+          box.innerHTML = `<div class="p-4 text-center text-xs text-rose-600 bg-rose-50 rounded-xl">${escMobMeet_(res ? res.message : 'โหลดข้อมูลไม่สำเร็จ')}</div>`;
+        }
+      } catch (err) {
+        if (box) box.innerHTML = `<div class="p-4 text-center text-xs text-rose-600 bg-rose-50 rounded-xl">${escMobMeet_(err.message)}</div>`;
+      }
+    }
+
+    function renderMobileMeetingMinutes_() {
+      const box = document.getElementById('mobMeetMinutesList');
+      if (!box) return;
+      const list = MobileMeetingState.minutes || [];
+      if (list.length === 0) {
+        box.innerHTML = '<div class="p-6 text-center text-xs text-slate-400 bg-slate-50 rounded-2xl border border-slate-200">ไม่พบบันทึกการประชุมที่เข้าถึงได้</div>';
+        return;
+      }
+      box.innerHTML = list.map(m => {
+        const isPub = m.status === 'PUBLISHED';
+        return `
+          <div onclick="openMobileMinutesByNo('${escMobMeet_(m.minutesNo)}')" class="p-3.5 rounded-2xl bg-white border border-slate-200 hover:border-teal-400 shadow-2xs space-y-2 cursor-pointer">
+            <div class="flex items-start justify-between gap-2">
+              <div class="min-w-0 space-y-1">
+                <div class="flex items-center gap-1.5 flex-wrap">
+                  <span class="px-1.5 py-0.5 rounded-full text-[10px] font-bold ${isPub ? 'bg-teal-100 text-teal-800' : 'bg-amber-100 text-amber-800'}">${escMobMeet_(m.status)}</span>
+                  <span class="text-[10px] font-mono font-bold text-slate-500">${escMobMeet_(m.minutesNo)}</span>
+                  <span class="px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-700 text-[10px] font-bold">ครั้งที่ ${m.sessionNo || 1}</span>
+                </div>
+                <div class="text-xs font-bold text-slate-800">${escMobMeet_(m.title)}</div>
+              </div>
+              <span class="text-xs font-bold text-teal-700 shrink-0">เปิด ➔</span>
+            </div>
+            <p class="text-[11px] text-slate-600 line-clamp-2">${escMobMeet_(m.summaryTh || '-')}</p>
+            <div class="flex flex-wrap items-center justify-between gap-1 text-[10px] text-slate-500 pt-1 border-t border-slate-100">
+              <span>📅 ${escMobMeet_(m.meetingDate)} • ${escMobMeet_(m.organizerDept || '-')}</span>
+              <span>${m.extractedPartCodes ? '🔩 ' + escMobMeet_(m.extractedPartCodes) + ' • ' : ''}งานค้าง ${m.openActionsCount}/${m.actionItemsCount}</span>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    async function askMobileMeetingHistoryAi() {
+      const inp = document.getElementById('mobMeetAskInput');
+      const box = document.getElementById('mobMeetAskResultBox');
+      const ansEl = document.getElementById('mobMeetAskAnswer');
+      const citEl = document.getElementById('mobMeetAskCitations');
+      const btn = document.getElementById('btnMobMeetAskAi');
+      const q = inp ? inp.value.trim() : '';
+      if (!q) {
+        showToast('กรุณาพิมพ์คำถามก่อนครับ', 'error');
+        return;
+      }
+
+      if (btn) { btn.disabled = true; btn.innerText = 'กำลังค้น...'; }
+      if (box) box.classList.remove('hidden');
+      if (ansEl) ansEl.innerText = '🤖 Gemini AI กำลังค้นหาบันทึกที่คุณมีสิทธิ์เข้าถึง...';
+      if (citEl) citEl.innerHTML = '';
+
+      try {
+        const res = await postApiRequest({
+          action: 'askMeetingHistoryWithAi',
+          question: q,
+          callerEmpId: getMobMeetEmpId_()
+        });
+        if (res && res.status === 'success') {
+          if (ansEl) ansEl.innerText = res.answer || '-';
+          if (citEl && Array.isArray(res.citations)) {
+            citEl.innerHTML = res.citations.map(c =>
+              `<button type="button" onclick="openMobileMinutesByNo('${escMobMeet_(c.minutesNo)}')" class="px-2 py-1 rounded-lg bg-teal-50 text-teal-800 border border-teal-200 text-[10px] font-bold">📄 ${escMobMeet_(c.minutesNo)} (${escMobMeet_(c.meetingDate)})</button>`
+            ).join('');
+          }
+        } else if (ansEl) {
+          ansEl.innerText = (res && res.message) || 'ไม่สามารถสอบถาม AI ได้';
+        }
+      } catch (err) {
+        if (ansEl) ansEl.innerText = 'เกิดข้อผิดพลาด: ' + err.message;
+      } finally {
+        if (btn) { btn.disabled = false; btn.innerText = 'ถาม AI'; }
+      }
+    }
+
+    function setMobileMeetingActionScope(scope) {
+      MobileMeetingState.actionScope = scope;
+      const bMine = document.getElementById('btnMobActMine');
+      const bAll = document.getElementById('btnMobActAll');
+      if (bMine) bMine.className = scope === 'MY_TASKS' ? 'px-2.5 py-1.5 rounded-lg bg-sky-600 text-white text-[11px] font-bold' : 'px-2.5 py-1.5 rounded-lg bg-slate-100 text-slate-600 text-[11px] font-bold';
+      if (bAll) bAll.className = scope === 'ALL_VISIBLE' ? 'px-2.5 py-1.5 rounded-lg bg-sky-600 text-white text-[11px] font-bold' : 'px-2.5 py-1.5 rounded-lg bg-slate-100 text-slate-600 text-[11px] font-bold';
+      loadMobileMeetingActions();
+    }
+
+    async function loadMobileMeetingActions() {
+      const box = document.getElementById('mobMeetActionsList');
+      if (box) box.innerHTML = '<div class="text-center py-6 text-xs text-slate-400">กำลังโหลดงานมอบหมาย...</div>';
+      const st = document.getElementById('mobMeetActionStatus') ? document.getElementById('mobMeetActionStatus').value : 'ALL';
+      try {
+        const res = await postApiRequest({
+          action: 'getMeetingActionItems',
+          callerEmpId: getMobMeetEmpId_(),
+          scope: MobileMeetingState.actionScope || 'MY_TASKS',
+          statusFilter: st
+        });
+        if (res && res.status === 'success') {
+          MobileMeetingState.actionItems = res.data || [];
+          renderMobileMeetingActions_();
+        } else if (box) {
+          box.innerHTML = `<div class="p-4 text-center text-xs text-rose-600 bg-rose-50 rounded-xl">${escMobMeet_(res ? res.message : 'โหลดข้อมูลไม่สำเร็จ')}</div>`;
+        }
+      } catch (err) {
+        if (box) box.innerHTML = `<div class="p-4 text-center text-xs text-rose-600 bg-rose-50 rounded-xl">${escMobMeet_(err.message)}</div>`;
+      }
+    }
+
+    function renderMobileMeetingActions_() {
+      const box = document.getElementById('mobMeetActionsList');
+      if (!box) return;
+      const list = MobileMeetingState.actionItems || [];
+      if (list.length === 0) {
+        box.innerHTML = '<div class="p-6 text-center text-xs text-slate-400 bg-slate-50 rounded-2xl border border-slate-200">ไม่มีรายการงานค้างในหมวดนี้</div>';
+        return;
+      }
+      box.innerHTML = list.map(a => {
+        const st = String(a.status || 'OPEN').toUpperCase();
+        const badge = st === 'DONE'
+          ? '<span class="px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold">🟢 DONE</span>'
+          : (st === 'IN_PROGRESS'
+              ? '<span class="px-1.5 py-0.5 rounded-full bg-sky-100 text-sky-800 text-[10px] font-bold">🔵 กำลังทำ</span>'
+              : '<span class="px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[10px] font-bold">🟡 OPEN</span>');
+        return `
+          <div class="p-3 rounded-2xl bg-white border border-slate-200 shadow-2xs space-y-2">
+            <div class="flex items-center justify-between gap-2">
+              <div class="flex items-center gap-1.5">
+                ${badge}
+                <button type="button" onclick="openMobileMinutesByNo('${escMobMeet_(a.minutesNo)}')" class="text-[10px] font-mono font-bold text-teal-700 underline">${escMobMeet_(a.minutesNo)}</button>
+              </div>
+              <span class="text-[10px] text-rose-600 font-bold">ส่ง: ${escMobMeet_(a.dueDate || '-')}</span>
+            </div>
+            <div class="text-xs font-bold text-slate-800">${escMobMeet_(a.taskDescription)}</div>
+            <div class="text-[11px] text-slate-500">👤 ${escMobMeet_(a.assigneeName || a.assigneeEmpId || '-')} • ${escMobMeet_(a.meetingTitle)}</div>
+            <div class="flex items-center gap-1.5 pt-1">
+              ${st === 'OPEN' ? `<button type="button" onclick="updateMobileMeetingActionStatus('${escMobMeet_(a.actionId)}', 'IN_PROGRESS')" class="flex-1 py-1.5 rounded-xl bg-sky-50 text-sky-700 border border-sky-200 text-[11px] font-bold">🔵 กำลังทำ</button>` : ''}
+              ${st !== 'DONE' ? `<button type="button" onclick="updateMobileMeetingActionStatus('${escMobMeet_(a.actionId)}', 'DONE')" class="flex-1 py-1.5 rounded-xl bg-emerald-600 text-white text-[11px] font-bold">✓ ปิดงาน</button>` : `<button type="button" onclick="updateMobileMeetingActionStatus('${escMobMeet_(a.actionId)}', 'OPEN')" class="flex-1 py-1.5 rounded-xl bg-slate-100 text-slate-600 text-[11px] font-bold">เปิดงานใหม่</button>`}
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    async function updateMobileMeetingActionStatus(actionId, newStatus) {
+      let note = undefined;
+      if (newStatus === 'DONE') {
+        const inp = prompt('หมายเหตุผลการดำเนินการ (เว้นว่างได้):', '');
+        if (inp === null) return;
+        note = inp;
+      }
+      try {
+        const res = await postApiRequest({
+          action: 'updateMeetingActionItemStatus',
+          actionId: actionId,
+          newStatus: newStatus,
+          progressNote: note,
+          callerEmpId: getMobMeetEmpId_()
+        });
+        if (res && res.status === 'success') {
+          showToast(res.message || 'อัปเดตสถานะแล้ว');
+          await loadMobileMeetingActions();
+        } else {
+          showToast((res && res.message) || 'อัปเดตไม่สำเร็จ', 'error');
+        }
+      } catch (err) {
+        showToast('เกิดข้อผิดพลาด: ' + err.message, 'error');
+      }
+    }
+
+    // -------------------------------------------------------------------------
+    // MOBILE MINUTES STUDIO (TABLETOP VOICE + WAKE LOCK + WHITEBOARD + AI)
+    // -------------------------------------------------------------------------
+    async function openMobileMinutesForAppt(apptNo, minutesNo) {
+      if (minutesNo) {
+        await openMobileMinutesByNo(minutesNo);
+        return;
+      }
+      try {
+        const res = await postApiRequest({
+          action: 'getMeetingAppointmentDetails',
+          appointmentNo: apptNo
+        });
+        if (res && res.status === 'success' && res.data) {
+          openMobileMinutesStudioModal({ fromDetail: res.data });
+        } else {
+          showToast((res && res.message) || 'ไม่พบข้อมูลนัดหมาย', 'error');
+        }
+      } catch (err) {
+        showToast('เกิดข้อผิดพลาด: ' + err.message, 'error');
+      }
+    }
+
+    async function openMobileMinutesByNo(minutesNo) {
+      try {
+        const res = await postApiRequest({
+          action: 'getMeetingMinutesDetail',
+          minutesNo: minutesNo,
+          callerEmpId: getMobMeetEmpId_()
+        });
+        if (res && res.status === 'success' && res.data) {
+          openMobileMinutesStudioModal({ existingDetail: res.data });
+        } else {
+          showToast((res && res.message) || 'ไม่สามารถเปิดบันทึกนี้ได้', 'error');
+        }
+      } catch (err) {
+        showToast('เกิดข้อผิดพลาด: ' + err.message, 'error');
+      }
+    }
+
+    function openMobileMinutesStudioModal(options) {
+      const opts = options || {};
+      stopMobileMeetingLiveMic();
+      ensureMobileMeetingInitialData_();
+
+      const modal = document.getElementById('modalMobileMinutesStudio');
+      if (!modal) return;
+      modal.classList.remove('hidden');
+
+      const st = MobileMeetingState.studio;
+      const myEmpId = getMobMeetEmpId_();
+      const myName = state.currentUser ? (state.currentUser.fullName || myEmpId) : myEmpId;
+      const myDept = state.currentUser ? (state.currentUser.department || '') : '';
+      const now = new Date();
+      const todayIso = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+
+      st.actualAttendees.clear();
+      st.agendas = [];
+      st.actionItems = [];
+      st.whiteboardItems = [];
+      st.audioUrl = '';
+      st.audioFileName = '';
+      st.recordedAudioBlob = null;
+      st.recordedAudioMime = '';
+      st.previousContextSummary = '';
+
+      const chk = document.getElementById('chkMobSaveAudioDrive');
+      if (chk) chk.checked = false;
+      const audLink = document.getElementById('mobSavedAudioLink');
+      if (audLink) { audLink.innerHTML = ''; audLink.classList.add('hidden'); }
+      const audSt = document.getElementById('mobAudioUploadStatus');
+      if (audSt) { audSt.innerText = ''; audSt.classList.add('hidden'); }
+
+      let timeline = [];
+      if (opts.existingDetail && opts.existingDetail.minutes) {
+        const m = opts.existingDetail.minutes;
+        st.minutesNo = m.minutesNo || '';
+        st.appointmentNo = m.appointmentNo || '';
+        st.seriesId = m.seriesId || '';
+        st.sessionNo = m.sessionNo || 1;
+        st.parentMinutesNo = m.parentMinutesNo || '';
+        st.organizerId = m.organizerId || '';
+        st.organizerName = m.organizerName || '';
+        st.organizerDept = m.organizerDept || '';
+        st.status = m.status || 'DRAFT';
+
+        document.getElementById('mobMinTitle').value = m.title || '';
+        document.getElementById('mobMinDate').value = m.meetingDate || todayIso;
+        document.getElementById('mobMinStart').value = (m.startTime || '09:00').slice(0, 5);
+        document.getElementById('mobMinEnd').value = (m.endTime || '10:00').slice(0, 5);
+        document.getElementById('mobMinLocation').value = m.location || '';
+        document.getElementById('mobMinVisibility').value = m.visibility || 'ATTENDEES_ONLY';
+        document.getElementById('mobMinRawNotes').value = m.rawNotes || '';
+        document.getElementById('mobMinTranscript').value = m.transcriptText || '';
+        document.getElementById('mobMinSummaryTh').value = m.summaryTh || '';
+        document.getElementById('mobMinSummaryJa').value = m.summaryJa || '';
+        document.getElementById('mobMinSummaryEn').value = m.summaryEn || '';
+        document.getElementById('mobMinPartCodes').value = m.extractedPartCodes || '';
+        document.getElementById('mobMinTags').value = m.tags || '';
+
+        (m.attendeesActual || []).forEach(a => {
+          const code = (typeof a === 'string') ? a : (a.employeeId || a.code || '');
+          if (code) st.actualAttendees.set(code, { code: code, name: (a.employeeName || a.name || code), dept: (a.department || a.dept || '') });
+        });
+        st.agendas = Array.isArray(m.agendas) ? JSON.parse(JSON.stringify(m.agendas)) : [];
+        st.actionItems = Array.isArray(opts.existingDetail.actionItems) ? JSON.parse(JSON.stringify(opts.existingDetail.actionItems)) : [];
+        st.whiteboardItems = (m.whiteboardUrls || []).map(u => (typeof u === 'string' ? { url: u, thumbnailUrl: u, base64: '' } : u));
+        if (m.audioUrl) {
+          st.audioUrl = m.audioUrl;
+          st.audioFileName = m.audioFileName || 'ไฟล์เสียงประชุม';
+          if (audLink) {
+            audLink.innerHTML = `<a href="${escMobMeet_(m.audioUrl)}" target="_blank" class="text-teal-300 underline font-bold">🔊 เปิดฟังไฟล์เสียง (${escMobMeet_(st.audioFileName)}) ↗</a>`;
+            audLink.classList.remove('hidden');
+          }
+        }
+        timeline = opts.existingDetail.seriesTimeline || [];
+      } else if (opts.fromDetail && opts.fromDetail.appointment) {
+        const app = opts.fromDetail.appointment;
+        const atts = opts.fromDetail.attendees || {};
+        st.minutesNo = '';
+        st.appointmentNo = app.appointmentNo || '';
+        st.seriesId = app.seriesId || '';
+        st.sessionNo = app.sessionNo || 1;
+        st.parentMinutesNo = '';
+        st.organizerId = app.organizerId || myEmpId;
+        st.organizerName = app.organizerName || myName;
+        st.organizerDept = app.organizerDept || myDept;
+        st.status = 'DRAFT';
+
+        const sParts = String(app.startDateTime || '').replace('T', ' ').split(' ');
+        const eParts = String(app.endDateTime || '').replace('T', ' ').split(' ');
+        document.getElementById('mobMinTitle').value = app.title || '';
+        document.getElementById('mobMinDate').value = sParts[0] || todayIso;
+        document.getElementById('mobMinStart').value = (sParts[1] || '09:00').slice(0, 5);
+        document.getElementById('mobMinEnd').value = (eParts[1] || '10:00').slice(0, 5);
+        document.getElementById('mobMinLocation').value = app.location || '';
+        document.getElementById('mobMinVisibility').value = 'ATTENDEES_ONLY';
+        document.getElementById('mobMinRawNotes').value = app.description || '';
+        document.getElementById('mobMinTranscript').value = '';
+        document.getElementById('mobMinSummaryTh').value = '';
+        document.getElementById('mobMinSummaryJa').value = '';
+        document.getElementById('mobMinSummaryEn').value = '';
+        document.getElementById('mobMinPartCodes').value = '';
+        document.getElementById('mobMinTags').value = '';
+
+        const seedAtts = (atts.accepted && atts.accepted.length > 0) ? atts.accepted : (atts.all || []);
+        seedAtts.forEach(a => {
+          const code = a.employeeId || a.EmployeeId || '';
+          if (code) st.actualAttendees.set(code, { code: code, name: a.employeeName || a.EmployeeName || code, dept: a.department || a.Department || '' });
+        });
+        if (app.parentAppointmentNo) {
+          postApiRequest({ action: 'getMeetingMinutesDetail', appointmentNo: app.parentAppointmentNo, callerEmpId: myEmpId }).then(pRes => {
+            if (pRes && pRes.status === 'success' && pRes.data && pRes.data.minutes) {
+              const pm = pRes.data.minutes;
+              st.previousContextSummary = `ครั้งที่ ${pm.sessionNo} (${pm.meetingDate}): ${pm.summaryTh || '-'}`;
+              const pb = document.getElementById('mobMinPrevContextBox');
+              const pt = document.getElementById('mobMinPrevContextText');
+              if (pb && pt) { pt.innerText = st.previousContextSummary; pb.classList.remove('hidden'); }
+            }
+          }).catch(() => {});
+        }
+      } else {
+        st.minutesNo = '';
+        st.appointmentNo = '';
+        st.seriesId = '';
+        st.sessionNo = 1;
+        st.parentMinutesNo = '';
+        st.organizerId = myEmpId;
+        st.organizerName = myName;
+        st.organizerDept = myDept;
+        st.status = 'DRAFT';
+
+        document.getElementById('mobMinTitle').value = '';
+        document.getElementById('mobMinDate').value = todayIso;
+        document.getElementById('mobMinStart').value = `${String(now.getHours()).padStart(2, '0')}:00`;
+        document.getElementById('mobMinEnd').value = `${String((now.getHours() + 1) % 24).padStart(2, '0')}:00`;
+        document.getElementById('mobMinLocation').value = '';
+        document.getElementById('mobMinVisibility').value = 'ATTENDEES_ONLY';
+        document.getElementById('mobMinRawNotes').value = '';
+        document.getElementById('mobMinTranscript').value = '';
+        document.getElementById('mobMinSummaryTh').value = '';
+        document.getElementById('mobMinSummaryJa').value = '';
+        document.getElementById('mobMinSummaryEn').value = '';
+        document.getElementById('mobMinPartCodes').value = '';
+        document.getElementById('mobMinTags').value = '';
+        if (myEmpId) st.actualAttendees.set(myEmpId, { code: myEmpId, name: myName, dept: myDept });
+      }
+
+      document.getElementById('mobMinBadgeNo').innerText = st.minutesNo || 'NEW';
+      document.getElementById('mobMinBadgeSeries').innerText = `ครั้งที่ ${st.sessionNo || 1}`;
+      document.getElementById('mobMinBadgeStatus').innerText = st.status || 'DRAFT';
+      document.getElementById('mobMinApptLabel').innerText = st.appointmentNo ? `เชื่อมโยงนัดหมาย: ${st.appointmentNo}` : 'การประชุมด่วนนอกตาราง (Ad-hoc)';
+
+      const btnFollow = document.getElementById('btnMobFollowUpMeeting');
+      if (btnFollow) btnFollow.classList.toggle('hidden', !st.minutesNo);
+      const prevBox = document.getElementById('mobMinPrevContextBox');
+      if (prevBox) prevBox.classList.toggle('hidden', !st.previousContextSummary);
+
+      renderMobileSeriesTimeline_(timeline);
+      renderMobileMinutesAttendees_();
+      renderMobileMinutesWhiteboard_();
+      renderMobileMinutesAgendas_();
+      renderMobileMinutesActions_();
+      switchMobileMinutesLangTab('TH');
+    }
+
+    function closeMobileMinutesStudioModal() {
+      stopMobileMeetingLiveMic();
+      const modal = document.getElementById('modalMobileMinutesStudio');
+      if (modal) modal.classList.add('hidden');
+    }
+
+    function renderMobileSeriesTimeline_(timeline) {
+      const bar = document.getElementById('mobMinSeriesBar');
+      const chips = document.getElementById('mobMinSeriesChips');
+      if (!bar || !chips) return;
+      if (!Array.isArray(timeline) || timeline.length <= 1) {
+        bar.classList.add('hidden');
+        return;
+      }
+      bar.classList.remove('hidden');
+      chips.innerHTML = timeline.map(item => {
+        const cls = item.isCurrent ? 'bg-indigo-600 text-white border-indigo-700' : 'bg-white text-indigo-800 border-indigo-200';
+        const clk = item.minutesNo ? `onclick="openMobileMinutesByNo('${escMobMeet_(item.minutesNo)}')"` : '';
+        return `<button type="button" ${clk} class="px-2 py-1 rounded-lg border text-[10px] font-bold ${cls}">Ep.${item.sessionNo} (${escMobMeet_(item.meetingDate)})</button>`;
+      }).join(' <span class="text-indigo-400 self-center">→</span> ');
+    }
+
+    function renderMobileMinutesAttendees_() {
+      const box = document.getElementById('mobMinAttendeesBox');
+      const cnt = document.getElementById('mobMinAttendeesCount');
+      const list = Array.from(MobileMeetingState.studio.actualAttendees.values());
+      if (cnt) cnt.innerText = list.length;
+      if (!box) return;
+      if (list.length === 0) {
+        box.innerHTML = '<span class="text-[11px] text-slate-400">ยังไม่ได้ระบุผู้เข้าประชุม</span>';
+        return;
+      }
+      box.innerHTML = list.map(a => `
+        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-teal-50 border border-teal-200 text-teal-800 text-[11px] font-semibold">
+          <span>${escMobMeet_(a.name || a.code)}</span>
+          <button type="button" onclick="removeMobileMinutesAttendee('${escMobMeet_(a.code)}')" class="text-rose-500 font-bold">×</button>
+        </span>
+      `).join('');
+    }
+
+    function removeMobileMinutesAttendee(code) {
+      MobileMeetingState.studio.actualAttendees.delete(code);
+      renderMobileMinutesAttendees_();
+    }
+
+    function addMobileMinutesAttendeeFromInput() {
+      const inp = document.getElementById('mobMinAddAttendeeInput');
+      if (!inp) return;
+      const raw = inp.value.trim().toUpperCase();
+      if (!raw) return;
+      const staff = (MobileMeetingState.initialData && MobileMeetingState.initialData.employees) ? MobileMeetingState.initialData.employees : [];
+      const emp = staff.find(e => String(e.code || '').toUpperCase() === raw || String(e.name || '').toUpperCase().includes(raw));
+      if (emp) {
+        MobileMeetingState.studio.actualAttendees.set(emp.code, { code: emp.code, name: emp.name, dept: emp.dept });
+      } else {
+        MobileMeetingState.studio.actualAttendees.set(raw, { code: raw, name: raw, dept: '' });
+      }
+      inp.value = '';
+      renderMobileMinutesAttendees_();
+    }
+
+    function switchMobileMinutesLangTab(lang) {
+      const th = document.getElementById('mobMinSummaryTh');
+      const ja = document.getElementById('mobMinSummaryJa');
+      const en = document.getElementById('mobMinSummaryEn');
+      const bTh = document.getElementById('mobTabLangTh');
+      const bJa = document.getElementById('mobTabLangJa');
+      const bEn = document.getElementById('mobTabLangEn');
+      if (th) th.classList.toggle('hidden', lang !== 'TH');
+      if (ja) ja.classList.toggle('hidden', lang !== 'JA');
+      if (en) en.classList.toggle('hidden', lang !== 'EN');
+      if (bTh) bTh.className = lang === 'TH' ? 'px-2.5 py-1 rounded-lg bg-white text-teal-700 shadow-2xs' : 'px-2.5 py-1 rounded-lg text-slate-500';
+      if (bJa) bJa.className = lang === 'JA' ? 'px-2.5 py-1 rounded-lg bg-white text-indigo-700 shadow-2xs' : 'px-2.5 py-1 rounded-lg text-slate-500';
+      if (bEn) bEn.className = lang === 'EN' ? 'px-2.5 py-1 rounded-lg bg-white text-sky-700 shadow-2xs' : 'px-2.5 py-1 rounded-lg text-slate-500';
+    }
+
+    function renderMobileMinutesAgendas_() {
+      const box = document.getElementById('mobMinAgendasList');
+      if (!box) return;
+      const list = MobileMeetingState.studio.agendas;
+      if (list.length === 0) {
+        box.innerHTML = '<div class="p-3 text-center text-[11px] text-slate-400 bg-slate-50 rounded-xl border border-dashed border-slate-200">ยังไม่มีวาระ — กด "+ เพิ่มวาระ" หรือให้ AI สกัดให้</div>';
+        return;
+      }
+      box.innerHTML = list.map((ag, idx) => `
+        <div class="p-2.5 rounded-xl bg-slate-50 border border-slate-200 space-y-1.5">
+          <div class="flex items-center justify-between gap-1">
+            <span class="text-[11px] font-bold text-teal-700">วาระ #${idx + 1}</span>
+            <div class="flex items-center gap-1.5">
+              <select onchange="MobileMeetingState.studio.agendas[${idx}].status=this.value" class="px-2 py-0.5 rounded-lg border border-slate-200 text-[10px] font-bold bg-white">
+                <option value="RESOLVED" ${ag.status !== 'CARRY_OVER' ? 'selected' : ''}>✅ ปิดวาระ</option>
+                <option value="CARRY_OVER" ${ag.status === 'CARRY_OVER' ? 'selected' : ''}>⏳ ยกยอดครั้งหน้า</option>
+              </select>
+              <button type="button" onclick="MobileMeetingState.studio.agendas.splice(${idx},1);renderMobileMinutesAgendas_();" class="text-rose-500 font-bold text-xs px-1">×</button>
+            </div>
+          </div>
+          <input type="text" value="${escMobMeet_(ag.title)}" oninput="MobileMeetingState.studio.agendas[${idx}].title=this.value" placeholder="หัวข้อวาระ..." class="w-full px-2 py-1.5 rounded-lg border border-slate-200 text-xs font-bold bg-white outline-none">
+          <textarea rows="2" oninput="MobileMeetingState.studio.agendas[${idx}].resolution=this.value" placeholder="มติ / ข้อสรุป..." class="w-full px-2 py-1.5 rounded-lg border border-slate-200 text-xs bg-white outline-none">${escMobMeet_(ag.resolution || ag.discussion || '')}</textarea>
+        </div>
+      `).join('');
+    }
+
+    function addMobileMinutesAgenda() {
+      const list = MobileMeetingState.studio.agendas;
+      list.push({ agendaNo: list.length + 1, title: '', discussion: '', resolution: '', status: 'RESOLVED' });
+      renderMobileMinutesAgendas_();
+    }
+
+    function renderMobileMinutesActions_() {
+      const box = document.getElementById('mobMinActionsList');
+      if (!box) return;
+      const list = MobileMeetingState.studio.actionItems;
+      if (list.length === 0) {
+        box.innerHTML = '<div class="p-3 text-center text-[11px] text-slate-400 bg-slate-50 rounded-xl border border-dashed border-slate-200">ยังไม่มีงานมอบหมาย</div>';
+        return;
+      }
+      box.innerHTML = list.map((act, idx) => `
+        <div class="p-2.5 rounded-xl bg-sky-50/60 border border-sky-200 space-y-1.5">
+          <div class="flex items-center gap-1.5">
+            <input type="text" value="${escMobMeet_(act.taskDescription)}" oninput="MobileMeetingState.studio.actionItems[${idx}].taskDescription=this.value" placeholder="งานที่ต้องทำ..." class="flex-1 px-2 py-1.5 rounded-lg border border-slate-200 text-xs font-semibold bg-white outline-none">
+            <button type="button" onclick="MobileMeetingState.studio.actionItems.splice(${idx},1);renderMobileMinutesActions_();" class="text-rose-500 font-bold px-1">×</button>
+          </div>
+          <div class="grid grid-cols-3 gap-1.5">
+            <input type="text" list="mobMeetEmpDatalist" value="${escMobMeet_(act.assigneeEmpId || '')}" oninput="MobileMeetingState.studio.actionItems[${idx}].assigneeEmpId=this.value.toUpperCase()" placeholder="รหัสพนักงาน" class="px-2 py-1 rounded-lg border border-slate-200 text-[11px] bg-white outline-none">
+            <input type="date" value="${escMobMeet_(act.dueDate || '')}" oninput="MobileMeetingState.studio.actionItems[${idx}].dueDate=this.value" class="px-1.5 py-1 rounded-lg border border-slate-200 text-[11px] bg-white outline-none">
+            <select onchange="MobileMeetingState.studio.actionItems[${idx}].status=this.value" class="px-1.5 py-1 rounded-lg border border-slate-200 text-[11px] font-bold bg-white">
+              <option value="OPEN" ${act.status === 'OPEN' || !act.status ? 'selected' : ''}>OPEN</option>
+              <option value="IN_PROGRESS" ${act.status === 'IN_PROGRESS' ? 'selected' : ''}>กำลังทำ</option>
+              <option value="DONE" ${act.status === 'DONE' ? 'selected' : ''}>DONE</option>
+            </select>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function addMobileMinutesActionItem() {
+      MobileMeetingState.studio.actionItems.push({
+        actionId: '',
+        taskDescription: '',
+        assigneeEmpId: '',
+        assigneeName: '',
+        dueDate: '',
+        status: 'OPEN'
+      });
+      renderMobileMinutesActions_();
+    }
+
+    // -------------------------------------------------------------------------
+    // MOBILE WAKE LOCK + LIVE TRANSCRIBE (gemini-3.5-transcribe-live) + AUDIO/PHOTO
+    // -------------------------------------------------------------------------
+    function float32ToPcm16Base64Mob_(float32Arr, inputSampleRate) {
+      const targetRate = 16000;
+      let samples = float32Arr;
+      if (inputSampleRate && inputSampleRate !== targetRate) {
+        const ratio = inputSampleRate / targetRate;
+        const newLen = Math.round(float32Arr.length / ratio);
+        samples = new Float32Array(newLen);
+        for (let i = 0; i < newLen; i++) {
+          const idx = Math.min(float32Arr.length - 1, Math.round(i * ratio));
+          samples[i] = float32Arr[idx];
+        }
+      }
+      const buffer = new ArrayBuffer(samples.length * 2);
+      const view = new DataView(buffer);
+      for (let i = 0; i < samples.length; i++) {
+        const s = Math.max(-1, Math.min(1, samples[i]));
+        view.setInt16(i * 2, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+      }
+      const bytes = new Uint8Array(buffer);
+      let binary = '';
+      for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
+      return btoa(binary);
+    }
+
+    function connectMobileLiveTranscribeWs_(apiKey) {
+      const st = MobileMeetingState.studio;
+      if (!apiKey || typeof WebSocket === 'undefined') return;
+      try {
+        if (st.liveWs) { try { st.liveWs.close(); } catch (e) {} }
+        const ws = new WebSocket(`wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key=${encodeURIComponent(apiKey)}`);
+        st.liveWs = ws;
+
+        ws.onopen = function() {
+          ws.send(JSON.stringify({
+            setup: {
+              model: 'models/gemini-3.5-transcribe-live',
+              generationConfig: { responseModalities: ['TEXT'] },
+              inputAudioTranscription: { mode: 'smart' }
+            }
+          }));
+          const sEl = document.getElementById('mobLiveMicStatus');
+          if (sEl) sEl.innerText = '🔴 กำลังฟังสดบนโต๊ะประชุม (Live Transcribe)';
+        };
+
+        ws.onmessage = function(ev) {
+          try {
+            const msg = JSON.parse(ev.data);
+            const interim = msg && msg.serverContent && msg.serverContent.interimInputTranscription && msg.serverContent.interimInputTranscription.text;
+            const finalTxt = msg && msg.serverContent && msg.serverContent.inputTranscription && msg.serverContent.inputTranscription.text;
+            const ib = document.getElementById('mobLiveInterimBox');
+            if (interim && ib) {
+              ib.classList.remove('hidden');
+              ib.innerText = 'กำลังฟัง: ' + interim;
+            }
+            if (finalTxt) {
+              if (ib) ib.classList.add('hidden');
+              const ta = document.getElementById('mobMinTranscript');
+              if (ta) {
+                ta.value = (ta.value ? ta.value.trim() + '\n' : '') + finalTxt.trim();
+                ta.scrollTop = ta.scrollHeight;
+              }
+            }
+          } catch (e) {}
+        };
+      } catch (err) {}
+    }
+
+    function toggleMobileMeetingLiveMic() {
+      if (MobileMeetingState.studio.isRecording) stopMobileMeetingLiveMic();
+      else startMobileMeetingLiveMic();
+    }
+
+    async function startMobileMeetingLiveMic() {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        showToast('อุปกรณ์นี้ไม่รองรับการอัดเสียงจากไมโครโฟน', 'error');
+        return;
+      }
+
+      const apiKey = await getEffectiveMobileGeminiApiKey();
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const st = MobileMeetingState.studio;
+        st.isRecording = true;
+        st.liveStream = stream;
+        st.recSeconds = 0;
+        st.mediaChunks = [];
+        st.recordedAudioBlob = null;
+
+        // Request Screen Wake Lock so mobile screen stays awake on meeting table
+        if (navigator.wakeLock && typeof navigator.wakeLock.request === 'function') {
+          try {
+            st.wakeLockSentinel = await navigator.wakeLock.request('screen');
+          } catch (wlErr) {}
+        }
+
+        const btn = document.getElementById('btnMobLiveMic');
+        const lbl = document.getElementById('mobLiveMicLabel');
+        const timerEl = document.getElementById('mobLiveMicTimer');
+        const sEl = document.getElementById('mobLiveMicStatus');
+        if (btn) btn.className = 'w-full py-3 px-4 rounded-2xl bg-slate-700 text-white font-bold text-xs shadow-md flex items-center justify-center gap-2 animate-pulse transition';
+        if (lbl) lbl.innerText = '⏹️ หยุดฟัง & หยุดอัดเสียง';
+        if (timerEl) { timerEl.classList.remove('hidden'); timerEl.innerText = '00:00'; }
+        if (sEl) sEl.innerText = '🔴 กำลังอัดเสียง (ล็อกหน้าจอไม่ให้ดับอัตโนมัติ)';
+
+        st.recTimer = setInterval(() => {
+          st.recSeconds++;
+          if (timerEl) {
+            const mm = String(Math.floor(st.recSeconds / 60)).padStart(2, '0');
+            const ss = String(st.recSeconds % 60).padStart(2, '0');
+            timerEl.innerText = `${mm}:${ss}`;
+          }
+        }, 1000);
+
+        // Cross-platform MediaRecorder (Android Chrome Opus + iOS Safari audio/mp4 fallback)
+        if (typeof MediaRecorder !== 'undefined') {
+          try {
+            const mime = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+              ? 'audio/webm;codecs=opus'
+              : (MediaRecorder.isTypeSupported('audio/mp4') ? 'audio/mp4' : '');
+            const mrOpts = mime ? { mimeType: mime, audioBitsPerSecond: 24000 } : {};
+            const mr = new MediaRecorder(stream, mrOpts);
+            mr.ondataavailable = (e) => { if (e.data && e.data.size > 0) st.mediaChunks.push(e.data); };
+            mr.onstop = () => {
+              if (st.mediaChunks.length > 0) {
+                const finalMime = mime || (mr.mimeType || 'audio/webm');
+                st.recordedAudioBlob = new Blob(st.mediaChunks, { type: finalMime });
+                st.recordedAudioMime = finalMime;
+                const ext = finalMime.includes('mp4') ? 'm4a' : 'webm';
+                st.audioFileName = `mobile_meeting_${Date.now()}.${ext}`;
+              }
+            };
+            mr.start(2000);
+            st.mediaRecorder = mr;
+          } catch (mrErr) {}
+        }
+
+        if (apiKey) {
+          connectMobileLiveTranscribeWs_(apiKey);
+          st.wsRenewTimer = setInterval(() => {
+            if (st.isRecording) connectMobileLiveTranscribeWs_(apiKey);
+          }, 540000);
+        }
+
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (AudioCtx) {
+          const ctx = new AudioCtx();
+          const source = ctx.createMediaStreamSource(stream);
+          const proc = ctx.createScriptProcessor(4096, 1, 1);
+          proc.onaudioprocess = (e) => {
+            if (!st.isRecording || !st.liveWs || st.liveWs.readyState !== 1) return;
+            const b64 = float32ToPcm16Base64Mob_(e.inputBuffer.getChannelData(0), ctx.sampleRate);
+            st.liveWs.send(JSON.stringify({
+              realtimeInput: { audio: { data: b64, mimeType: 'audio/pcm;rate=16000' } }
+            }));
+          };
+          source.connect(proc);
+          proc.connect(ctx.destination);
+          st.liveAudioCtx = ctx;
+          st.liveProcessor = proc;
+        }
+      } catch (err) {
+        showToast('เปิดไมโครโฟนไม่สำเร็จ: ' + err.message, 'error');
+      }
+    }
+
+    function stopMobileMeetingLiveMic() {
+      const st = MobileMeetingState.studio;
+      st.isRecording = false;
+      if (st.recTimer) { clearInterval(st.recTimer); st.recTimer = null; }
+      if (st.wsRenewTimer) { clearInterval(st.wsRenewTimer); st.wsRenewTimer = null; }
+      if (st.liveProcessor) { try { st.liveProcessor.disconnect(); } catch (e) {} st.liveProcessor = null; }
+      if (st.liveAudioCtx) { try { st.liveAudioCtx.close(); } catch (e) {} st.liveAudioCtx = null; }
+      if (st.liveWs) {
+        try {
+          if (st.liveWs.readyState === 1) st.liveWs.send(JSON.stringify({ realtimeInput: { audioStreamEnd: true } }));
+          st.liveWs.close();
+        } catch (e) {}
+        st.liveWs = null;
+      }
+      if (st.mediaRecorder && st.mediaRecorder.state !== 'inactive') {
+        try { st.mediaRecorder.stop(); } catch (e) {}
+      }
+      if (st.liveStream) {
+        try { st.liveStream.getTracks().forEach(t => t.stop()); } catch (e) {}
+        st.liveStream = null;
+      }
+      if (st.wakeLockSentinel) {
+        try { st.wakeLockSentinel.release(); } catch (e) {}
+        st.wakeLockSentinel = null;
+      }
+
+      const btn = document.getElementById('btnMobLiveMic');
+      const lbl = document.getElementById('mobLiveMicLabel');
+      const sEl = document.getElementById('mobLiveMicStatus');
+      const ib = document.getElementById('mobLiveInterimBox');
+      if (btn) btn.className = 'w-full py-3 px-4 rounded-2xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs shadow-md flex items-center justify-center gap-2 active:scale-95 transition';
+      if (lbl) lbl.innerText = '🎙️ วางไมค์ฟังเสียงสด (Live Transcribe)';
+      if (sEl) sEl.innerText = 'พร้อมใช้งาน • จอไม่ดับอัตโนมัติขณะอัดเสียง';
+      if (ib) ib.classList.add('hidden');
+    }
+
+    async function handleMobileMeetingAudioFile(event) {
+      const file = event.target.files && event.target.files[0];
+      if (!file) return;
+      const st = MobileMeetingState.studio;
+      st.recordedAudioBlob = file;
+      st.recordedAudioMime = file.type || 'audio/webm';
+      st.audioFileName = file.name;
+
+      const statusEl = document.getElementById('mobAudioUploadStatus');
+      if (statusEl) {
+        statusEl.classList.remove('hidden');
+        statusEl.innerText = `⏳ กำลังถอดเสียง "${file.name}"...`;
+      }
+
+      const apiKey = await getEffectiveMobileGeminiApiKey();
+      if (!apiKey) {
+        if (statusEl) statusEl.innerText = '⚠️ ไม่พบ Gemini API Key';
+        event.target.value = '';
+        return;
+      }
+
+      try {
+        const mime = file.type || 'audio/webm';
+        let partObj = null;
+        if (file.size <= 12 * 1024 * 1024) {
+          const dataUrl = await new Promise((resolve, reject) => {
+            const r = new FileReader();
+            r.onload = () => resolve(r.result);
+            r.onerror = reject;
+            r.readAsDataURL(file);
+          });
+          partObj = { inline_data: { mime_type: mime, data: String(dataUrl).split(';base64,')[1] } };
+        } else {
+          const initResp = await fetch(`https://generativelanguage.googleapis.com/upload/v1beta/files?key=${encodeURIComponent(apiKey)}`, {
+            method: 'POST',
+            headers: {
+              'X-Goog-Upload-Protocol': 'resumable',
+              'X-Goog-Upload-Command': 'start',
+              'X-Goog-Upload-Header-Content-Length': String(file.size),
+              'X-Goog-Upload-Header-Content-Type': mime,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ file: { display_name: file.name } })
+          });
+          const uploadUrl = initResp.headers.get('x-goog-upload-url');
+          if (uploadUrl) {
+            const finResp = await fetch(uploadUrl, {
+              method: 'POST',
+              headers: { 'Content-Length': String(file.size), 'X-Goog-Upload-Offset': '0', 'X-Goog-Upload-Command': 'upload, finalize' },
+              body: file
+            });
+            const fInfo = await finResp.json();
+            if (fInfo && fInfo.file && fInfo.file.uri) partObj = { file_data: { mime_type: mime, file_uri: fInfo.file.uri } };
+          }
+        }
+
+        if (partObj) {
+          const models = ['gemini-3.5-flash-lite', 'gemini-3.1-flash-lite', 'gemini-3.8-flash'];
+          for (const model of models) {
+            try {
+              const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  contents: [{ parts: [partObj, { text: 'ถอดเสียงประชุมนี้เป็นภาษาไทยที่อ่านเข้าใจง่าย คงรหัสชิ้นงานและศัพท์เทคนิค' }] }],
+                  generationConfig: { temperature: 0.1 }
+                })
+              });
+              if (resp.ok) {
+                const j = await resp.json();
+                const txt = j && j.candidates && j.candidates[0] && j.candidates[0].content && j.candidates[0].content.parts && j.candidates[0].content.parts[0] && j.candidates[0].content.parts[0].text;
+                if (txt) {
+                  const ta = document.getElementById('mobMinTranscript');
+                  if (ta) ta.value = (ta.value ? ta.value.trim() + '\n\n' : '') + txt.trim();
+                  if (statusEl) statusEl.innerText = `✅ ถอดเสียงสำเร็จ (${model})`;
+                  event.target.value = '';
+                  return;
+                }
+              }
+            } catch (e) {}
+          }
+        }
+        if (statusEl) statusEl.innerText = '⚠️ ถอดเสียงไม่สำเร็จ กรุณาลองใหม่หรือพิมพ์โน้ตย่อ';
+      } catch (err) {
+        if (statusEl) statusEl.innerText = '❌ ผิดพลาด: ' + err.message;
+      }
+      event.target.value = '';
+    }
+
+    function compressMobileMeetingImage_(file, maxDim, quality) {
+      return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          const img = new Image();
+          img.onload = () => {
+            let w = img.width, h = img.height;
+            if (w > maxDim || h > maxDim) {
+              if (w >= h) { h = Math.round(h * (maxDim / w)); w = maxDim; }
+              else { w = Math.round(w * (maxDim / h)); h = maxDim; }
+            }
+            const c = document.createElement('canvas');
+            c.width = w; c.height = h;
+            c.getContext('2d').drawImage(img, 0, 0, w, h);
+            resolve(c.toDataURL('image/jpeg', quality));
+          };
+          img.src = ev.target.result;
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+
+    async function handleMobileMeetingWhiteboard(event) {
+      const files = Array.from(event.target.files || []);
+      if (files.length === 0) return;
+      for (const file of files) {
+        const b64 = await compressMobileMeetingImage_(file, 1200, 0.75);
+        const item = { base64: b64, url: '', thumbnailUrl: b64, name: file.name, uploading: true };
+        MobileMeetingState.studio.whiteboardItems.push(item);
+        renderMobileMinutesWhiteboard_();
+        postApiRequest({
+          action: 'uploadMeetingMinutesMedia',
+          base64Data: b64,
+          fileName: file.name,
+          mimeType: 'image/jpeg',
+          mediaType: 'WHITEBOARD'
+        }).then(res => {
+          item.uploading = false;
+          if (res && res.status === 'success') {
+            item.url = res.url || '';
+            item.thumbnailUrl = res.thumbnailUrl || b64;
+          }
+          renderMobileMinutesWhiteboard_();
+        }).catch(() => {
+          item.uploading = false;
+          renderMobileMinutesWhiteboard_();
+        });
+      }
+      event.target.value = '';
+    }
+
+    function renderMobileMinutesWhiteboard_() {
+      const box = document.getElementById('mobMinWbGallery');
+      if (!box) return;
+      const items = MobileMeetingState.studio.whiteboardItems;
+      if (items.length === 0) {
+        box.innerHTML = '';
+        return;
+      }
+      box.innerHTML = items.map((it, idx) => `
+        <div class="relative w-14 h-14 rounded-xl overflow-hidden border border-white/20 bg-slate-800">
+          <img src="${escMobMeet_(it.thumbnailUrl || it.url)}" alt="Whiteboard" class="w-full h-full object-cover">
+          ${it.uploading ? '<div class="absolute inset-0 bg-black/60 flex items-center justify-center text-[9px] text-white">อัปโหลด...</div>' : ''}
+          <button type="button" onclick="MobileMeetingState.studio.whiteboardItems.splice(${idx},1);renderMobileMinutesWhiteboard_();" class="absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-rose-600 text-white text-[10px] font-bold flex items-center justify-center">×</button>
+        </div>
+      `).join('');
+    }
+
+    async function runMobileMeetingAiSynthesis() {
+      const btn = document.getElementById('btnMobRunAiSummary');
+      const title = document.getElementById('mobMinTitle').value.trim();
+      const rawNotes = document.getElementById('mobMinRawNotes').value.trim();
+      const transcript = document.getElementById('mobMinTranscript').value.trim();
+      const imgList = (MobileMeetingState.studio.whiteboardItems || []).map(it => it.base64).filter(Boolean);
+
+      if (!rawNotes && !transcript && imgList.length === 0) {
+        showToast('กรุณาอัดเสียง พิมพ์โน้ต หรือแนบรูปกระดานก่อนครับ', 'error');
+        return;
+      }
+
+      if (btn) { btn.disabled = true; btn.innerText = '⏳ Gemini AI กำลังสรุปมติ...'; }
+
+      const applyOut = (out, modelName) => {
+        if (out.summaryTh) document.getElementById('mobMinSummaryTh').value = out.summaryTh;
+        if (Array.isArray(out.agendas) && out.agendas.length > 0) {
+          MobileMeetingState.studio.agendas = out.agendas.map((ag, i) => ({
+            agendaNo: ag.agendaNo || (i + 1),
+            title: ag.title || '',
+            discussion: ag.discussion || '',
+            resolution: ag.resolution || '',
+            status: String(ag.status || '').toUpperCase() === 'CARRY_OVER' ? 'CARRY_OVER' : 'RESOLVED'
+          }));
+          renderMobileMinutesAgendas_();
+        }
+        if (Array.isArray(out.actionItems) && out.actionItems.length > 0) {
+          MobileMeetingState.studio.actionItems = out.actionItems.map(act => ({
+            actionId: '',
+            taskDescription: act.taskDescription || '',
+            assigneeEmpId: String(act.assigneeEmpId || '').toUpperCase(),
+            assigneeName: act.assigneeName || '',
+            dueDate: act.dueDate || '',
+            status: 'OPEN'
+          }));
+          renderMobileMinutesActions_();
+        }
+        if (Array.isArray(out.extractedPartCodes) && out.extractedPartCodes.length > 0) {
+          const ex = document.getElementById('mobMinPartCodes').value.split(',').map(s => s.trim()).filter(Boolean);
+          document.getElementById('mobMinPartCodes').value = Array.from(new Set(ex.concat(out.extractedPartCodes))).join(', ');
+        }
+        if (Array.isArray(out.tags) && out.tags.length > 0) {
+          const exT = document.getElementById('mobMinTags').value.split(',').map(s => s.trim()).filter(Boolean);
+          document.getElementById('mobMinTags').value = Array.from(new Set(exT.concat(out.tags))).join(', ');
+        }
+        showToast(`✨ AI (${modelName}) สรุปมติเรียบร้อย!`);
+      };
+
+      try {
+        const apiKey = await getEffectiveMobileGeminiApiKey();
+        if (apiKey) {
+          const roster = (MobileMeetingState.initialData && MobileMeetingState.initialData.employees ? MobileMeetingState.initialData.employees : [])
+            .slice(0, 80)
+            .map(e => `${e.code}:${e.name}(${e.nickname || '-'},${e.dept || '-'})`)
+            .join(', ');
+          const promptText = [
+            'คุณคือเลขานุการบริหารโรงงาน Minamida (Thailand) Co., Ltd.',
+            'วิเคราะห์โน้ตย่อ บทถอดเสียง รูปกระดาน และบริบทครั้งก่อน แล้วตอบกลับเป็น JSON เท่านั้น:',
+            `หัวข้อ: ${title || '-'}`,
+            MobileMeetingState.studio.previousContextSummary ? `บริบทครั้งก่อน:\n${MobileMeetingState.studio.previousContextSummary}` : '',
+            rawNotes ? `โน้ตย่อ:\n${rawNotes}` : '',
+            transcript ? `บทถอดเสียง:\n${transcript}` : '',
+            roster ? `รายชื่อพนักงาน: ${roster}` : '',
+            'JSON: {"summaryTh":"สรุปผู้บริหารภาษาไทย 3-5 บรรทัด","agendas":[{"agendaNo":1,"title":"วาระ","discussion":"ประเด็น","resolution":"มติ","status":"RESOLVED หรือ CARRY_OVER"}],"actionItems":[{"taskDescription":"งาน","assigneeEmpId":"รหัส","assigneeName":"ชื่อ","dueDate":"YYYY-MM-DD หรือว่าง"}],"extractedPartCodes":["รหัสพาร์ท"],"tags":["แท็ก"]}'
+          ].filter(Boolean).join('\n\n');
+
+          const parts = imgList.slice(0, 4).map(b64 => ({
+            inline_data: { mime_type: 'image/jpeg', data: String(b64).split(';base64,')[1] || b64 }
+          }));
+          parts.push({ text: promptText });
+
+          const models = ['gemini-4-hydrogen', 'gemini-3.8-flash', 'gemini-3.6-flash', 'gemini-3.5-flash-lite', 'gemini-3.1-flash-lite'];
+          for (const model of models) {
+            try {
+              const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  contents: [{ parts: parts }],
+                  generationConfig: { temperature: 0.15, response_mime_type: 'application/json' }
+                })
+              });
+              if (resp.ok) {
+                const j = await resp.json();
+                const txt = j && j.candidates && j.candidates[0] && j.candidates[0].content && j.candidates[0].content.parts && j.candidates[0].content.parts[0] && j.candidates[0].content.parts[0].text;
+                if (txt) {
+                  const parsed = JSON.parse(txt.replace(/^```json\s*/i, '').replace(/```\s*$/, '').trim());
+                  applyOut(parsed, model);
+                  if (btn) { btn.disabled = false; btn.innerText = '✨ สรุปมติด้วย Gemini AI'; }
+                  return;
+                }
+              }
+            } catch (e) {}
+          }
+        }
+
+        const fbRes = await postApiRequest({
+          action: 'summarizeMeetingWithAi',
+          title: title,
+          rawNotes: rawNotes,
+          transcriptText: transcript,
+          previousContextSummary: MobileMeetingState.studio.previousContextSummary,
+          imageBase64List: imgList
+        });
+        if (fbRes && fbRes.status === 'success' && fbRes.data) {
+          applyOut(fbRes.data, fbRes.model || 'backend');
+        } else {
+          showToast((fbRes && fbRes.message) || 'AI สรุปไม่สำเร็จ', 'error');
+        }
+      } catch (err) {
+        showToast('เกิดข้อผิดพลาด: ' + err.message, 'error');
+      } finally {
+        if (btn) { btn.disabled = false; btn.innerText = '✨ สรุปมติด้วย Gemini AI'; }
+      }
+    }
+
+    async function translateMobileMinutesAi(targetLang) {
+      const title = document.getElementById('mobMinTitle').value.trim();
+      const summaryTh = document.getElementById('mobMinSummaryTh').value.trim();
+      if (!summaryTh && MobileMeetingState.studio.agendas.length === 0) {
+        showToast('กรุณากรอกสรุปภาษาไทยก่อนแปล', 'error');
+        return;
+      }
+      showToast(`กำลังแปลเป็น ${targetLang === 'ja' ? 'ญี่ปุ่น' : 'อังกฤษ'}...`, 'info');
+      try {
+        const res = await postApiRequest({
+          action: 'translateMeetingMinutesWithAi',
+          minutesNo: MobileMeetingState.studio.minutesNo,
+          targetLang: targetLang,
+          title: title,
+          summaryTh: summaryTh,
+          agendas: MobileMeetingState.studio.agendas,
+          actionItems: MobileMeetingState.studio.actionItems,
+          persist: Boolean(MobileMeetingState.studio.minutesNo)
+        });
+        if (res && res.status === 'success') {
+          if (targetLang === 'ja') {
+            document.getElementById('mobMinSummaryJa').value = res.translatedText || '';
+            switchMobileMinutesLangTab('JA');
+          } else {
+            document.getElementById('mobMinSummaryEn').value = res.translatedText || '';
+            switchMobileMinutesLangTab('EN');
+          }
+          showToast(`แปลรายงาน (${res.model || 'AI'}) สำเร็จ`);
+        } else {
+          showToast((res && res.message) || 'แปลภาษาไม่สำเร็จ', 'error');
+        }
+      } catch (err) {
+        showToast('เกิดข้อผิดพลาด: ' + err.message, 'error');
+      }
+    }
+
+    async function saveMobileMeetingMinutes(targetStatus) {
+      stopMobileMeetingLiveMic();
+      const st = MobileMeetingState.studio;
+      const title = document.getElementById('mobMinTitle').value.trim();
+      if (!title) {
+        showToast('กรุณาระบุหัวข้อการประชุม', 'error');
+        return;
+      }
+
+      const bDraft = document.getElementById('btnMobMinSaveDraft');
+      const bPub = document.getElementById('btnMobMinPublish');
+      if (bDraft) bDraft.disabled = true;
+      if (bPub) bPub.disabled = true;
+
+      try {
+        const chk = document.getElementById('chkMobSaveAudioDrive');
+        if (chk && chk.checked && st.recordedAudioBlob && !st.audioUrl && st.recordedAudioBlob.size <= 25 * 1024 * 1024) {
+          const audB64 = await new Promise((resolve, reject) => {
+            const r = new FileReader();
+            r.onload = () => resolve(r.result);
+            r.onerror = reject;
+            r.readAsDataURL(st.recordedAudioBlob);
+          });
+          const upRes = await postApiRequest({
+            action: 'uploadMeetingMinutesMedia',
+            base64Data: audB64,
+            fileName: st.audioFileName || `mobile_audio_${Date.now()}.webm`,
+            mimeType: st.recordedAudioMime || 'audio/webm',
+            mediaType: 'AUDIO'
+          });
+          if (upRes && upRes.status === 'success') st.audioUrl = upRes.url || '';
+        }
+
+        const empId = getMobMeetEmpId_();
+        const whiteboardUrls = (st.whiteboardItems || []).map(it => it.thumbnailUrl || it.url).filter(Boolean);
+        const attendeesActual = Array.from(st.actualAttendees.values()).map(a => ({
+          employeeId: a.code,
+          employeeName: a.name,
+          department: a.dept
+        }));
+
+        const res = await postApiRequest({
+          action: 'saveMeetingMinutes',
+          minutesNo: st.minutesNo,
+          appointmentNo: st.appointmentNo,
+          seriesId: st.seriesId,
+          sessionNo: st.sessionNo,
+          parentMinutesNo: st.parentMinutesNo,
+          callerEmpId: empId,
+          organizerId: st.organizerId || empId,
+          organizerName: st.organizerName || (state.currentUser ? state.currentUser.fullName : empId),
+          organizerDept: st.organizerDept || (state.currentUser ? state.currentUser.department : ''),
+          title: title,
+          meetingDate: document.getElementById('mobMinDate').value,
+          startTime: document.getElementById('mobMinStart').value,
+          endTime: document.getElementById('mobMinEnd').value,
+          location: document.getElementById('mobMinLocation').value.trim(),
+          visibility: document.getElementById('mobMinVisibility').value,
+          status: targetStatus,
+          attendeesActual: attendeesActual,
+          agendas: st.agendas,
+          actionItems: st.actionItems,
+          summaryTh: document.getElementById('mobMinSummaryTh').value.trim(),
+          summaryJa: document.getElementById('mobMinSummaryJa').value.trim(),
+          summaryEn: document.getElementById('mobMinSummaryEn').value.trim(),
+          rawNotes: document.getElementById('mobMinRawNotes').value.trim(),
+          transcriptText: document.getElementById('mobMinTranscript').value.trim(),
+          whiteboardUrls: whiteboardUrls,
+          audioUrl: st.audioUrl,
+          audioFileName: st.audioFileName,
+          extractedPartCodes: document.getElementById('mobMinPartCodes').value.trim(),
+          tags: document.getElementById('mobMinTags').value.trim()
+        });
+
+        if (res && res.status === 'success') {
+          st.minutesNo = res.minutesNo;
+          st.seriesId = res.seriesId;
+          st.sessionNo = res.sessionNo;
+          st.status = res.recordStatus;
+          document.getElementById('mobMinBadgeNo').innerText = res.minutesNo;
+          document.getElementById('mobMinBadgeStatus').innerText = res.recordStatus;
+          const btnFollow = document.getElementById('btnMobFollowUpMeeting');
+          if (btnFollow) btnFollow.classList.remove('hidden');
+          showToast(res.message || 'บันทึกเรียบร้อยแล้ว');
+          if (MobileMeetingState.activeTab === 'MINUTES') loadMobileMeetingMinutes();
+          else if (MobileMeetingState.activeTab === 'APPT') loadMobileMeetingAppointments();
+        } else {
+          showToast((res && res.message) || 'บันทึกไม่สำเร็จ', 'error');
+        }
+      } catch (err) {
+        showToast('เกิดข้อผิดพลาด: ' + err.message, 'error');
+      } finally {
+        if (bDraft) bDraft.disabled = false;
+        if (bPub) bPub.disabled = false;
+      }
+    }
+
+    async function triggerMobileFollowUpMeeting() {
+      const minNo = MobileMeetingState.studio.minutesNo;
+      if (!minNo) return;
+      try {
+        const res = await postApiRequest({
+          action: 'prepareFollowUpMeetingCarryOver',
+          minutesNo: minNo,
+          callerEmpId: getMobMeetEmpId_()
+        });
+        if (res && res.status === 'success' && res.data) {
+          closeMobileMinutesStudioModal();
+          openMobileCreateMeetingModal(res.data);
+        } else {
+          showToast((res && res.message) || 'เตรียมนัดต่อเนื่องไม่สำเร็จ', 'error');
+        }
+      } catch (err) {
+        showToast('เกิดข้อผิดพลาด: ' + err.message, 'error');
+      }
+    }
+
+    // -------------------------------------------------------------------------
+    // MOBILE CREATE APPOINTMENT MODAL (WITH SERIES CARRY-OVER)
+    // -------------------------------------------------------------------------
+    async function openMobileCreateMeetingModal(carryData) {
+      const modal = document.getElementById('modalMobileCreateMeeting');
+      if (!modal) return;
+      modal.classList.remove('hidden');
+
+      const now = new Date();
+      now.setDate(now.getDate() + 1);
+      now.setHours(9, 0, 0, 0);
+      const pad2 = n => String(n).padStart(2, '0');
+      const toLocalIso = d => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}T${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+      document.getElementById('mobApptStart').value = toLocalIso(now);
+      now.setHours(10, 0, 0, 0);
+      document.getElementById('mobApptEnd').value = toLocalIso(now);
+
+      MobileMeetingState.createAttendeeSelected.clear();
+      const banner = document.getElementById('mobCreateCarryBanner');
+      if (carryData && carryData.seriesId) {
+        MobileMeetingState.carryOverContext = carryData;
+        document.getElementById('mobApptTitle').value = carryData.suggestedTitle || '';
+        document.getElementById('mobApptLocation').value = carryData.suggestedLocation || '';
+        document.getElementById('mobApptDesc').value = carryData.suggestedDescription || '';
+        (carryData.attendeeCodes || []).forEach(c => MobileMeetingState.createAttendeeSelected.add(String(c).toUpperCase()));
+        if (banner) {
+          banner.innerText = `🔁 นัดประชุมต่อเนื่อง ครั้งที่ ${carryData.nextSessionNo || 2} (${carryData.seriesId})`;
+          banner.classList.remove('hidden');
+        }
+      } else {
+        MobileMeetingState.carryOverContext = null;
+        document.getElementById('mobApptTitle').value = '';
+        document.getElementById('mobApptLocation').value = '';
+        document.getElementById('mobApptDesc').value = '';
+        if (banner) banner.classList.add('hidden');
+      }
+
+      await ensureMobileMeetingInitialData_();
+      renderMobileCreateAttendeeList();
+    }
+
+    function closeMobileCreateMeetingModal() {
+      const modal = document.getElementById('modalMobileCreateMeeting');
+      if (modal) modal.classList.add('hidden');
+    }
+
+    function renderMobileCreateAttendeeList() {
+      const box = document.getElementById('mobApptAttendeeList');
+      const cnt = document.getElementById('mobApptAttendeeCount');
+      const q = document.getElementById('mobApptAttendeeSearch') ? document.getElementById('mobApptAttendeeSearch').value.trim().toLowerCase() : '';
+      if (cnt) cnt.innerText = MobileMeetingState.createAttendeeSelected.size;
+      if (!box) return;
+
+      const staff = (MobileMeetingState.initialData && MobileMeetingState.initialData.employees) ? MobileMeetingState.initialData.employees : [];
+      const filtered = staff.filter(e => {
+        if (!q && !e.isSupervisor && !MobileMeetingState.createAttendeeSelected.has(String(e.code).toUpperCase())) return false;
+        if (!q) return true;
+        return (e.code || '').toLowerCase().includes(q) ||
+               (e.name || '').toLowerCase().includes(q) ||
+               (e.nickname || '').toLowerCase().includes(q) ||
+               (e.dept || '').toLowerCase().includes(q);
+      }).slice(0, 60);
+
+      box.innerHTML = filtered.map(e => {
+        const codeUp = String(e.code || '').toUpperCase();
+        const checked = MobileMeetingState.createAttendeeSelected.has(codeUp);
+        const nick = e.nickname && e.nickname !== '-' ? ` (${e.nickname})` : '';
+        return `
+          <label class="flex items-center gap-2 p-2 rounded-xl border ${checked ? 'bg-sky-50 border-sky-300' : 'bg-white border-slate-200'} cursor-pointer text-[11px]">
+            <input type="checkbox" onchange="toggleMobileCreateAttendee('${escMobMeet_(codeUp)}')" ${checked ? 'checked' : ''} class="rounded text-sky-600">
+            <span class="font-bold text-slate-800 truncate">${escMobMeet_(e.name)}${escMobMeet_(nick)}</span>
+            <span class="ml-auto text-[10px] text-slate-400 shrink-0">${escMobMeet_(e.dept)}</span>
+          </label>
+        `;
+      }).join('') || '<div class="text-center text-[11px] text-slate-400 py-3">ไม่พบรายชื่อ</div>';
+    }
+
+    function toggleMobileCreateAttendee(codeUp) {
+      if (MobileMeetingState.createAttendeeSelected.has(codeUp)) MobileMeetingState.createAttendeeSelected.delete(codeUp);
+      else MobileMeetingState.createAttendeeSelected.add(codeUp);
+      renderMobileCreateAttendeeList();
+    }
+
+    async function submitMobileCreateMeeting(e) {
+      e.preventDefault();
+      const attendees = Array.from(MobileMeetingState.createAttendeeSelected);
+      if (attendees.length === 0) {
+        showToast('กรุณาเลือกผู้เข้าร่วมประชุมอย่างน้อย 1 ท่าน', 'error');
+        return;
+      }
+      const btn = document.getElementById('btnMobSubmitCreateAppt');
+      if (btn) { btn.disabled = true; btn.innerText = 'กำลังบันทึก & ส่ง LINE...'; }
+
+      const carry = MobileMeetingState.carryOverContext;
+      try {
+        const res = await postApiRequest({
+          action: 'createMeetingAppointment',
+          organizerId: getMobMeetEmpId_(),
+          title: document.getElementById('mobApptTitle').value.trim(),
+          startDateTime: document.getElementById('mobApptStart').value.replace('T', ' '),
+          endDateTime: document.getElementById('mobApptEnd').value.replace('T', ' '),
+          location: document.getElementById('mobApptLocation').value.trim(),
+          description: document.getElementById('mobApptDesc').value.trim(),
+          attendees: attendees,
+          seriesId: carry ? carry.seriesId : '',
+          sessionNo: carry ? carry.nextSessionNo : 1,
+          parentAppointmentNo: carry ? carry.parentAppointmentNo : '',
+          parentMinutesNo: carry ? carry.parentMinutesNo : ''
+        });
+        if (res && res.status === 'success') {
+          MobileMeetingState.carryOverContext = null;
+          showToast(res.message || 'สร้างนัดหมายเรียบร้อยแล้ว');
+          closeMobileCreateMeetingModal();
+          switchMobileMeetingTab('APPT');
+        } else {
+          showToast((res && res.message) || 'สร้างนัดหมายไม่สำเร็จ', 'error');
+        }
+      } catch (err) {
+        showToast('เกิดข้อผิดพลาด: ' + err.message, 'error');
+      } finally {
+        if (btn) { btn.disabled = false; btn.innerText = '📅 สร้างนัดหมาย & แจ้ง LINE'; }
+      }
+    }
+
+    window.MobileMeetingState = MobileMeetingState;
+    window.initMobileMeetingHubView = initMobileMeetingHubView;
+    window.switchMobileMeetingTab = switchMobileMeetingTab;
+    window.onMobileMeetingSearch = onMobileMeetingSearch;
+    window.loadMobileMeetingAppointments = loadMobileMeetingAppointments;
+    window.respondMobileApptQuick = respondMobileApptQuick;
+    window.loadMobileMeetingMinutes = loadMobileMeetingMinutes;
+    window.askMobileMeetingHistoryAi = askMobileMeetingHistoryAi;
+    window.setMobileMeetingActionScope = setMobileMeetingActionScope;
+    window.loadMobileMeetingActions = loadMobileMeetingActions;
+    window.updateMobileMeetingActionStatus = updateMobileMeetingActionStatus;
+    window.openMobileMinutesForAppt = openMobileMinutesForAppt;
+    window.openMobileMinutesByNo = openMobileMinutesByNo;
+    window.openMobileMinutesStudioModal = openMobileMinutesStudioModal;
+    window.closeMobileMinutesStudioModal = closeMobileMinutesStudioModal;
+    window.removeMobileMinutesAttendee = removeMobileMinutesAttendee;
+    window.addMobileMinutesAttendeeFromInput = addMobileMinutesAttendeeFromInput;
+    window.switchMobileMinutesLangTab = switchMobileMinutesLangTab;
+    window.addMobileMinutesAgenda = addMobileMinutesAgenda;
+    window.addMobileMinutesActionItem = addMobileMinutesActionItem;
+    window.toggleMobileMeetingLiveMic = toggleMobileMeetingLiveMic;
+    window.stopMobileMeetingLiveMic = stopMobileMeetingLiveMic;
+    window.handleMobileMeetingAudioFile = handleMobileMeetingAudioFile;
+    window.handleMobileMeetingWhiteboard = handleMobileMeetingWhiteboard;
+    window.renderMobileMinutesWhiteboard_ = renderMobileMinutesWhiteboard_;
+    window.renderMobileMinutesAgendas_ = renderMobileMinutesAgendas_;
+    window.renderMobileMinutesActions_ = renderMobileMinutesActions_;
+    window.runMobileMeetingAiSynthesis = runMobileMeetingAiSynthesis;
+    window.translateMobileMinutesAi = translateMobileMinutesAi;
+    window.saveMobileMeetingMinutes = saveMobileMeetingMinutes;
+    window.triggerMobileFollowUpMeeting = triggerMobileFollowUpMeeting;
+    window.openMobileCreateMeetingModal = openMobileCreateMeetingModal;
+    window.closeMobileCreateMeetingModal = closeMobileCreateMeetingModal;
+    window.renderMobileCreateAttendeeList = renderMobileCreateAttendeeList;
+    window.toggleMobileCreateAttendee = toggleMobileCreateAttendee;
+    window.submitMobileCreateMeeting = submitMobileCreateMeeting;
+

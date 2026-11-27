@@ -320,6 +320,20 @@
               <p class="text-[11px] text-slate-500 mt-0.5">แชร์ข้อมูลแผนงาน</p>
             </div>
           </button>
+
+          <!-- 8. ประชุม & บันทึก AI (Meeting Hub & AI Copilot) -->
+          <button id="btnMeetingHubCard" onclick="openView('meetingHub')" class="glass-card p-4 rounded-2xl border border-slate-200 text-left hover:border-teal-400 hover:shadow-md transition-all flex flex-col justify-between">
+            <div class="flex items-center justify-between w-full mb-2">
+              <div class="w-10 h-10 rounded-xl bg-teal-100 text-teal-700 flex items-center justify-center text-xl shadow-2xs">
+                🎙️
+              </div>
+              <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-teal-50 text-teal-700 border border-teal-100">AI Copilot</span>
+            </div>
+            <div>
+              <h3 class="text-sm font-bold text-slate-800">ประชุม & บันทึก AI</h3>
+              <p class="text-[11px] text-slate-500 mt-0.5">อัดเสียง • กระดาน • มติ & งานค้าง</p>
+            </div>
+          </button>
         </div>
       </section>
 
@@ -3416,6 +3430,96 @@
       </div>
     </section>
 
+    <!-- ========================================== -->
+    <!-- VIEW: ศูนย์นัดหมาย & บันทึกการประชุม AI (Mobile Meeting Hub) -->
+    <!-- ========================================== -->
+    <section id="viewMeetingHub" class="hidden space-y-3 animate-fadeIn text-left">
+      <div class="glass-card rounded-2xl p-4 shadow-sm border border-slate-200 space-y-3">
+        <!-- Header -->
+        <div class="flex items-center justify-between gap-2 pb-2 border-b border-slate-100">
+          <div class="flex items-center gap-2 min-w-0">
+            <button type="button" onclick="closeCurrentView()" class="w-8 h-8 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center text-sm font-bold shrink-0">←</button>
+            <div class="min-w-0">
+              <h2 class="text-sm font-bold text-slate-800 truncate">🎙️ ประชุม & บันทึก AI</h2>
+              <p class="text-[10px] text-slate-500 truncate">อัดเสียงบนโต๊ะ • ถ่ายกระดาน • สรุปมติ & งานค้าง</p>
+            </div>
+          </div>
+          <button type="button" onclick="openMobileMinutesStudioModal()" class="px-3 py-1.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold shadow-xs shrink-0 active:scale-95 transition">
+            ➕ จดด่วน
+          </button>
+        </div>
+
+        <!-- 3 Mobile Sub-Tabs -->
+        <div class="grid grid-cols-3 gap-1 bg-slate-100 p-1 rounded-xl text-[11px] font-bold">
+          <button type="button" id="mobMeetTabAppt" onclick="switchMobileMeetingTab('APPT')" class="py-1.5 px-2 rounded-lg bg-white text-sky-700 shadow-2xs transition">📅 นัดประชุม</button>
+          <button type="button" id="mobMeetTabMinutes" onclick="switchMobileMeetingTab('MINUTES')" class="py-1.5 px-2 rounded-lg text-slate-500 transition">📝 สรุป & ถาม AI</button>
+          <button type="button" id="mobMeetTabActions" onclick="switchMobileMeetingTab('ACTIONS')" class="py-1.5 px-2 rounded-lg text-slate-500 transition">✅ งานค้าง</button>
+        </div>
+
+        <!-- PANEL 1: นัดประชุม -->
+        <div id="mobMeetPanelAppt" class="space-y-2.5">
+          <div class="flex items-center justify-between gap-2">
+            <button type="button" onclick="openMobileCreateMeetingModal()" class="flex-1 py-2 px-3 rounded-xl bg-sky-600 text-white text-xs font-bold shadow-xs active:scale-95 transition">+ นัดประชุมใหม่</button>
+            <button type="button" onclick="loadMobileMeetingAppointments()" class="py-2 px-3 rounded-xl bg-slate-100 text-slate-600 text-xs font-bold">🔄 รีเฟรช</button>
+          </div>
+          <div id="mobMeetApptList" class="space-y-2.5">
+            <div class="text-center py-6 text-xs text-slate-400">กำลังโหลดนัดหมายการประชุม...</div>
+          </div>
+        </div>
+
+        <!-- PANEL 2: สรุป & ถาม AI -->
+        <div id="mobMeetPanelMinutes" class="hidden space-y-2.5">
+          <!-- Ask AI Memory Box -->
+          <div class="p-2.5 rounded-2xl bg-gradient-to-br from-teal-50 to-sky-50 border border-teal-200 space-y-2">
+            <div class="flex items-center gap-1.5">
+              <input type="text" id="mobMeetAskInput" onkeydown="if(event.key==='Enter'){event.preventDefault();askMobileMeetingHistoryAi();}" placeholder="🤖 ถาม AI เช่น พาร์ท 017-004M เคยสรุปมติว่าอะไร?" class="flex-1 px-2.5 py-2 rounded-xl border border-teal-300 bg-white text-xs outline-none focus:ring-2 focus:ring-teal-500">
+              <button type="button" id="btnMobMeetAskAi" onclick="askMobileMeetingHistoryAi()" class="px-3 py-2 rounded-xl bg-teal-600 text-white text-xs font-bold shrink-0 shadow-xs active:scale-95 transition">ถาม AI</button>
+            </div>
+            <div id="mobMeetAskResultBox" class="hidden p-2.5 rounded-xl bg-white border border-teal-200 text-xs space-y-1.5">
+              <div class="flex items-center justify-between">
+                <span class="font-bold text-teal-800 text-[11px]">✨ คำตอบจาก Gemini AI Memory</span>
+                <button type="button" onclick="document.getElementById('mobMeetAskResultBox').classList.add('hidden')" class="text-[10px] text-slate-400 font-bold">ปิด</button>
+              </div>
+              <div id="mobMeetAskAnswer" class="text-slate-700 whitespace-pre-line leading-relaxed"></div>
+              <div id="mobMeetAskCitations" class="flex flex-wrap gap-1.5 pt-1"></div>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <input type="text" id="mobMeetSearchInput" oninput="onMobileMeetingSearch()" placeholder="🔍 ค้นหาหัวข้อ, รหัสพาร์ท..." class="flex-1 px-3 py-2 rounded-xl border border-slate-200 bg-white text-xs outline-none focus:ring-2 focus:ring-teal-500">
+            <select id="mobMeetVisFilter" onchange="loadMobileMeetingMinutes()" class="px-2.5 py-2 rounded-xl border border-slate-200 bg-white text-[11px] font-semibold text-slate-700">
+              <option value="ALL">ทุกสิทธิ์</option>
+              <option value="ATTENDEES_ONLY">เฉพาะผู้เข้าประชุม</option>
+              <option value="SUPERVISORS_PUBLIC">หัวหน้างานทุกแผนก</option>
+              <option value="CONFIDENTIAL">ลับเฉพาะ</option>
+            </select>
+          </div>
+          <div id="mobMeetMinutesList" class="space-y-2.5">
+            <div class="text-center py-6 text-xs text-slate-400">กำลังโหลดคลังบันทึกการประชุม...</div>
+          </div>
+        </div>
+
+        <!-- PANEL 3: งานค้าง -->
+        <div id="mobMeetPanelActions" class="hidden space-y-2.5">
+          <div class="flex items-center justify-between gap-2">
+            <div class="flex items-center gap-1">
+              <button type="button" id="btnMobActMine" onclick="setMobileMeetingActionScope('MY_TASKS')" class="px-2.5 py-1.5 rounded-lg bg-sky-600 text-white text-[11px] font-bold">งานของฉัน</button>
+              <button type="button" id="btnMobActAll" onclick="setMobileMeetingActionScope('ALL_VISIBLE')" class="px-2.5 py-1.5 rounded-lg bg-slate-100 text-slate-600 text-[11px] font-bold">ทั้งหมด</button>
+            </div>
+            <select id="mobMeetActionStatus" onchange="loadMobileMeetingActions()" class="px-2.5 py-1.5 rounded-xl border border-slate-200 bg-white text-[11px] font-semibold text-slate-700">
+              <option value="ALL">ทุกสถานะ</option>
+              <option value="OPEN">🟡 รอดำเนินการ</option>
+              <option value="IN_PROGRESS">🔵 กำลังทำ</option>
+              <option value="DONE">🟢 เสร็จแล้ว</option>
+            </select>
+          </div>
+          <div id="mobMeetActionsList" class="space-y-2.5">
+            <div class="text-center py-6 text-xs text-slate-400">กำลังโหลดงานมอบหมาย...</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
   </main>
 
   <!-- Modal: ตั้งกระทู้สอบถามใหม่ (Mobile Support New Thread) -->
@@ -3586,11 +3690,244 @@
     </div>
   </div>
 
+  <!-- Modal: สตูดิโอบันทึกการประชุม AI บนมือถือ (Mobile Minutes Studio Modal) -->
+  <div id="modalMobileMinutesStudio" class="hidden fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-3">
+    <div class="bg-white rounded-t-3xl sm:rounded-3xl max-w-lg w-full max-h-[94vh] flex flex-col overflow-hidden shadow-2xl border border-slate-200 text-left">
+      <!-- Header -->
+      <div class="px-4 py-3 bg-gradient-to-r from-teal-700 via-sky-700 to-indigo-800 text-white flex items-center justify-between gap-2 shrink-0">
+        <div class="min-w-0">
+          <div class="flex items-center gap-1.5 flex-wrap">
+            <span class="text-sm font-bold truncate">🎙️ บันทึกการประชุม AI</span>
+            <span id="mobMinBadgeNo" class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-white/20 font-bold">NEW</span>
+            <span id="mobMinBadgeSeries" class="text-[10px] px-1.5 py-0.5 rounded bg-indigo-500/40 font-bold">ครั้งที่ 1</span>
+            <span id="mobMinBadgeStatus" class="text-[10px] px-1.5 py-0.5 rounded bg-amber-400/30 font-bold">DRAFT</span>
+          </div>
+          <p id="mobMinApptLabel" class="text-[10px] text-teal-100 truncate mt-0.5">การประชุมด่วนนอกตาราง (Ad-hoc)</p>
+        </div>
+        <button type="button" onclick="closeMobileMinutesStudioModal()" class="w-8 h-8 rounded-full bg-white/15 text-white flex items-center justify-center text-sm font-bold shrink-0">✕</button>
+      </div>
+
+      <!-- Body -->
+      <div class="flex-1 overflow-y-auto p-3.5 space-y-3 text-xs bg-slate-50">
+        <!-- Series Timeline -->
+        <div id="mobMinSeriesBar" class="hidden p-2.5 rounded-2xl bg-indigo-50 border border-indigo-200 space-y-1.5">
+          <div class="text-[11px] font-bold text-indigo-900">🔁 สายการประชุมต่อเนื่อง (Series Timeline)</div>
+          <div id="mobMinSeriesChips" class="flex flex-wrap gap-1.5"></div>
+        </div>
+
+        <!-- Previous Context Memory -->
+        <div id="mobMinPrevContextBox" class="hidden p-2.5 rounded-2xl bg-amber-50 border border-amber-200 text-[11px] text-amber-900 space-y-1">
+          <div class="font-bold text-amber-800">🧠 บริบทความจำจากครั้งก่อน:</div>
+          <div id="mobMinPrevContextText" class="whitespace-pre-line"></div>
+        </div>
+
+        <!-- Tabletop AI Voice & Whiteboard Studio -->
+        <div class="p-3.5 rounded-2xl bg-slate-900 text-white space-y-3 shadow-md">
+          <div class="flex items-center justify-between gap-2">
+            <span class="text-xs font-bold text-teal-300">✨ AI Voice & Whiteboard Studio</span>
+            <span id="mobLiveMicTimer" class="hidden text-xs font-mono font-bold text-rose-300">00:00</span>
+          </div>
+          <div id="mobLiveMicStatus" class="text-[10px] px-2.5 py-1 rounded-full bg-white/10 text-slate-200 inline-block">พร้อมใช้งาน • จอไม่ดับอัตโนมัติขณะอัดเสียง</div>
+
+          <button type="button" id="btnMobLiveMic" onclick="toggleMobileMeetingLiveMic()" class="w-full py-3 px-4 rounded-2xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs shadow-md flex items-center justify-center gap-2 active:scale-95 transition">
+            <span id="mobLiveMicLabel">🎙️ วางไมค์ฟังเสียงสด (Live Transcribe)</span>
+          </button>
+
+          <div id="mobLiveInterimBox" class="hidden p-2 rounded-xl bg-slate-950/70 border border-teal-500/40 text-[11px] text-teal-200 italic"></div>
+
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <input type="file" id="mobMinAudioFile" accept="audio/*,.m4a,.mp3,.wav,.webm,.ogg" onchange="handleMobileMeetingAudioFile(event)" class="hidden">
+              <button type="button" onclick="document.getElementById('mobMinAudioFile').click()" class="w-full py-2 px-2.5 rounded-xl bg-white/15 hover:bg-white/25 text-white text-[11px] font-bold transition">📂 แนบไฟล์เสียง</button>
+            </div>
+            <div>
+              <input type="file" id="mobMinWbFile" accept="image/*" multiple onchange="handleMobileMeetingWhiteboard(event)" class="hidden">
+              <button type="button" onclick="document.getElementById('mobMinWbFile').click()" class="w-full py-2 px-2.5 rounded-xl bg-sky-500 hover:bg-sky-400 text-white text-[11px] font-bold transition">📸 ถ่าย/แนบรูปกระดาน</button>
+            </div>
+          </div>
+
+          <div id="mobAudioUploadStatus" class="hidden text-[10px] text-teal-200"></div>
+          <label class="flex items-center gap-2 text-[11px] text-slate-200 cursor-pointer">
+            <input type="checkbox" id="chkMobSaveAudioDrive" class="rounded text-teal-500 w-3.5 h-3.5">
+            <span>เก็บไฟล์เสียงต้นฉบับลง Google Drive (เฉพาะนัดสำคัญ)</span>
+          </label>
+          <div id="mobSavedAudioLink" class="hidden text-[11px]"></div>
+          <div id="mobMinWbGallery" class="flex flex-wrap gap-2"></div>
+
+          <div class="space-y-2">
+            <textarea id="mobMinRawNotes" rows="2" placeholder="📝 โน้ตย่อระหว่างประชุม..." class="w-full rounded-xl p-2.5 bg-slate-950/60 border border-white/15 text-xs text-white placeholder-slate-400 outline-none"></textarea>
+            <textarea id="mobMinTranscript" rows="3" placeholder="💬 บทถอดเสียงจากห้องประชุม (Live / ไฟล์เสียง)..." class="w-full rounded-xl p-2.5 bg-slate-950/60 border border-white/15 text-xs text-white placeholder-slate-400 outline-none"></textarea>
+          </div>
+
+          <button type="button" id="btnMobRunAiSummary" onclick="runMobileMeetingAiSynthesis()" class="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-teal-500 to-emerald-500 text-white font-bold text-xs shadow-md active:scale-95 transition">
+            ✨ สรุปมติด้วย Gemini AI
+          </button>
+        </div>
+
+        <!-- Editable Metadata -->
+        <div class="p-3 bg-white rounded-2xl border border-slate-200 space-y-2.5">
+          <div>
+            <label class="block font-bold text-slate-700 mb-1">หัวข้อการประชุม <span class="text-rose-500">*</span></label>
+            <input type="text" id="mobMinTitle" placeholder="ระบุหัวข้อ..." class="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold outline-none focus:ring-2 focus:ring-teal-500">
+          </div>
+          <div class="grid grid-cols-3 gap-2">
+            <div>
+              <label class="block font-bold text-slate-700 mb-1">วันที่</label>
+              <input type="date" id="mobMinDate" class="w-full px-2 py-1.5 rounded-xl border border-slate-200 text-xs outline-none">
+            </div>
+            <div>
+              <label class="block font-bold text-slate-700 mb-1">เริ่ม</label>
+              <input type="time" id="mobMinStart" class="w-full px-2 py-1.5 rounded-xl border border-slate-200 text-xs outline-none">
+            </div>
+            <div>
+              <label class="block font-bold text-slate-700 mb-1">จบ</label>
+              <input type="time" id="mobMinEnd" class="w-full px-2 py-1.5 rounded-xl border border-slate-200 text-xs outline-none">
+            </div>
+          </div>
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="block font-bold text-slate-700 mb-1">สถานที่</label>
+              <input type="text" id="mobMinLocation" placeholder="ห้องประชุม..." class="w-full px-2.5 py-1.5 rounded-xl border border-slate-200 text-xs outline-none">
+            </div>
+            <div>
+              <label class="block font-bold text-slate-700 mb-1">สิทธิ์การอ่าน</label>
+              <select id="mobMinVisibility" class="w-full px-2 py-1.5 rounded-xl border border-slate-200 text-xs bg-white font-semibold">
+                <option value="ATTENDEES_ONLY">🔒 เฉพาะผู้เข้าประชุม</option>
+                <option value="SUPERVISORS_PUBLIC">🌐 หัวหน้างานทุกแผนก</option>
+                <option value="CONFIDENTIAL">🛡️ ลับเฉพาะ</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Attendees Chips & Quick Add -->
+          <div class="pt-1.5 border-t border-slate-100 space-y-1.5">
+            <div class="flex items-center justify-between">
+              <span class="font-bold text-slate-700">ผู้เข้าร่วมจริง (<span id="mobMinAttendeesCount">0</span>)</span>
+            </div>
+            <div id="mobMinAttendeesBox" class="flex flex-wrap gap-1.5"></div>
+            <div class="flex items-center gap-1.5">
+              <input type="text" id="mobMinAddAttendeeInput" list="mobMeetEmpDatalist" placeholder="พิมพ์รหัส/ชื่อพนักงานเพื่อเพิ่ม..." class="flex-1 px-2.5 py-1.5 rounded-xl border border-slate-200 text-xs outline-none">
+              <button type="button" onclick="addMobileMinutesAttendeeFromInput()" class="px-3 py-1.5 rounded-xl bg-sky-600 text-white text-xs font-bold shrink-0">+ เพิ่ม</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Summary & Translation -->
+        <div class="p-3 bg-white rounded-2xl border border-slate-200 space-y-2">
+          <div class="flex items-center justify-between gap-1 flex-wrap">
+            <div class="flex items-center gap-1 bg-slate-100 p-0.5 rounded-xl text-[11px] font-bold">
+              <button type="button" id="mobTabLangTh" onclick="switchMobileMinutesLangTab('TH')" class="px-2.5 py-1 rounded-lg bg-white text-teal-700 shadow-2xs">🇹🇭 ไทย</button>
+              <button type="button" id="mobTabLangJa" onclick="switchMobileMinutesLangTab('JA')" class="px-2.5 py-1 rounded-lg text-slate-500">🇯🇵 JP</button>
+              <button type="button" id="mobTabLangEn" onclick="switchMobileMinutesLangTab('EN')" class="px-2.5 py-1 rounded-lg text-slate-500">🇬🇧 EN</button>
+            </div>
+            <div class="flex items-center gap-1">
+              <button type="button" onclick="translateMobileMinutesAi('ja')" class="px-2 py-1 rounded-lg bg-indigo-50 text-indigo-700 border border-indigo-200 text-[10px] font-bold">แปล JP</button>
+              <button type="button" onclick="translateMobileMinutesAi('en')" class="px-2 py-1 rounded-lg bg-sky-50 text-sky-700 border border-sky-200 text-[10px] font-bold">แปล EN</button>
+            </div>
+          </div>
+          <textarea id="mobMinSummaryTh" rows="3" placeholder="สรุปใจความสำคัญและมติ..." class="w-full px-2.5 py-2 rounded-xl border border-slate-200 text-xs outline-none"></textarea>
+          <textarea id="mobMinSummaryJa" rows="4" placeholder="日本語サマリー..." class="hidden w-full px-2.5 py-2 rounded-xl border border-indigo-200 text-xs outline-none"></textarea>
+          <textarea id="mobMinSummaryEn" rows="4" placeholder="English Summary..." class="hidden w-full px-2.5 py-2 rounded-xl border border-sky-200 text-xs outline-none"></textarea>
+        </div>
+
+        <!-- Agendas -->
+        <div class="p-3 bg-white rounded-2xl border border-slate-200 space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="font-bold text-slate-800">📋 วาระ & มติ (Carry-Over)</span>
+            <button type="button" onclick="addMobileMinutesAgenda()" class="px-2.5 py-1 rounded-lg bg-teal-50 text-teal-700 border border-teal-200 text-[11px] font-bold">+ เพิ่มวาระ</button>
+          </div>
+          <div id="mobMinAgendasList" class="space-y-2"></div>
+        </div>
+
+        <!-- Action Items -->
+        <div class="p-3 bg-white rounded-2xl border border-slate-200 space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="font-bold text-slate-800">📌 งานมอบหมาย (Action Items)</span>
+            <button type="button" onclick="addMobileMinutesActionItem()" class="px-2.5 py-1 rounded-lg bg-sky-50 text-sky-700 border border-sky-200 text-[11px] font-bold">+ เพิ่มงาน</button>
+          </div>
+          <div id="mobMinActionsList" class="space-y-2"></div>
+        </div>
+
+        <!-- Part Codes & Tags -->
+        <div class="p-3 bg-white rounded-2xl border border-slate-200 space-y-2">
+          <input type="text" id="mobMinPartCodes" placeholder="🔩 รหัสพาร์ทที่เกี่ยวข้อง (เช่น 017-004M)" class="w-full px-2.5 py-1.5 rounded-xl border border-slate-200 text-xs font-mono outline-none">
+          <input type="text" id="mobMinTags" placeholder="🏷️ แท็กหมวดหมู่ (เช่น ISO, Quality)" class="w-full px-2.5 py-1.5 rounded-xl border border-slate-200 text-xs outline-none">
+        </div>
+      </div>
+
+      <!-- Sticky Footer -->
+      <div class="p-3 bg-white border-t border-slate-200 space-y-2 shrink-0">
+        <div class="grid grid-cols-2 gap-2">
+          <button type="button" id="btnMobMinSaveDraft" onclick="saveMobileMeetingMinutes('DRAFT')" class="py-2.5 px-3 rounded-xl bg-amber-500 text-white font-bold text-xs shadow-xs active:scale-95 transition">💾 บันทึกร่าง</button>
+          <button type="button" id="btnMobMinPublish" onclick="saveMobileMeetingMinutes('PUBLISHED')" class="py-2.5 px-3 rounded-xl bg-teal-600 text-white font-bold text-xs shadow-sm active:scale-95 transition">🚀 เผยแพร่ & ส่ง LINE</button>
+        </div>
+        <button type="button" id="btnMobFollowUpMeeting" onclick="triggerMobileFollowUpMeeting()" class="hidden w-full py-2 px-3 rounded-xl bg-indigo-50 text-indigo-700 border border-indigo-200 font-bold text-xs transition">
+          🔁 นัดประชุมต่อเนื่อง (ยกยอดวาระ & งานค้าง)
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: สร้างนัดหมายประชุมใหม่บนมือถือ (Mobile Create Meeting Modal) -->
+  <div id="modalMobileCreateMeeting" class="hidden fixed inset-0 z-[55] bg-slate-900/70 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-3">
+    <div class="bg-white rounded-t-3xl sm:rounded-3xl max-w-lg w-full max-h-[92vh] flex flex-col overflow-hidden shadow-2xl border border-slate-200 text-left">
+      <div class="px-4 py-3 bg-gradient-to-r from-sky-600 to-indigo-700 text-white flex items-center justify-between shrink-0">
+        <div>
+          <h3 class="text-sm font-bold">📅 สร้างนัดหมายประชุมใหม่</h3>
+          <p class="text-[10px] text-sky-100">ส่งแจ้งเตือน & ตอบรับ LINE อัตโนมัติ</p>
+        </div>
+        <button type="button" onclick="closeMobileCreateMeetingModal()" class="w-8 h-8 rounded-full bg-white/15 text-white flex items-center justify-center text-sm font-bold">✕</button>
+      </div>
+      <form onsubmit="submitMobileCreateMeeting(event)" class="flex-1 overflow-y-auto p-4 space-y-3 text-xs">
+        <div id="mobCreateCarryBanner" class="hidden p-2.5 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-900 font-bold text-[11px]"></div>
+        <div>
+          <label class="block font-bold text-slate-700 mb-1">หัวข้อการประชุม <span class="text-rose-500">*</span></label>
+          <input type="text" id="mobApptTitle" required placeholder="เช่น ประชุมติดตามปัญหาหน้างาน..." class="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold outline-none">
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block font-bold text-slate-700 mb-1">เริ่มต้น <span class="text-rose-500">*</span></label>
+            <input type="datetime-local" id="mobApptStart" required class="w-full px-2 py-2 rounded-xl border border-slate-200 text-xs outline-none">
+          </div>
+          <div>
+            <label class="block font-bold text-slate-700 mb-1">สิ้นสุด <span class="text-rose-500">*</span></label>
+            <input type="datetime-local" id="mobApptEnd" required class="w-full px-2 py-2 rounded-xl border border-slate-200 text-xs outline-none">
+          </div>
+        </div>
+        <div>
+          <label class="block font-bold text-slate-700 mb-1">สถานที่ <span class="text-rose-500">*</span></label>
+          <input type="text" id="mobApptLocation" required placeholder="ห้องประชุม 1..." class="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs outline-none">
+          <div class="flex flex-wrap gap-1.5 mt-1.5">
+            <button type="button" onclick="document.getElementById('mobApptLocation').value='ห้องประชุม 1'" class="px-2 py-0.5 rounded bg-slate-100 text-[10px] text-slate-600 font-semibold">ห้องประชุม 1</button>
+            <button type="button" onclick="document.getElementById('mobApptLocation').value='ห้องประชุม 2'" class="px-2 py-0.5 rounded bg-slate-100 text-[10px] text-slate-600 font-semibold">ห้องประชุม 2</button>
+            <button type="button" onclick="document.getElementById('mobApptLocation').value='หน้าไลน์ผลิต'" class="px-2 py-0.5 rounded bg-slate-100 text-[10px] text-slate-600 font-semibold">หน้าไลน์ผลิต</button>
+          </div>
+        </div>
+        <div>
+          <label class="block font-bold text-slate-700 mb-1">วาระ / รายละเอียด</label>
+          <textarea id="mobApptDesc" rows="2" placeholder="ระบุประเด็นที่ต้องเตรียม..." class="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs outline-none"></textarea>
+        </div>
+        <div class="p-3 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="font-bold text-slate-800">ผู้เข้าร่วม (<span id="mobApptAttendeeCount">0</span>)</span>
+            <input type="text" id="mobApptAttendeeSearch" oninput="renderMobileCreateAttendeeList()" placeholder="ค้นหาชื่อ/แผนก..." class="w-36 px-2 py-1 rounded-lg border border-slate-200 text-[11px] bg-white outline-none">
+          </div>
+          <div id="mobApptAttendeeList" class="max-h-40 overflow-y-auto space-y-1"></div>
+        </div>
+        <button type="submit" id="btnMobSubmitCreateAppt" class="w-full py-2.5 rounded-xl bg-sky-600 text-white font-bold text-xs shadow-sm active:scale-95 transition">
+          📅 สร้างนัดหมาย & แจ้ง LINE
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <datalist id="mobMeetEmpDatalist"></datalist>
+
   <!-- Application Logic -->
-  <!-- Modular Mobile JS Architecture (v3.1.6) -->
-  <script src="js/mobile-core.js?v=3.1.7"></script>
+  <!-- Modular Mobile JS Architecture (v3.2.0) -->
+  <script src="js/mobile-core.js?v=3.2.0"></script>
   <script src="js/mobile-hr.js?v=3.1.6"></script>
-  <script src="js/mobile-services.js?v=3.1.6"></script>
+  <script src="js/mobile-services.js?v=3.2.0"></script>
   <script src="js/mobile-iso-mnw.js?v=3.1.4"></script>
   <script src="js/mobile-pd-pc.js?v=3.1.4"></script>
 </body>

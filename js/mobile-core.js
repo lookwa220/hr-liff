@@ -576,6 +576,7 @@
     // View Switcher (Hub & Spoke Pattern with Popstate History)
     // ==========================================
     function openView(viewName, pushHistory = true) {
+      if (typeof stopMobileMeetingLiveMic === 'function') stopMobileMeetingLiveMic();
       document.getElementById('mainDashboard').classList.add('hidden');
       const allViewIds = [
         'viewLeave', 'viewQuota', 'viewOT', 'viewApprovals',
@@ -583,7 +584,7 @@
         'viewPersonal', 'viewRoomBooking', 'viewVehicleBooking',
         'viewMnwRequest', 'viewMnwWorkbench', 'viewMnwRoutine', 'viewKaizen',
         'viewBusinessCards', 'viewPartsRequest', 'viewPdRepair', 'viewPdTrial',
-        'viewPcCoilReceive', 'viewPcCoilCheck', 'viewSupport'
+        'viewPcCoilReceive', 'viewPcCoilCheck', 'viewSupport', 'viewMeetingHub'
       ];
       allViewIds.forEach(id => {
         const el = document.getElementById(id);
@@ -685,6 +686,10 @@
         const vsup = document.getElementById('viewSupport');
         if (vsup) vsup.classList.remove('hidden');
         if (typeof initMobileSupportView === 'function') initMobileSupportView();
+      } else if (viewName === 'meetingHub') {
+        const vmh = document.getElementById('viewMeetingHub');
+        if (vmh) vmh.classList.remove('hidden');
+        if (typeof initMobileMeetingHubView === 'function') initMobileMeetingHubView();
       }
       state.currentView = viewName;
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -695,13 +700,14 @@
     }
 
     function closeCurrentView(syncHistory = true) {
+      if (typeof stopMobileMeetingLiveMic === 'function') stopMobileMeetingLiveMic();
       const allViewIds = [
         'viewLeave', 'viewQuota', 'viewOT', 'viewApprovals',
         'viewPaySlip', 'viewShiftAtt', 'viewSwap', 'viewSafety',
         'viewPersonal', 'viewRoomBooking', 'viewVehicleBooking',
         'viewMnwRequest', 'viewMnwWorkbench', 'viewMnwRoutine', 'viewKaizen',
         'viewBusinessCards', 'viewPartsRequest', 'viewPdRepair', 'viewPdTrial',
-        'viewPcCoilReceive', 'viewPcCoilCheck', 'viewSupport'
+        'viewPcCoilReceive', 'viewPcCoilCheck', 'viewSupport', 'viewMeetingHub'
       ];
       allViewIds.forEach(id => {
         const el = document.getElementById(id);
