@@ -3755,15 +3755,20 @@
             <button type="button" id="btnMobLiveTranslate" onclick="toggleMobileLiveTranslate()" class="w-full py-2.5 px-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-sm flex items-center justify-center gap-2 active:scale-95 transition">
               <span id="mobLiveTranslateLabel">🌐 เปิดล่ามแปลสดในห้องประชุม (Live Translate)</span>
             </button>
-            <div class="flex flex-wrap items-center gap-3 text-[10px] text-slate-200">
-              <label class="flex items-center gap-1.5 cursor-pointer">
-                <input type="checkbox" id="chkMobTranslateVoiceOut" checked class="rounded text-indigo-500 w-3.5 h-3.5">
-                <span>🔊 อ่านเสียงคำแปล (24kHz)</span>
-              </label>
-              <label class="flex items-center gap-1.5 cursor-pointer">
+            <div class="flex flex-wrap items-center gap-1.5 text-[10px] text-slate-200">
+              <div class="flex items-center gap-1 bg-slate-950/70 p-0.5 rounded-xl border border-indigo-400/20 w-full">
+                <button type="button" id="btnMobModeVoiceSub" onclick="setMobileTranslateOutputMode(true)" class="flex-1 py-1 px-2 rounded-lg bg-indigo-500 text-white text-[10px] font-bold transition">🔊 เสียง+ซับ</button>
+                <button type="button" id="btnMobModeSubOnly" onclick="setMobileTranslateOutputMode(false)" class="flex-1 py-1 px-2 rounded-lg bg-slate-800 text-slate-300 border border-white/15 text-[10px] font-bold transition">💬 ซับไตเติลอย่างเดียว</button>
+              </div>
+              <input type="checkbox" id="chkMobTranslateVoiceOut" checked class="hidden">
+              <label class="flex items-center gap-1.5 cursor-pointer pt-0.5">
                 <input type="checkbox" id="chkMobTranslateSyncTranscript" checked class="rounded text-teal-500 w-3.5 h-3.5">
                 <span>📝 ลง Transcript อัตโนมัติ</span>
               </label>
+            </div>
+            <div id="mobLiveCinemaBox" class="hidden p-2.5 rounded-xl bg-black/90 border border-indigo-400/40 text-center space-y-1">
+              <div id="mobLiveCinemaSrc" class="text-[10px] text-slate-300"></div>
+              <div id="mobLiveCinemaOut" class="text-sm font-extrabold text-amber-300 leading-snug"></div>
             </div>
             <div id="mobLiveTranslateInterim" class="hidden p-2 rounded-xl bg-indigo-950/90 border border-indigo-400/30 text-[11px] text-indigo-200 italic"></div>
             <div id="mobLiveTranslateFeed" class="hidden max-h-36 overflow-y-auto p-2 rounded-xl bg-slate-950/80 border border-indigo-400/20 space-y-1.5 text-[11px]"></div>
@@ -3958,10 +3963,10 @@
   <datalist id="mobMeetEmpDatalist"></datalist>
 
   <!-- Application Logic -->
-  <!-- Modular Mobile JS Architecture (v3.3.0) -->
+  <!-- Modular Mobile JS Architecture (v3.3.1) -->
   <script src="js/mobile-core.js?v=3.3.0"></script>
   <script src="js/mobile-hr.js?v=3.1.7"></script>
-  <script src="js/mobile-services.js?v=3.3.0"></script>
+  <script src="js/mobile-services.js?v=3.3.1"></script>
   <script src="js/mobile-iso-mnw.js?v=3.1.4"></script>
   <script src="js/mobile-pd-pc.js?v=3.1.4"></script>
 </body>

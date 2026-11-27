@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Minamida Live AI Studio — ล่ามแปลสด & ซับไตเติลห้องประชุม</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;600;700;800&family=Noto+Sans+JP:wght@500;700;800&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Noto Sans Thai', 'Noto Sans JP', system-ui, -apple-system, sans-serif;
+    }
+    .subtitle-glow {
+      text-shadow: 0 2px 14px rgba(0, 0, 0, 0.9);
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col">
+  <!-- Top Control Bar -->
+  <header class="bg-slate-900/95 border-b border-slate-800 px-4 py-3 sticky top-0 z-20 backdrop-blur-md">
+    <div class="max-w-5xl mx-auto flex flex-wrap items-center justify-between gap-2.5">
+      <div class="flex items-center gap-2.5">
+        <span class="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-teal-500 flex items-center justify-center text-lg shadow">🎙️</span>
+        <div>
+          <h1 id="studioTitle" class="text-sm sm:text-base font-extrabold text-white leading-tight">Minamida Live AI Studio</h1>
+          <p id="studioSubTitle" class="text-[11px] text-slate-400">ไมโครโฟนเชื่อมต่อตรง + ซับไตเติลเรียลไทม์ (เชื่อมต่อกับหน้าหลัก Minamida Hub)</p>
+        </div>
+      </div>
+
+      <div class="flex flex-wrap items-center gap-2">
+        <span id="studioTimer" class="hidden px-2.5 py-1 rounded-lg bg-slate-800 font-mono text-xs font-bold text-emerald-300">00:00</span>
+        <span id="studioStatusBadge" class="px-2.5 py-1 rounded-full bg-indigo-900/80 border border-indigo-400/30 text-[11px] font-bold text-indigo-200">กำลังเตรียมไมโครโฟน...</span>
+        <button type="button" id="btnToggleFullscreen" onclick="toggleStudioFullscreen()" class="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-bold text-slate-200 transition">⛶ เต็มจอ TV</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="flex-1 max-w-5xl w-full mx-auto p-3 sm:p-5 flex flex-col gap-3">
+    <!-- Toolbar -->
+    <section class="p-3 sm:p-4 rounded-2xl bg-slate-900 border border-slate-800 space-y-3 shadow-lg">
+      <div class="flex flex-wrap items-center gap-2">
+        <!-- Studio Mode -->
+        <div class="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800">
+          <button type="button" id="btnModeTranslate" onclick="switchStudioMode('translate')" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-indigo-600 text-white transition">🌐 ล่ามแปลสด (TH ↔ JP / EN)</button>
+          <button type="button" id="btnModeTranscribe" onclick="switchStudioMode('transcribe')" class="px-3 py-1.5 rounded-lg text-xs font-bold text-slate-400 hover:text-white transition">📝 ถอดเสียงสด (Transcribe)</button>
+        </div>
+
+        <!-- Language Controls (translate mode) -->
+        <div id="langControlCluster" class="flex flex-wrap items-center gap-1.5">
+          <select id="studioTargetLang" onchange="onChangeStudioLang()" class="px-3 py-1.5 rounded-xl bg-slate-950 border border-indigo-400/40 text-xs font-bold text-white outline-none">
+            <option value="ja">🇯🇵 แปลเสียง ➔ ภาษาญี่ปุ่น (JP)</option>
+            <option value="th">🇹🇭 แปลเสียง ➔ ภาษาไทย (TH)</option>
+            <option value="en">🇬🇧 แปลเสียง ➔ ภาษาอังกฤษ (EN)</option>
+          </select>
+          <button type="button" onclick="swapStudioLang()" class="px-3 py-1.5 rounded-xl bg-indigo-500/20 hover:bg-indigo-500/35 border border-indigo-400/30 text-xs font-bold text-indigo-200 transition">⇄ สลับ ไทย ↔ ญี่ปุ่น</button>
+        </div>
+
+        <button type="button" id="btnStudioMicAction" onclick="toggleStudioRunning()" class="ml-auto px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-extrabold shadow transition">🎙️ เริ่มเปิดไมโครโฟน</button>
+      </div>
+
+      <!-- Output Mode & Font Size -->
+      <div class="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-slate-800/80">
+        <div id="outputModeCluster" class="flex flex-wrap items-center gap-1.5">
+          <button type="button" id="btnOutVoiceSub" onclick="setStudioVoiceOut(true)" class="px-3 py-1 rounded-lg bg-indigo-600 text-white text-[11px] font-bold transition">🔊 + 💬 เสียงพูด + ซับไตเติล</button>
+          <button type="button" id="btnOutSubOnly" onclick="setStudioVoiceOut(false)" class="px-3 py-1 rounded-lg bg-slate-800 text-slate-300 border border-slate-700 text-[11px] font-bold transition">💬 ซับไตเติลอย่างเดียว (ปิดเสียง)</button>
+        </div>
+        <div class="flex items-center gap-1.5 text-[11px]">
+          <span class="text-slate-400">ขนาดซับ:</span>
+          <button type="button" onclick="setCinemaFontSize('md')" class="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold">ปกติ</button>
+          <button type="button" onclick="setCinemaFontSize('lg')" class="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold">ใหญ่</button>
+          <button type="button" onclick="setCinemaFontSize('xl')" class="px-2 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 border border-amber-400/30 text-amber-200 font-bold">จอทีวี XL</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Click-to-start fallback banner (if browser requires explicit gesture inside popup) -->
+    <div id="gesturePromptBanner" class="hidden p-4 rounded-2xl bg-gradient-to-r from-indigo-900/90 to-teal-900/90 border border-indigo-400/50 text-center space-y-2 shadow-xl">
+      <p class="text-xs sm:text-sm font-bold text-white">พร้อมเชื่อมต่อไมโครโฟนและ Gemini Live AI แล้ว — กดปุ่มด้านล่าง 1 ครั้งเพื่ออนุญาตไมค์และเสียง</p>
+      <button type="button" onclick="startStudioSession()" class="px-6 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold text-sm shadow-lg animate-pulse transition">🎙️ คลิก 1 ครั้งเพื่อเปิดไมโครโฟนเริ่มแปลสด</button>
+    </div>
+
+    <!-- Cinema Live Subtitle Stage -->
+    <section id="cinemaStage" class="rounded-3xl bg-black border border-indigo-500/30 p-5 sm:p-8 flex flex-col justify-center items-center text-center min-h-[210px] sm:min-h-[260px] shadow-2xl relative overflow-hidden">
+      <div class="absolute top-3 left-4 flex items-center gap-2 text-[11px] text-slate-400">
+        <span id="cinemaLiveDot" class="w-2.5 h-2.5 rounded-full bg-slate-600 inline-block"></span>
+        <span id="cinemaModeTag" class="font-bold uppercase tracking-wider">CINEMA LIVE SUBTITLE</span>
+      </div>
+      <div id="cinemaSrcText" class="text-sm sm:text-base text-slate-300 font-medium max-w-4xl min-h-[24px] mb-3 transition-all">รอรับเสียงพูดจากไมโครโฟน...</div>
+      <div id="cinemaOutText" class="text-2xl sm:text-4xl font-extrabold text-amber-300 subtitle-glow max-w-4xl leading-snug tracking-wide transition-all">พร้อมแสดงซับไตเติลภาษาญี่ปุ่น / ไทยแบบเรียลไทม์</div>
+    </section>
+
+    <!-- Rolling Bilingual Feed -->
+    <section class="flex-1 rounded-2xl bg-slate-900 border border-slate-800 p-3 sm:p-4 flex flex-col gap-2 min-h-[180px]">
+      <div class="flex items-center justify-between gap-2">
+        <h2 class="text-xs font-bold text-slate-300">💬 ประวัติซับไตเติล & บทสนทนาล่าสุด (ซิงค์กลับหน้าบันทึกประชุมอัตโนมัติ)</h2>
+        <button type="button" onclick="copyStudioFeed()" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-[11px] font-bold text-slate-200 transition">📋 คัดลอกข้อความ</button>
+      </div>
+      <div id="studioFeedList" class="flex-1 max-h-64 overflow-y-auto space-y-2 text-xs pr-1">
+        <div class="text-slate-500 text-center py-6">คำพูดและคำแปลจะปรากฏเรียงตามลำดับที่นี่</div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const GAS_API_URL = 'https://script.google.com/macros/s/AKfycby6LmtU-GITlnyN4W-P8CR8qqUL9UFiWprbrVkQsgVfGunD64pF5hK4q9BrdYuKLWfz7Q/exec';
+    const params = new URLSearchParams(window.location.search);
+
+    const studio = {
+      mode: params.get('mode') === 'transcribe' ? 'transcribe' : 'translate',
+      targetLang: params.get('lang') || 'ja',
+      voiceOut: params.get('voice') !== '0',
+      apiKey: '',
+      isRunning: false,
+      ws: null,
+      wsSetupDone: false,
+      modelFallbackUsed: false,
+      stream: null,
+      inputCtx: null,
+      processor: null,
+      outputCtx: null,
+      nextPlayTime: 0,
+      activeSources: [],
+      recTimer: null,
+      recSeconds: 0,
+      wsRenewTimer: null,
+      pendingInput: '',
+      pendingOutput: '',
+      feedLines: [],
+      cinemaSize: 'lg',
+      autoStartAttempted: false
+    };
+
+    function escHtml_(s) {
+      return String(s || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    function postToOpener_(payload) {
+      try {
+        if (window.opener && !window.opener.closed) {
+          window.opener.postMessage(payload, '*');
+        }
+      } catch (e) {}
+    }
+
+    function updateStatus_(text, isLive) {
+      const badge = document.getElementById('studioStatusBadge');
+      const dot = document.getElementById('cinemaLiveDot');
+      if (badge) badge.innerText = text;
+      if (dot) dot.className = isLive ? 'w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping inline-block' : 'w-2.5 h-2.5 rounded-full bg-slate-600 inline-block';
+      postToOpener_({
+        type: 'MINAMIDA_STUDIO_EVENT',
+        event: 'status',
+        mode: studio.mode,
+        statusText: text,
+        isRunning: studio.isRunning
+      });
+    }
+
+    function syncStudioUi_() {
+      const btnTr = document.getElementById('btnModeTranslate');
+      const btnTc = document.getElementById('btnModeTranscribe');
+      const langCluster = document.getElementById('langControlCluster');
+      const outCluster = document.getElementById('outputModeCluster');
+      const sel = document.getElementById('studioTargetLang');
+
+      if (sel) sel.value = studio.targetLang;
+
+      if (studio.mode === 'translate') {
+        if (btnTr) btnTr.className = 'px-3 py-1.5 rounded-lg text-xs font-bold bg-indigo-600 text-white transition';
+        if (btnTc) btnTc.className = 'px-3 py-1.5 rounded-lg text-xs font-bold text-slate-400 hover:text-white transition';
+        if (langCluster) langCluster.classList.remove('hidden');
+        if (outCluster) outCluster.classList.remove('hidden');
+      } else {
+        if (btnTr) btnTr.className = 'px-3 py-1.5 rounded-lg text-xs font-bold text-slate-400 hover:text-white transition';
+        if (btnTc) btnTc.className = 'px-3 py-1.5 rounded-lg text-xs font-bold bg-rose-600 text-white transition';
+        if (langCluster) langCluster.classList.add('hidden');
+        if (outCluster) outCluster.classList.add('hidden');
+      }
+
+      const bVoice = document.getElementById('btnOutVoiceSub');
+      const bSub = document.getElementById('btnOutSubOnly');
+      if (bVoice && bSub) {
+        bVoice.className = studio.voiceOut
+          ? 'px-3 py-1 rounded-lg bg-indigo-600 text-white text-[11px] font-bold transition'
+          : 'px-3 py-1 rounded-lg bg-slate-800 text-slate-300 border border-slate-700 text-[11px] font-bold transition';
+        bSub.className = !studio.voiceOut
+          ? 'px-3 py-1 rounded-lg bg-amber-500 text-slate-950 text-[11px] font-extrabold transition'
+          : 'px-3 py-1 rounded-lg bg-slate-800 text-slate-300 border border-slate-700 text-[11px] font-bold transition';
+      }
+
+      const btnMic = document.getElementById('btnStudioMicAction');
+      if (btnMic) {
+        btnMic.className = studio.isRunning
+          ? 'ml-auto px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-extrabold shadow animate-pulse transition'
+          : 'ml-auto px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-extrabold shadow transition';
+        btnMic.innerText = studio.isRunning ? '⏹️ หยุดไมโครโฟน' : '🎙️ เริ่มเปิดไมโครโฟน';
+      }
+    }
+
+    function setStudioVoiceOut(enableVoice) {
+      studio.voiceOut = !!enableVoice;
+      if (!studio.voiceOut) clearPlaybackQueue_();
+      syncStudioUi_();
+    }
+
+    function setCinemaFontSize(sizeKey) {
+      studio.cinemaSize = sizeKey;
+      const outEl = document.getElementById('cinemaOutText');
+      if (!outEl) return;
+      if (sizeKey === 'md') {
+        outEl.className = 'text-xl sm:text-2xl font-extrabold text-amber-300 subtitle-glow max-w-4xl leading-snug tracking-wide transition-all';
+      } else if (sizeKey === 'xl') {
+        outEl.className = 'text-4xl sm:text-6xl font-extrabold text-amber-300 subtitle-glow max-w-5xl leading-tight tracking-wide transition-all';
+      } else {
+        outEl.className = 'text-2xl sm:text-4xl font-extrabold text-amber-300 subtitle-glow max-w-4xl leading-snug tracking-wide transition-all';
+      }
+    }
+
+    function toggleStudioFullscreen() {
+      const el = document.documentElement;
+      if (!document.fullscreenElement) {
+        if (el.requestFullscreen) el.requestFullscreen().catch(() => {});
+      } else {
+        if (document.exitFullscreen) document.exitFullscreen().catch(() => {});
+      }
+    }
+
+    function float32ToPcm16Base64_(float32Arr, inputRate) {
+      const targetRate = 16000;
+      let samples = float32Arr;
+      if (inputRate && inputRate !== targetRate) {
+        const ratio = inputRate / targetRate;
+        const newLen = Math.round(float32Arr.length / ratio);
+        samples = new Float32Array(newLen);
+        for (let i = 0; i < newLen; i++) {
+          const idx = Math.min(float32Arr.length - 1, Math.round(i * ratio));
+          samples[i] = float32Arr[idx];
+        }
+      }
+      const buffer = new ArrayBuffer(samples.length * 2);
+      const view = new DataView(buffer);
+      for (let i = 0; i < samples.length; i++) {
+        const s = Math.max(-1, Math.min(1, samples[i]));
+        view.setInt16(i * 2, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+      }
+      const bytes = new Uint8Array(buffer);
+      let bin = '';
+      for (let i = 0; i < bytes.byteLength; i++) bin += String.fromCharCode(bytes[i]);
+      return btoa(bin);
+    }
+
+    function clearPlaybackQueue_() {
+      studio.activeSources.forEach(s => { try { s.stop(); } catch (e) {} });
+      studio.activeSources = [];
+      studio.nextPlayTime = 0;
+    }
+
+    function playPcm24kBase64_(base64Pcm) {
+      if (!base64Pcm || !studio.voiceOut) return;
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (!AudioCtx) return;
+      try {
+        if (!studio.outputCtx) studio.outputCtx = new AudioCtx({ sampleRate: 24000 });
+        if (studio.outputCtx.state === 'suspended') studio.outputCtx.resume();
+        const binStr = atob(base64Pcm);
+        const bytes = new Uint8Array(binStr.length);
+        for (let i = 0; i < binStr.length; i++) bytes[i] = binStr.charCodeAt(i);
+        const count = Math.floor(bytes.byteLength / 2);
+        if (count <= 0) return;
+        const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+        const floats = new Float32Array(count);
+        for (let i = 0; i < count; i++) floats[i] = view.getInt16(i * 2, true) / 32768.0;
+        const buf = studio.outputCtx.createBuffer(1, count, 24000);
+        buf.getChannelData(0).set(floats);
+        const src = studio.outputCtx.createBufferSource();
+        src.buffer = buf;
+        src.connect(studio.outputCtx.destination);
+        const startAt = Math.max(studio.outputCtx.currentTime + 0.015, studio.nextPlayTime || 0);
+        src.start(startAt);
+        studio.nextPlayTime = startAt + buf.duration;
+        studio.activeSources.push(src);
+        src.onended = () => {
+          const idx = studio.activeSources.indexOf(src);
+          if (idx >= 0) studio.activeSources.splice(idx, 1);
+        };
+      } catch (e) {}
+    }
+
+    function flushTurn_() {
+      const srcText = String(studio.pendingInput || '').trim();
+      const outText = String(studio.pendingOutput || '').trim();
+      studio.pendingInput = '';
+      studio.pendingOutput = '';
+      if (!srcText && !outText) return;
+
+      const langTag = studio.targetLang === 'ja' ? '🇯🇵 JP' : (studio.targetLang === 'th' ? '🇹🇭 TH' : '🇬🇧 EN');
+      const srcEl = document.getElementById('cinemaSrcText');
+      const outEl = document.getElementById('cinemaOutText');
+      if (srcEl && srcText) srcEl.innerText = '🎙️ ' + srcText;
+      if (outEl) outEl.innerText = outText || srcText;
+
+      const list = document.getElementById('studioFeedList');
+      if (list) {
+        if (studio.feedLines.length === 0) list.innerHTML = '';
+        const card = document.createElement('div');
+        card.className = 'p-2.5 rounded-xl bg-slate-950/90 border border-slate-800 space-y-1';
+        if (studio.mode === 'translate') {
+          card.innerHTML =
+            (srcText ? `<div class="text-[11px] text-slate-400">🎙️ ${escHtml_(srcText)}</div>` : '') +
+            (outText ? `<div class="text-sm font-bold text-amber-300">${langTag}: ${escHtml_(outText)}</div>` : '');
+          studio.feedLines.push((srcText ? `[🎙️ ต้นทาง] ${srcText} ➔ ` : '') + `[🌐 แปล ${studio.targetLang.toUpperCase()}] ${outText}`);
+        } else {
+          card.innerHTML = `<div class="text-sm font-semibold text-teal-200">🎙️ ${escHtml_(srcText)}</div>`;
+          studio.feedLines.push(srcText);
+        }
+        list.appendChild(card);
+        list.scrollTop = list.scrollHeight;
+      }
+
+      postToOpener_({
+        type: 'MINAMIDA_STUDIO_EVENT',
+        event: 'turn',
+        mode: studio.mode,
+        srcText: srcText,
+        outText: outText,
+        targetLang: studio.targetLang
+      });
+    }
+
+    function connectWebSocket_(overrideModel) {
+      if (!studio.apiKey || typeof WebSocket === 'undefined') return;
+      try {
+        if (studio.ws) {
+          try {
+            studio.ws._manualSwitch = true;
+            studio.ws.close();
+          } catch (e) {}
+        }
+        studio.wsSetupDone = false;
+        const ws = new WebSocket(`wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key=${encodeURIComponent(studio.apiKey)}`);
+        studio.ws = ws;
+
+        ws.onopen = () => {
+          if (studio.mode === 'translate') {
+            const activeModel = overrideModel || 'models/gemini-3.5-live-translate-preview';
+            ws.send(JSON.stringify({
+              setup: {
+                model: activeModel,
+                generationConfig: {
+                  responseModalities: ['AUDIO'],
+                  translationConfig: {
+                    targetLanguageCode: studio.targetLang,
+                    echoTargetLanguage: false
+                  }
+                },
+                inputAudioTranscription: {},
+                outputAudioTranscription: {}
+              }
+            }));
+            updateStatus_('🔄 กำลังตั้งค่าล่าม ' + studio.targetLang.toUpperCase() + '...', true);
+          } else {
+            ws.send(JSON.stringify({
+              setup: {
+                model: 'models/gemini-3.5-transcribe-live',
+                generationConfig: { responseModalities: ['TEXT'] },
+                inputAudioTranscription: { mode: 'smart' }
+              }
+            }));
+            updateStatus_('🔄 กำลังเปิด Live Transcribe...', true);
+          }
+        };
+
+        ws.onmessage = async (ev) => {
+          try {
+            const rawText = (typeof ev.data === 'string') ? ev.data : (ev.data && typeof ev.data.text === 'function' ? await ev.data.text() : '');
+            if (!rawText) return;
+            const msg = JSON.parse(rawText);
+
+            if (msg.setupComplete !== undefined) {
+              studio.wsSetupDone = true;
+              updateStatus_(studio.mode === 'translate' ? ('🟢 กำลังแปลสด ➔ ' + studio.targetLang.toUpperCase()) : '🟢 กำลังฟังสด (Live Transcribe)', true);
+            }
+
+            const sc = msg.serverContent;
+            if (!sc) return;
+
+            if (studio.mode === 'translate') {
+              if (sc.interrupted) clearPlaybackQueue_();
+              if (sc.modelTurn && Array.isArray(sc.modelTurn.parts)) {
+                sc.modelTurn.parts.forEach(part => {
+                  if (part && part.inlineData && part.inlineData.data) playPcm24kBase64_(part.inlineData.data);
+                });
+              }
+
+              const interimTxt = sc.interimInputTranscription && sc.interimInputTranscription.text;
+              const inTxt = sc.inputTranscription && sc.inputTranscription.text;
+              const outTxt = sc.outputTranscription && sc.outputTranscription.text;
+              if (inTxt) studio.pendingInput += inTxt;
+              if (outTxt) studio.pendingOutput += outTxt;
+
+              const srcPreview = (studio.pendingInput || interimTxt || '').trim();
+              const outPreview = studio.pendingOutput.trim();
+              if (srcPreview || outPreview) {
+                const srcEl = document.getElementById('cinemaSrcText');
+                const outEl = document.getElementById('cinemaOutText');
+                if (srcEl && srcPreview) srcEl.innerText = '🎙️ ' + srcPreview;
+                if (outEl && outPreview) outEl.innerText = outPreview;
+                postToOpener_({
+                  type: 'MINAMIDA_STUDIO_EVENT',
+                  event: 'interim',
+                  mode: 'translate',
+                  srcPreview: srcPreview,
+                  outPreview: outPreview,
+                  targetLang: studio.targetLang
+                });
+              }
+              if (sc.turnComplete) flushTurn_();
+            } else {
+              const interimTxt = sc.interimInputTranscription && sc.interimInputTranscription.text;
+              const finalTxt = sc.inputTranscription && sc.inputTranscription.text;
+              if (interimTxt) {
+                const outEl = document.getElementById('cinemaOutText');
+                if (outEl) outEl.innerText = interimTxt.trim();
+                postToOpener_({
+                  type: 'MINAMIDA_STUDIO_EVENT',
+                  event: 'interim',
+                  mode: 'transcribe',
+                  srcPreview: interimTxt.trim(),
+                  outPreview: ''
+                });
+              }
+              if (finalTxt && finalTxt.trim()) {
+                studio.pendingInput = finalTxt.trim();
+                studio.pendingOutput = '';
+                flushTurn_();
+              }
+            }
+          } catch (err) {}
+        };
+
+        ws.onclose = () => {
+          if (!ws._manualSwitch && studio.isRunning && studio.mode === 'translate' && !studio.wsSetupDone && !studio.modelFallbackUsed) {
+            studio.modelFallbackUsed = true;
+            connectWebSocket_('models/gemini-3.5-live-translate');
+          }
+        };
+
+        ws.onerror = () => {
+          updateStatus_('⚠️ กำลังเชื่อมต่อ Gemini Live ใหม่...', true);
+        };
+      } catch (e) {}
+    }
+
+    async function startStudioSession() {
+      if (studio.isRunning) return;
+      if (!studio.apiKey) {
+        updateStatus_('⏳ กำลังโหลด API Key...', false);
+        return;
+      }
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        updateStatus_('❌ เบราว์เซอร์ไม่รองรับไมโครโฟน', false);
+        return;
+      }
+
+      const banner = document.getElementById('gesturePromptBanner');
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (AudioCtx) {
+        try {
+          if (!studio.outputCtx) studio.outputCtx = new AudioCtx({ sampleRate: 24000 });
+          if (studio.outputCtx.state === 'suspended') await studio.outputCtx.resume();
+        } catch (e) {}
+      }
+
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        if (banner) banner.classList.add('hidden');
+
+        studio.isRunning = true;
+        studio.stream = stream;
+        studio.recSeconds = 0;
+        studio.modelFallbackUsed = false;
+        studio.pendingInput = '';
+        studio.pendingOutput = '';
+        syncStudioUi_();
+
+        const timerEl = document.getElementById('studioTimer');
+        if (timerEl) { timerEl.classList.remove('hidden'); timerEl.innerText = '00:00'; }
+        studio.recTimer = setInterval(() => {
+          studio.recSeconds++;
+          if (timerEl) {
+            const mm = String(Math.floor(studio.recSeconds / 60)).padStart(2, '0');
+            const ss = String(studio.recSeconds % 60).padStart(2, '0');
+            timerEl.innerText = `${mm}:${ss}`;
+          }
+        }, 1000);
+
+        connectWebSocket_();
+        studio.wsRenewTimer = setInterval(() => {
+          if (studio.isRunning) connectWebSocket_();
+        }, 540000);
+
+        if (AudioCtx) {
+          const ctx = new AudioCtx();
+          const source = ctx.createMediaStreamSource(stream);
+          const proc = ctx.createScriptProcessor(4096, 1, 1);
+          proc.onaudioprocess = (e) => {
+            if (!studio.isRunning || !studio.ws || studio.ws.readyState !== 1 || !studio.wsSetupDone) return;
+            const b64 = float32ToPcm16Base64_(e.inputBuffer.getChannelData(0), ctx.sampleRate);
+            studio.ws.send(JSON.stringify({
+              realtimeInput: { audio: { data: b64, mimeType: 'audio/pcm;rate=16000' } }
+            }));
+          };
+          source.connect(proc);
+          proc.connect(ctx.destination);
+          studio.inputCtx = ctx;
+          studio.processor = proc;
+        }
+      } catch (err) {
+        if (banner) banner.classList.remove('hidden');
+        updateStatus_('⚠️ กดปุ่มเปิดไมโครโฟนด้านล่าง (หรืออนุญาตไมค์ใน Chrome)', false);
+      }
+    }
+
+    function stopStudioSession(silentClose) {
+      studio.isRunning = false;
+      studio.wsSetupDone = false;
+      if (studio.recTimer) { clearInterval(studio.recTimer); studio.recTimer = null; }
+      if (studio.wsRenewTimer) { clearInterval(studio.wsRenewTimer); studio.wsRenewTimer = null; }
+      if (studio.processor) { try { studio.processor.disconnect(); } catch (e) {} studio.processor = null; }
+      if (studio.inputCtx) { try { studio.inputCtx.close(); } catch (e) {} studio.inputCtx = null; }
+      if (studio.ws) {
+        try {
+          studio.ws._manualSwitch = true;
+          if (studio.ws.readyState === 1) studio.ws.send(JSON.stringify({ realtimeInput: { audioStreamEnd: true } }));
+          studio.ws.close();
+        } catch (e) {}
+        studio.ws = null;
+      }
+      if (studio.stream) {
+        try { studio.stream.getTracks().forEach(t => t.stop()); } catch (e) {}
+        studio.stream = null;
+      }
+      clearPlaybackQueue_();
+      flushTurn_();
+      syncStudioUi_();
+      updateStatus_('⏸️ หยุดชั่วคราว', false);
+      if (!silentClose) {
+        postToOpener_({ type: 'MINAMIDA_STUDIO_EVENT', event: 'stopped', mode: studio.mode });
+      }
+    }
+
+    function toggleStudioRunning() {
+      if (studio.isRunning) stopStudioSession();
+      else startStudioSession();
+    }
+
+    function switchStudioMode(nextMode) {
+      studio.mode = nextMode === 'transcribe' ? 'transcribe' : 'translate';
+      syncStudioUi_();
+      if (studio.isRunning) {
+        flushTurn_();
+        clearPlaybackQueue_();
+        connectWebSocket_();
+      }
+    }
+
+    function onChangeStudioLang() {
+      const sel = document.getElementById('studioTargetLang');
+      if (sel) studio.targetLang = sel.value || 'ja';
+      if (studio.isRunning && studio.mode === 'translate') {
+        flushTurn_();
+        clearPlaybackQueue_();
+        connectWebSocket_();
+      }
+    }
+
+    function swapStudioLang() {
+      const sel = document.getElementById('studioTargetLang');
+      if (!sel) return;
+      sel.value = (sel.value === 'ja') ? 'th' : 'ja';
+      studio.targetLang = sel.value;
+      onChangeStudioLang();
+    }
+
+    function copyStudioFeed() {
+      const txt = studio.feedLines.join('\n');
+      if (!txt) return;
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(txt).catch(() => {});
+      }
+    }
+
+    function fetchKeyViaJsonp_() {
+      if (studio.apiKey) return;
+      const cbName = 'studio_key_cb_' + Date.now();
+      window[cbName] = function(res) {
+        try { delete window[cbName]; } catch (e) {}
+        if (res && res.apiKey && !studio.apiKey) {
+          studio.apiKey = res.apiKey;
+          if (!studio.autoStartAttempted) {
+            studio.autoStartAttempted = true;
+            startStudioSession();
+          }
+        }
+      };
+      const s = document.createElement('script');
+      s.src = `${GAS_API_URL}?action=getGeminiApiKey&callback=${cbName}&_t=${Date.now()}`;
+      document.body.appendChild(s);
+    }
+
+    window.addEventListener('message', function(ev) {
+      const d = ev.data;
+      if (!d || typeof d !== 'object') return;
+      if (d.type === 'MINAMIDA_STUDIO_CONFIG') {
+        if (d.apiKey) studio.apiKey = d.apiKey;
+        if (d.mode) studio.mode = d.mode === 'transcribe' ? 'transcribe' : 'translate';
+        if (d.targetLang) studio.targetLang = d.targetLang;
+        if (typeof d.voiceOut === 'boolean') studio.voiceOut = d.voiceOut;
+        if (d.meetingTitle) {
+          const t = document.getElementById('studioTitle');
+          if (t) t.innerText = 'Minamida Live AI Studio — ' + d.meetingTitle;
+        }
+        syncStudioUi_();
+        postToOpener_({ type: 'MINAMIDA_STUDIO_ACK' });
+        if (studio.apiKey && !studio.isRunning && !studio.autoStartAttempted) {
+          studio.autoStartAttempted = true;
+          startStudioSession();
+        }
+      } else if (d.type === 'MINAMIDA_STUDIO_SET_LANG' && d.targetLang) {
+        studio.targetLang = d.targetLang;
+        syncStudioUi_();
+        if (studio.isRunning && studio.mode === 'translate') {
+          flushTurn_();
+          clearPlaybackQueue_();
+          connectWebSocket_();
+        }
+      } else if (d.type === 'MINAMIDA_STUDIO_SET_VOICE' && typeof d.voiceOut === 'boolean') {
+        setStudioVoiceOut(d.voiceOut);
+      } else if (d.type === 'MINAMIDA_STUDIO_STOP') {
+        stopStudioSession(true);
+      }
+    });
+
+    window.addEventListener('beforeunload', function() {
+      stopStudioSession(false);
+    });
+
+    // Boot
+    syncStudioUi_();
+    postToOpener_({ type: 'MINAMIDA_STUDIO_READY' });
+    setTimeout(function() {
+      if (!studio.apiKey) fetchKeyViaJsonp_();
+    }, 1500);
+  </script>
+</body>
+</html>

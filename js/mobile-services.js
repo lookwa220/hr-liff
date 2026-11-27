@@ -3429,6 +3429,25 @@ Strict Rules:
       } catch (err) {}
     }
 
+    function setMobileTranslateOutputMode(enableVoice) {
+      const voiceOn = !!enableVoice;
+      const chk = document.getElementById('chkMobTranslateVoiceOut');
+      if (chk) chk.checked = voiceOn;
+
+      const bVoice = document.getElementById('btnMobModeVoiceSub');
+      const bSub = document.getElementById('btnMobModeSubOnly');
+      if (bVoice && bSub) {
+        bVoice.className = voiceOn
+          ? 'flex-1 py-1 px-2 rounded-lg bg-indigo-500 text-white text-[10px] font-bold transition'
+          : 'flex-1 py-1 px-2 rounded-lg bg-slate-800 text-slate-300 border border-white/15 text-[10px] font-bold transition';
+        bSub.className = !voiceOn
+          ? 'flex-1 py-1 px-2 rounded-lg bg-amber-500 text-slate-950 text-[10px] font-extrabold transition'
+          : 'flex-1 py-1 px-2 rounded-lg bg-slate-800 text-slate-300 border border-white/15 text-[10px] font-bold transition';
+      }
+      if (!voiceOn) clearMobileTranslatePlaybackQueue_();
+    }
+    window.setMobileTranslateOutputMode = setMobileTranslateOutputMode;
+
     function flushMobileTranslateTurn_() {
       const tr = getMobileTranslatorState_();
       const srcText = String(tr.pendingInput || '').trim();
@@ -3443,6 +3462,13 @@ Strict Rules:
       const sel = document.getElementById('mobTranslateTargetLang');
       const targetLang = sel ? sel.value : 'ja';
       const langTag = targetLang === 'ja' ? '🇯🇵 JP' : (targetLang === 'th' ? '🇹🇭 TH' : '🇬🇧 EN');
+
+      const cBox = document.getElementById('mobLiveCinemaBox');
+      const cSrc = document.getElementById('mobLiveCinemaSrc');
+      const cOut = document.getElementById('mobLiveCinemaOut');
+      if (cBox) cBox.classList.remove('hidden');
+      if (cSrc && srcText) cSrc.innerText = '🎙️ ' + srcText;
+      if (cOut) cOut.innerText = outText || srcText;
 
       const feed = document.getElementById('mobLiveTranslateFeed');
       if (feed) {
@@ -3533,15 +3559,23 @@ Strict Rules:
             const interimTxt = sc.interimInputTranscription && sc.interimInputTranscription.text;
             const inTxt = sc.inputTranscription && sc.inputTranscription.text;
             const outTxt = sc.outputTranscription && sc.outputTranscription.text;
-            if (inTxt) tr.pendingInput += (tr.pendingInput ? ' ' : '') + inTxt.trim();
-            if (outTxt) tr.pendingOutput += (tr.pendingOutput ? ' ' : '') + outTxt.trim();
+            if (inTxt) tr.pendingInput += inTxt;
+            if (outTxt) tr.pendingOutput += outTxt;
 
-            const ib = document.getElementById('mobLiveTranslateInterim');
-            if (ib && (interimTxt || tr.pendingInput || tr.pendingOutput)) {
-              ib.classList.remove('hidden');
-              const pIn = tr.pendingInput || (interimTxt ? interimTxt.trim() : '');
-              const pOut = tr.pendingOutput || '';
-              ib.innerText = (pIn ? '🎙️ ' + pIn : '') + (pOut ? '  ➔  🌐 ' + pOut : '');
+            const pIn = (tr.pendingInput || interimTxt || '').trim();
+            const pOut = tr.pendingOutput.trim();
+            if (pIn || pOut) {
+              const cBox = document.getElementById('mobLiveCinemaBox');
+              const cSrc = document.getElementById('mobLiveCinemaSrc');
+              const cOut = document.getElementById('mobLiveCinemaOut');
+              if (cBox) cBox.classList.remove('hidden');
+              if (cSrc && pIn) cSrc.innerText = '🎙️ ' + pIn;
+              if (cOut && pOut) cOut.innerText = pOut;
+              const ib = document.getElementById('mobLiveTranslateInterim');
+              if (ib) {
+                ib.classList.remove('hidden');
+                ib.innerText = (pIn ? '🎙️ ' + pIn : '') + (pOut ? '  ➔  🌐 ' + pOut : '');
+              }
             }
 
             if (sc.turnComplete) flushMobileTranslateTurn_();
